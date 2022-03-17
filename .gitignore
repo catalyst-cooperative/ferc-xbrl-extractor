@@ -9,7 +9,6 @@
 .cache/
 .pytest_cache/*
 .DS_Store
-build/
 **/*xbrl_extract.egg-info/
 dist/
 .eggs/
