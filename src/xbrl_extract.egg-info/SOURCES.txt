@@ -1,7 +1,0 @@
-README.md
-setup.py
-src/xbrl_extract.egg-info/PKG-INFO
-src/xbrl_extract.egg-info/SOURCES.txt
-src/xbrl_extract.egg-info/dependency_links.txt
-src/xbrl_extract.egg-info/requires.txt
-src/xbrl_extract.egg-info/top_level.txt

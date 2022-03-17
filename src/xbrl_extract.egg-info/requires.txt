@@ -1,2 +1,0 @@
-pydantic<2,>=1.9
-arelle@ git+https://github.com/Arelle/Arelle.git@master
