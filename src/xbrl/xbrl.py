@@ -27,7 +27,7 @@ def temp_get_table():
     tax = Taxonomy.from_path(xbrl_tax_path)
     instance_path = "/home/zach/catalyst/xbrl/2011/2011/VirginiaElectricAndPowerCompany-186-2011Q4F1.xbrl"
 
-    return FactTable(tax.get_page(402)[1].concepts.child_concepts[0], instance_path)
+    return FactTable(tax, 402, instance_path)
 
 
 def _get_fact_dict(instance_path: str):
@@ -59,57 +59,66 @@ def _get_facts(key: str, fact_dict: Dict[str, Set[ModelFact]], axes: List[str]):
 class FactTable(object):
     """Top level fact table."""
 
-    def __init__(self, root_concept: Concept, instance_path: str):
+    def __init__(self, taxonomy: Taxonomy, page: int, instance_path: str):
         """Construct from an abstract and fact list."""
-        self.name = root_concept.name
+        page = taxonomy.get_page(page)
+        self.name = page[0].concepts.child_concepts[0].name
 
         self.axes: Dict[str, Axis] = {}
-        self.table = None
-        for child_concept in root_concept.child_concepts:
-            if child_concept.type == "Axis":
-                self.axes[child_concept.name] = Axis(child_concept)
-            elif child_concept.name.endswith("LineItems"):
-                self.table = LineItems(child_concept,
-                                       _get_fact_dict(instance_path),
-                                       list(self.axes.keys()))
+        self.tables = {}
+        for schedule in page:
+            root_concept = schedule.concepts.child_concepts[0]
+            for child_concept in root_concept.child_concepts:
+                if child_concept.type == "Axis" and child_concept.name not in self.axes:
+                    self.axes[child_concept.name] = Axis(child_concept)
+                elif child_concept.name.endswith("LineItems"):
+                    self.tables.append[schedule.definition] = LineItems(
+                        child_concept,
+                        _get_fact_dict(instance_path),
+                        list(self.axes.keys()))
 
-        if not self.table:
+        if len(page) != len(self.tables):
             raise TypeError("Error processing XBRL: No LineItems.")
 
         for axis_name, axis in self.axes.items():
             if not axis.intialized:
                 axis_key = axis_name.rstrip("Axis")
-                axis.process_values(self.table.items.pop(axis_key))
+                for table in self.tables.values():
+                    if axis_key in table.items:
+                        axis.process_values(table.items.pop(axis_key))
 
-    def to_dataframe(self):
+    def to_dataframes(self):
+        return [self.to_dataframe(key) for key in self.tables.keys()]
+
+    def to_dataframe(self, table_key: str):
         """Convert fact table to dataframe."""
-        df, indices = self.initialize_dataframe()
+        df, indices = self.initialize_dataframe(table_key)
 
-        for key, values in self.table.get_values().items():
+        for key, values in self.tables[table_key].get_values().items():
             indices = {key: '' for key in indices.keys()}
             for value in values:
                 indices["start_date"] = value.start_date
-                indices["end_date"] = value.start_date
+                indices["end_date"] = value.end_date
+                indices["instant"] = value.instant
                 for axis, val in value.dims.items():
-                    indices[axis] = self.axes[axis].allowable[val]
+                    indices[axis] = self.axes[axis].get_value(val)
 
                 df.loc[tuple(indices.values()), key] = value.value
 
         return df
 
-    def initialize_dataframe(self):
-        """Initialize dataframe."""
+    def initialize_dataframe(self, table_key: str):
         cols = {"start_date": np.array([], np.datetime64),
-                "end_date": np.array([], np.datetime64)}
+                "end_date": np.array([], np.datetime64),
+                "instant": np.array([], np.bool8)}
 
         for key, axis in self.axes.items():
             cols[key] = pd.Series([], dtype="string")
 
-        cols.update(self.table.get_cols())
-
+        cols.update(self.tables[table_key].get_cols())
         df = pd.DataFrame(cols)
 
-        indices = {"start_date": None, "end_date": None}
+        indices = {"start_date": None, "end_date": None, "instant": None}
         indices.update({axis: None for axis in self.axes.keys()})
 
         return df.set_index(list(indices.keys())), indices
@@ -135,6 +144,12 @@ class Axis(object):
         self.allowable = {val.dims[self.name]: val.value for val in fact.values
                           if val.dims.get(self.name)}
         self.intialized = True
+
+    def get_value(self, key: str):
+        if not self.intialized:
+            return key
+
+        return self.allowable[key]
 
 
 class LineItems(object):
@@ -195,7 +210,6 @@ class Fact(object):
     ):
         """Get all instances of fact."""
         self.name = concept.name
-        print(concept.type)
         self.dtype = DTYPE_MAP[concept.type]
         if fact_dict.get(self.name):
             self.values = [Value(fact, self.dtype)
@@ -220,9 +234,12 @@ class Value(object):
         self.value = dtype(fact.value)
         self.dims = {str(qname): dim.propertyView[1]
                      for qname, dim in fact.context.qnameDims.items()}
+
         if fact.context.isInstantPeriod:
-            self.start_date = fact.context.instantDatetime.timestamp()
+            self.start_date = 0
             self.end_date = 0
+            self.instant = True
         else:
             self.start_date = fact.context.startDatetime.timestamp()
             self.end_date = fact.context.endDatetime.timestamp()
+            self.instant = False
