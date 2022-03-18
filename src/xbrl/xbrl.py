@@ -3,10 +3,10 @@ from typing import Dict, Set, Callable, List
 import pandas as pd
 import numpy as np
 
-from arelle import Cntlr, ModelManager, ModelXbrl
+from arelle import CntlrCmdLine, ModelManager, ModelXbrl
 from arelle.ModelInstanceObject import ModelFact
 
-from .xbrl_taxonomy import Taxonomy, Concept
+from .xbrl_taxonomy import Taxonomy, Concept, LinkRole
 
 
 DTYPE_MAP = {
@@ -21,18 +21,11 @@ DTYPE_MAP = {
 }
 
 
-def temp_get_table():
-    xbrl_tax_path: str = "https://eCollection.ferc.gov/taxonomy/form1/" \
-                         "2022-01-01/form/form1/form-1_2022-01-01.xsd"
-    tax = Taxonomy.from_path(xbrl_tax_path)
-    instance_path = "/home/zach/catalyst/xbrl/2011/2011/VirginiaElectricAndPowerCompany-186-2011Q4F1.xbrl"
-
-    return FactTable(tax, 402, instance_path)
-
-
 def _get_fact_dict(instance_path: str):
     """Temporary function used for testing."""
-    model_manager = ModelManager.initialize(Cntlr.Cntlr())
+    cntlr = CntlrCmdLine.CntlrCmdLine()
+    cntlr.startLogging(logFileName="logToPrint")
+    model_manager = ModelManager.initialize(cntlr)
     xbrl = ModelXbrl.load(model_manager, instance_path)
     fd = {str(qname): fact for qname, fact in xbrl.factsByQname.items()}
 
@@ -56,13 +49,27 @@ def _get_facts(key: str, fact_dict: Dict[str, Set[ModelFact]], axes: List[str]):
     return facts
 
 
+class Instance(object):
+    def __init__(self, taxonomy: Taxonomy, instance_path: str, entity_id: int):
+        self.taxonomy = taxonomy
+        self.facts = _get_fact_dict(instance_path)
+        self.entitiy_id = entity_id
+
+    def get_fact_table(self, page: int):
+        return FactTable(self.taxonomy.get_page(page), self.facts, self.entitiy_id)
+
+
 class FactTable(object):
     """Top level fact table."""
 
-    def __init__(self, taxonomy: Taxonomy, page: int, instance_path: str):
+    def __init__(
+        self,
+        page: List[LinkRole],
+        fact_dict: Dict[str, Set[ModelFact]],
+        entity_id: int
+    ):
         """Construct from an abstract and fact list."""
-        page = taxonomy.get_page(page)
-        self.name = page[0].concepts.child_concepts[0].name
+        self.entity_id = entity_id
 
         self.axes: Dict[str, Axis] = {}
         self.tables = {}
@@ -72,9 +79,9 @@ class FactTable(object):
                 if child_concept.type == "Axis" and child_concept.name not in self.axes:
                     self.axes[child_concept.name] = Axis(child_concept)
                 elif child_concept.name.endswith("LineItems"):
-                    self.tables.append[schedule.definition] = LineItems(
+                    self.tables[schedule.definition] = LineItems(
                         child_concept,
-                        _get_fact_dict(instance_path),
+                        fact_dict,
                         list(self.axes.keys()))
 
         if len(page) != len(self.tables):
@@ -88,14 +95,15 @@ class FactTable(object):
                         axis.process_values(table.items.pop(axis_key))
 
     def to_dataframes(self):
-        return [self.to_dataframe(key) for key in self.tables.keys()]
+        return {key: self.to_dataframe(key) for key in self.tables.keys()}
 
     def to_dataframe(self, table_key: str):
         """Convert fact table to dataframe."""
         df, indices = self.initialize_dataframe(table_key)
 
         for key, values in self.tables[table_key].get_values().items():
-            indices = {key: '' for key in indices.keys()}
+            indices.update({key: '' for key in indices.keys()
+                            if key != "entity_id"})
             for value in values:
                 indices["start_date"] = value.start_date
                 indices["end_date"] = value.end_date
@@ -108,7 +116,8 @@ class FactTable(object):
         return df
 
     def initialize_dataframe(self, table_key: str):
-        cols = {"start_date": np.array([], np.datetime64),
+        cols = {"entity_id": np.array([], np.int64),
+                "start_date": np.array([], np.datetime64),
                 "end_date": np.array([], np.datetime64),
                 "instant": np.array([], np.bool8)}
 
@@ -118,7 +127,13 @@ class FactTable(object):
         cols.update(self.tables[table_key].get_cols())
         df = pd.DataFrame(cols)
 
-        indices = {"start_date": None, "end_date": None, "instant": None}
+        indices = {
+            "entity_id": self.entity_id,
+            "start_date": None,
+            "end_date": None,
+            "instant": None
+        }
+
         indices.update({axis: None for axis in self.axes.keys()})
 
         return df.set_index(list(indices.keys())), indices
@@ -146,7 +161,7 @@ class Axis(object):
         self.intialized = True
 
     def get_value(self, key: str):
-        if not self.intialized:
+        if key not in self.allowable:
             return key
 
         return self.allowable[key]
@@ -231,7 +246,11 @@ class Value(object):
 
     def __init__(self, fact: ModelFact, dtype: Callable):
         """Extract relevant data."""
-        self.value = dtype(fact.value)
+        try:
+            self.value = dtype(fact.value)
+        except TypeError:
+            self.value = dtype()
+
         self.dims = {str(qname): dim.propertyView[1]
                      for qname, dim in fact.context.qnameDims.items()}
 
