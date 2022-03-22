@@ -6,7 +6,7 @@ import numpy as np
 
 import sqlalchemy as sa
 
-from arelle import CntlrCmdLine, ModelManager, ModelXbrl
+from arelle import Cntlr, ModelManager, ModelXbrl
 from arelle.ModelInstanceObject import ModelFact
 
 from .taxonomy import Taxonomy, Concept, LinkRole
@@ -30,7 +30,7 @@ DTYPE_MAP = {
 
 def _get_fact_dict(instance_path: str):
     """Temporary function used for testing."""
-    cntlr = CntlrCmdLine.CntlrCmdLine()
+    cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
     xbrl = ModelXbrl.load(model_manager, instance_path)
@@ -59,11 +59,24 @@ def _get_facts(key: str, fact_dict: Dict[str, Set[ModelFact]], axes: List[str]):
 class Instance(object):
     """Class to encapsulate a single XBRL filing."""
 
-    def __init__(self, taxonomy: Taxonomy, instance_path: str, entity_id: int):
+    def __init__(
+        self,
+        taxonomy: Taxonomy,
+        instance_path: str,
+        entity_id=None,
+        entity_id_fact=None
+    ):
         """Built from taxonomy, path to instance, and entity_id"""
         self.taxonomy = taxonomy
         self.facts = _get_fact_dict(instance_path)
-        self.entity_id = entity_id
+
+        if entity_id_fact:
+            # Assume there should only be one fact containing entity id
+            self.entity_id = self.facts[entity_id_fact].pop().value
+        elif entity_id:
+            self.entity_id = entity_id
+        else:
+            self.entity_id = 0
 
     def get_tables(self):
         """Extract instance to dictionary of dataframes."""
@@ -73,19 +86,18 @@ class Instance(object):
 
         for role in self.taxonomy.roles:
             match = page_pattern.match(role.definition)
+
+            # Skip if page has already been processed
             if match.group(0) in pages:
                 continue
 
             pages.append(match.group(0))
 
-            try:
-                fact_table = FactTable(
-                    self.taxonomy.get_page(int(match.group(1))),
-                    self.facts,
-                    self.entity_id
-                )
-            except TypeError:
-                continue
+            fact_table = FactTable(
+                self.taxonomy.get_page(int(match.group(1))),
+                self.facts,
+                self.entity_id
+            )
 
             dfs.update(fact_table.to_dataframes())
 
@@ -122,9 +134,6 @@ class FactTable(object):
                         fact_dict,
                         list(self.axes.keys()))
 
-        if len(page) != len(self.tables):
-            raise TypeError("Error processing XBRL: No LineItems.")
-
         for axis_name, axis in self.axes.items():
             if not axis.intialized:
                 axis_key = axis_name.rstrip("Axis")
@@ -155,7 +164,7 @@ class FactTable(object):
 
     def initialize_dataframe(self, table_key: str):
         """Create dataframe based on types in table."""
-        cols = {"entity_id": np.array([], np.int64),
+        cols = {"entity_id": np.array([], type(self.entity_id)),
                 "start_date": np.array([], np.datetime64),
                 "end_date": np.array([], np.datetime64),
                 "instant": np.array([], np.bool8)}
@@ -287,10 +296,7 @@ class Value(object):
 
     def __init__(self, fact: ModelFact, dtype: Callable):
         """Extract relevant data."""
-        try:
-            self.value = dtype(fact.value) if fact.value != '' else dtype()
-        except ValueError:
-            self.value = dtype()
+        self.value = dtype(fact.value) if fact.value else dtype()
 
         self.dims = {str(qname): dim.propertyView[1]
                      for qname, dim in fact.context.qnameDims.items()}

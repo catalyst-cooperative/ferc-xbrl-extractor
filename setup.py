@@ -11,6 +11,11 @@ setup(
     author="Catalyst Cooperative",
     description="Tool for extracting data from xbrl filings to dataframes",
     python_requires=">=3.8,<3.11",
+    entry_points={
+        "console_scripts": [
+            "xbrl_extract = xbrl_extract.cli:main",
+        ]
+    },
     license="MIT",
     install_requires=[
         "pydantic>=1.9,<2",

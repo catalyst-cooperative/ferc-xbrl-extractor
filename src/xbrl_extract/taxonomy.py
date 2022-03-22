@@ -90,7 +90,9 @@ class Taxonomy(BaseModel):
 
     @classmethod
     def from_path(cls, path: str):
-        model_manager = ModelManager.initialize(Cntlr.Cntlr())
+        cntlr = Cntlr.Cntlr()
+        cntlr.startLogging(logFileName="logToPrint")
+        model_manager = ModelManager.initialize(cntlr)
         xbrl = ModelXbrl.load(model_manager, path)
         view = ViewRelationshipSet(xbrl, "taxonomy.json", "roles", None, None, None)
         view.view(XbrlConst.parentChild, None, None, None)
