@@ -2,7 +2,7 @@ name: xbrl-extract
 channels:
  - conda-forge
 dependencies:
- - pydantic >= 1.9
+ - jupyterlab ~= 3.0
  - pip>=21.0,<22
  - pip:
     - git+https://github.com/Arelle/Arelle.git@master

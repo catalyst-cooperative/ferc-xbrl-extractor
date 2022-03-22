@@ -1,5 +1,5 @@
 """XBRL prototype structures."""
-from typing import Dict, ForwardRef, List, Optional, Set
+from typing import ForwardRef, List, Optional
 
 from arelle.ModelInstanceObject import ModelFact
 from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
@@ -77,12 +77,10 @@ class Taxonomy(BaseModel):
         taxonomy = [LinkRole.from_list(role) for role in roles]
         return taxonomy
 
-    def get_page(self, page_num: int, section: str = None) -> List[LinkRole]:
+    def get_page(self, page_num: int, section: str = '') -> List[LinkRole]:
         """Helper to get tables from page."""
         roles = []
-        page_id = str(page_num).zfill(3)
-        if section:
-            page_id += section
+        page_id = f"{str(page_num).zfill(3)}{section}"
 
         for role in self.roles:
             if role.definition.startswith(page_id):

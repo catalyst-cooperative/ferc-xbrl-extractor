@@ -1,12 +1,15 @@
 """XBRL extractor."""
+import re
 from typing import Dict, Set, Callable, List
 import pandas as pd
 import numpy as np
 
+import sqlalchemy as sa
+
 from arelle import CntlrCmdLine, ModelManager, ModelXbrl
 from arelle.ModelInstanceObject import ModelFact
 
-from .xbrl_taxonomy import Taxonomy, Concept, LinkRole
+from .taxonomy import Taxonomy, Concept, LinkRole
 
 
 DTYPE_MAP = {
@@ -18,6 +21,10 @@ DTYPE_MAP = {
     "Monetary": np.int64,
     "PerUnit": np.float64,
     "Energy": np.int64,
+    "Date": str,
+    "FormType": str,
+    "ReportPeriod": str,
+    "Default": str,
 }
 
 
@@ -50,13 +57,44 @@ def _get_facts(key: str, fact_dict: Dict[str, Set[ModelFact]], axes: List[str]):
 
 
 class Instance(object):
+    """Class to encapsulate a single XBRL filing."""
+
     def __init__(self, taxonomy: Taxonomy, instance_path: str, entity_id: int):
+        """Built from taxonomy, path to instance, and entity_id"""
         self.taxonomy = taxonomy
         self.facts = _get_fact_dict(instance_path)
-        self.entitiy_id = entity_id
+        self.entity_id = entity_id
 
-    def get_fact_table(self, page: int):
-        return FactTable(self.taxonomy.get_page(page), self.facts, self.entitiy_id)
+    def get_tables(self):
+        """Extract instance to dictionary of dataframes."""
+        page_pattern = re.compile("^(\d+)([a-z]?)")
+        pages = []
+        dfs = {}
+
+        for role in self.taxonomy.roles:
+            match = page_pattern.match(role.definition)
+            if match.group(0) in pages:
+                continue
+
+            pages.append(match.group(0))
+
+            try:
+                fact_table = FactTable(
+                    self.taxonomy.get_page(int(match.group(1))),
+                    self.facts,
+                    self.entity_id
+                )
+            except TypeError:
+                continue
+
+            dfs.update(fact_table.to_dataframes())
+
+        return dfs
+
+    def to_sql(self, engine: sa.engine.Engine):
+        """Save instance to a SQL database."""
+        for key, df in self.get_tables().items():
+            df.to_sql(key, engine, if_exists='append')
 
 
 class FactTable(object):
@@ -116,6 +154,7 @@ class FactTable(object):
         return df
 
     def initialize_dataframe(self, table_key: str):
+        """Create dataframe based on types in table."""
         cols = {"entity_id": np.array([], np.int64),
                 "start_date": np.array([], np.datetime64),
                 "end_date": np.array([], np.datetime64),
@@ -161,6 +200,7 @@ class Axis(object):
         self.intialized = True
 
     def get_value(self, key: str):
+        """Get the value associated with the axis."""
         if key not in self.allowable:
             return key
 
@@ -225,7 +265,8 @@ class Fact(object):
     ):
         """Get all instances of fact."""
         self.name = concept.name
-        self.dtype = DTYPE_MAP[concept.type]
+        self.dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
+            else DTYPE_MAP["Default"]
         if fact_dict.get(self.name):
             self.values = [Value(fact, self.dtype)
                            for fact in _get_facts(self.name, fact_dict, axes)]
@@ -247,8 +288,8 @@ class Value(object):
     def __init__(self, fact: ModelFact, dtype: Callable):
         """Extract relevant data."""
         try:
-            self.value = dtype(fact.value)
-        except TypeError:
+            self.value = dtype(fact.value) if fact.value != '' else dtype()
+        except ValueError:
             self.value = dtype()
 
         self.dims = {str(qname): dim.propertyView[1]
