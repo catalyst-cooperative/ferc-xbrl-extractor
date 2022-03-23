@@ -1,15 +1,15 @@
 """XBRL extractor."""
-import re
-from typing import Dict, Set, Callable, List
+from typing import Dict, Callable, List
 import pandas as pd
 import numpy as np
 
 import sqlalchemy as sa
 
-from arelle import Cntlr, ModelManager, ModelXbrl
 from arelle.ModelInstanceObject import ModelFact
+from lxml import etree
 
 from .taxonomy import Taxonomy, Concept, LinkRole
+from .arelle_interface import InstanceFacts
 
 
 DTYPE_MAP = {
@@ -28,34 +28,6 @@ DTYPE_MAP = {
 }
 
 
-def _get_fact_dict(instance_path: str):
-    """Temporary function used for testing."""
-    cntlr = Cntlr.Cntlr()
-    cntlr.startLogging(logFileName="logToPrint")
-    model_manager = ModelManager.initialize(cntlr)
-    xbrl = ModelXbrl.load(model_manager, instance_path)
-    fd = {str(qname): fact for qname, fact in xbrl.factsByQname.items()}
-
-    return fd
-
-
-def _verify_dimensions(fact: ModelFact, axes: List[str]):
-    for dim in fact.context.qnameDims.keys():
-        if str(dim) not in axes:
-            return False
-
-    return True
-
-
-def _get_facts(key: str, fact_dict: Dict[str, Set[ModelFact]], axes: List[str]):
-    """Get facts from fact dict that are in dimensions."""
-    facts = fact_dict.get(key)
-
-    facts = [fact for fact in facts if _verify_dimensions(fact, axes)]
-
-    return facts
-
-
 class Instance(object):
     """Class to encapsulate a single XBRL filing."""
 
@@ -68,7 +40,7 @@ class Instance(object):
     ):
         """Built from taxonomy, path to instance, and entity_id"""
         self.taxonomy = taxonomy
-        self.facts = _get_fact_dict(instance_path)
+        self.facts = InstanceFacts(instance_path)
 
         if entity_id_fact:
             # Assume there should only be one fact containing entity id
@@ -80,26 +52,16 @@ class Instance(object):
 
     def get_tables(self):
         """Extract instance to dictionary of dataframes."""
-        page_pattern = re.compile("^(\d+)([a-z]?)")
-        pages = []
         dfs = {}
 
         for role in self.taxonomy.roles:
-            match = page_pattern.match(role.definition)
-
-            # Skip if page has already been processed
-            if match.group(0) in pages:
-                continue
-
-            pages.append(match.group(0))
-
             fact_table = FactTable(
-                self.taxonomy.get_page(int(match.group(1))),
+                role,
                 self.facts,
                 self.entity_id
             )
 
-            dfs.update(fact_table.to_dataframes())
+            dfs.update(fact_table.to_dataframe())
 
         return dfs
 
@@ -114,41 +76,34 @@ class FactTable(object):
 
     def __init__(
         self,
-        page: List[LinkRole],
-        fact_dict: Dict[str, Set[ModelFact]],
+        schedule: LinkRole,
+        facts: InstanceFacts,
         entity_id: int
     ):
         """Construct from an abstract and fact list."""
         self.entity_id = entity_id
-
+        self.name = schedule.definition
         self.axes: Dict[str, Axis] = {}
-        self.tables = {}
-        for schedule in page:
-            root_concept = schedule.concepts.child_concepts[0]
-            for child_concept in root_concept.child_concepts:
-                if child_concept.type == "Axis" and child_concept.name not in self.axes:
-                    self.axes[child_concept.name] = Axis(child_concept)
-                elif child_concept.name.endswith("LineItems"):
-                    self.tables[schedule.definition] = LineItems(
-                        child_concept,
-                        fact_dict,
-                        list(self.axes.keys()))
+        self.table = None
 
-        for axis_name, axis in self.axes.items():
-            if not axis.intialized:
-                axis_key = axis_name.rstrip("Axis")
-                for table in self.tables.values():
-                    if axis_key in table.items:
-                        axis.process_values(table.items.pop(axis_key))
+        root_concept = schedule.concepts.child_concepts[0]
+        for child_concept in root_concept.child_concepts:
+            if child_concept.type == "Axis":
+                self.axes[child_concept.name] = Axis(child_concept)
+            elif child_concept.name.endswith("LineItems"):
+                self.table = LineItems(
+                    child_concept,
+                    facts,
+                    list(self.axes.keys()))
 
-    def to_dataframes(self):
-        return {key: self.to_dataframe(key) for key in self.tables.keys()}
-
-    def to_dataframe(self, table_key: str):
+    def to_dataframe(self):
         """Convert fact table to dataframe."""
-        df, indices = self.initialize_dataframe(table_key)
+        if not self.table:
+            return {}
 
-        for key, values in self.tables[table_key].get_values().items():
+        df, indices = self.initialize_dataframe()
+
+        for key, values in self.table.get_values().items():
             indices.update({key: '' for key in indices.keys()
                             if key != "entity_id"})
             for value in values:
@@ -160,19 +115,19 @@ class FactTable(object):
 
                 df.loc[tuple(indices.values()), key] = value.value
 
-        return df
+        return {self.name: df}
 
-    def initialize_dataframe(self, table_key: str):
+    def initialize_dataframe(self):
         """Create dataframe based on types in table."""
         cols = {"entity_id": np.array([], type(self.entity_id)),
-                "start_date": np.array([], np.datetime64),
-                "end_date": np.array([], np.datetime64),
+                "start_date": np.array([], str),
+                "end_date": np.array([], str),
                 "instant": np.array([], np.bool8)}
 
         for key, axis in self.axes.items():
             cols[key] = pd.Series([], dtype="string")
 
-        cols.update(self.tables[table_key].get_cols())
+        cols.update(self.table.get_cols())
         df = pd.DataFrame(cols)
 
         indices = {
@@ -193,27 +148,26 @@ class Axis(object):
     def __init__(self, concept: Concept):
         """Axis concept."""
         self.name = concept.name
-        self.allowable = {}
-        self.intialized = False
+        self.domains = {}
 
         if len(concept.child_concepts) > 0:
-            self.intialized = True
             domain = concept.child_concepts[0]
             for member in domain.child_concepts:
-                self.allowable[member.name] = member.name
-
-    def process_values(self, fact: 'Fact'):
-        """Process values contained in axis."""
-        self.allowable = {val.dims[self.name]: val.value for val in fact.values
-                          if val.dims.get(self.name)}
-        self.intialized = True
+                self.domains[member.name] = member.name
 
     def get_value(self, key: str):
         """Get the value associated with the axis."""
-        if key not in self.allowable:
-            return key
+        if key not in self.domains:
+            # Check if key is inline xml
+            try:
+                # TODO: This is removing the ferc prefix before parsing
+                # This should be made more general
+                element = etree.fromstring(key.replace('ferc:', ''))
+                return element.text
+            except etree.XMLSyntaxError:
+                return key
 
-        return self.allowable[key]
+        return self.domains[key]
 
 
 class LineItems(object):
@@ -222,12 +176,12 @@ class LineItems(object):
     def __init__(
         self,
         concept: Concept,
-        fact_dict: Dict[str, Set[ModelFact]],
+        facts: InstanceFacts,
         axes: List[str]
     ):
         """Create line items."""
         self.name = concept.name
-        self.items = {child_concept.name: LineItem.from_concept(child_concept, fact_dict, axes)
+        self.items = {child_concept.name: LineItem.from_concept(child_concept, facts, axes)
                       for child_concept in concept.child_concepts}
 
     def get_cols(self):
@@ -253,14 +207,14 @@ class LineItem(object):
     @staticmethod
     def from_concept(
         concept: Concept,
-        fact_dict: Dict[str, Set[ModelFact]],
+        facts: InstanceFacts,
         axes: List[str]
     ):
         """Check if table of facts or single fact."""
         if concept.name.endswith("Abstract"):
-            return LineItems(concept, fact_dict, axes)
+            return LineItems(concept, facts, axes)
         else:
-            return Fact(concept, fact_dict, axes)
+            return Fact(concept, facts, axes)
 
 
 class Fact(object):
@@ -269,18 +223,15 @@ class Fact(object):
     def __init__(
         self,
         concept: Concept,
-        fact_dict: Dict[str, Set[ModelFact]],
+        facts: InstanceFacts,
         axes: List[str]
     ):
         """Get all instances of fact."""
         self.name = concept.name
         self.dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
             else DTYPE_MAP["Default"]
-        if fact_dict.get(self.name):
-            self.values = [Value(fact, self.dtype)
-                           for fact in _get_facts(self.name, fact_dict, axes)]
-        else:
-            self.values = []
+        self.values = [Value(fact, self.dtype)
+                       for fact in facts.get(self.name, axes)]
 
     def get_cols(self):
         """Get columns for dataframe."""
@@ -296,16 +247,20 @@ class Value(object):
 
     def __init__(self, fact: ModelFact, dtype: Callable):
         """Extract relevant data."""
-        self.value = dtype(fact.value) if fact.value else dtype()
+        # If value cannot be interpretated as expected dtype, use default
+        try:
+            self.value = dtype(fact.value) if fact.value else dtype()
+        except ValueError:
+            self.value = dtype()
 
         self.dims = {str(qname): dim.propertyView[1]
                      for qname, dim in fact.context.qnameDims.items()}
 
         if fact.context.isInstantPeriod:
-            self.start_date = 0
-            self.end_date = 0
+            self.start_date = str(fact.context.instantDatetime)
+            self.end_date = ''
             self.instant = True
         else:
-            self.start_date = fact.context.startDatetime.timestamp()
-            self.end_date = fact.context.endDatetime.timestamp()
+            self.start_date = str(fact.context.startDatetime)
+            self.end_date = str(fact.context.endDatetime)
             self.instant = False

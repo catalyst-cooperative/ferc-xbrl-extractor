@@ -1,8 +1,9 @@
 """XBRL prototype structures."""
 from typing import ForwardRef, List, Optional
 
-from arelle.ModelInstanceObject import ModelFact
-from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
+from .arelle_interface import load_xbrl
+
+from arelle import XbrlConst
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 
 from pydantic import BaseModel, root_validator, validator, AnyHttpUrl
@@ -90,10 +91,7 @@ class Taxonomy(BaseModel):
 
     @classmethod
     def from_path(cls, path: str):
-        cntlr = Cntlr.Cntlr()
-        cntlr.startLogging(logFileName="logToPrint")
-        model_manager = ModelManager.initialize(cntlr)
-        xbrl = ModelXbrl.load(model_manager, path)
+        xbrl = load_xbrl(path)
         view = ViewRelationshipSet(xbrl, "taxonomy.json", "roles", None, None, None)
         view.view(XbrlConst.parentChild, None, None, None)
 
