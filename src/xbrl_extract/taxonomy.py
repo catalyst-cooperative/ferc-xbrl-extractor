@@ -30,6 +30,10 @@ class Concept(BaseModel):
 
         return values
 
+    @validator('name', pre=True)
+    def strip_prefix(cls, name):
+        return name.split(':')[1]
+
     @classmethod
     def from_list(cls, concept_list: List):
         """Construct from list."""

@@ -1,5 +1,5 @@
 """XBRL extractor."""
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, Iterable
 import pandas as pd
 import numpy as np
 
@@ -28,46 +28,37 @@ DTYPE_MAP = {
 }
 
 
-class Instance(object):
-    """Class to encapsulate a single XBRL filing."""
+def _get_entity_id(
+    facts: InstanceFacts,
+    entity_id_fact=None,
+    entity_id=None,
+):
+    if entity_id_fact:
+        # Assume there should only be one fact containing entity id
+        return facts[entity_id_fact].pop().value
+    elif entity_id:
+        return entity_id
+    else:
+        return 0
 
-    def __init__(
-        self,
-        taxonomy: Taxonomy,
-        instance_path: str,
-        entity_id=None,
-        entity_id_fact=None
-    ):
-        """Built from taxonomy, path to instance, and entity_id"""
-        self.taxonomy = taxonomy
-        self.facts = InstanceFacts(instance_path)
 
-        if entity_id_fact:
-            # Assume there should only be one fact containing entity id
-            self.entity_id = self.facts[entity_id_fact].pop().value
-        elif entity_id:
-            self.entity_id = entity_id
-        else:
-            self.entity_id = 0
+def extract(
+    taxonomy: Taxonomy,
+    instance_paths: Iterable[str],
+    engine: sa.engine.Engine,
+    entity_id_fact=None,
+    entity_id=None
+):
+    tables = FactTable.get_all_tables(taxonomy)
+    dfs = {key: None for key in tables.keys()}
+    for instance in instance_paths:
+        facts = InstanceFacts(instance)
+        entity_id = _get_entity_id(facts, entity_id_fact, entity_id)
+        for key, table in tables.items():
+            dfs[key] = table.to_dataframe(facts, entity_id, dfs[key])
 
-    def get_tables(self):
-        """Extract instance to dictionary of dataframes."""
-        dfs = {}
-
-        for role in self.taxonomy.roles:
-            fact_table = FactTable(
-                role,
-                self.facts,
-                self.entity_id
-            )
-
-            dfs.update(fact_table.to_dataframe())
-
-        return dfs
-
-    def to_sql(self, engine: sa.engine.Engine):
-        """Save instance to a SQL database."""
-        for key, df in self.get_tables().items():
+    for key, df in dfs.items():
+        if df is not None:
             df.to_sql(key, engine, if_exists='append')
 
 
@@ -77,11 +68,8 @@ class FactTable(object):
     def __init__(
         self,
         schedule: LinkRole,
-        facts: InstanceFacts,
-        entity_id: int
     ):
         """Construct from an abstract and fact list."""
-        self.entity_id = entity_id
         self.name = schedule.definition
         self.axes: Dict[str, Axis] = {}
         self.table = None
@@ -93,17 +81,22 @@ class FactTable(object):
             elif child_concept.name.endswith("LineItems"):
                 self.table = LineItems(
                     child_concept,
-                    facts,
                     list(self.axes.keys()))
 
-    def to_dataframe(self):
+        self.cols, self.indices = self.initialize_dataframe()
+
+    def to_dataframe(self, facts: InstanceFacts, entity_id, df=None):
         """Convert fact table to dataframe."""
         if not self.table:
-            return {}
+            return None
 
-        df, indices = self.initialize_dataframe()
+        if df is None:
+            df = pd.DataFrame(self.cols).set_index(list(self.indices))
 
-        for key, values in self.table.get_values().items():
+        indices = self.indices
+        indices["entity_id"] = entity_id
+
+        for key, values in self.table.get_values(facts).items():
             indices.update({key: '' for key in indices.keys()
                             if key != "entity_id"})
             for value in values:
@@ -115,11 +108,14 @@ class FactTable(object):
 
                 df.loc[tuple(indices.values()), key] = value.value
 
-        return {self.name: df}
+        return df.sort_index()
 
     def initialize_dataframe(self):
         """Create dataframe based on types in table."""
-        cols = {"entity_id": np.array([], type(self.entity_id)),
+        if not self.table:
+            return None, None
+
+        cols = {"entity_id": np.array([]),
                 "start_date": np.array([], str),
                 "end_date": np.array([], str),
                 "instant": np.array([], np.bool8)}
@@ -128,10 +124,9 @@ class FactTable(object):
             cols[key] = pd.Series([], dtype="string")
 
         cols.update(self.table.get_cols())
-        df = pd.DataFrame(cols)
 
         indices = {
-            "entity_id": self.entity_id,
+            "entity_id": None,
             "start_date": None,
             "end_date": None,
             "instant": None
@@ -139,7 +134,11 @@ class FactTable(object):
 
         indices.update({axis: None for axis in self.axes.keys()})
 
-        return df.set_index(list(indices.keys())), indices
+        return cols, indices
+
+    @staticmethod
+    def get_all_tables(taxonomy: Taxonomy):
+        return {role.definition: FactTable(role) for role in taxonomy.roles}
 
 
 class Axis(object):
@@ -176,12 +175,11 @@ class LineItems(object):
     def __init__(
         self,
         concept: Concept,
-        facts: InstanceFacts,
         axes: List[str]
     ):
         """Create line items."""
         self.name = concept.name
-        self.items = {child_concept.name: LineItem.from_concept(child_concept, facts, axes)
+        self.items = {child_concept.name: LineItem.from_concept(child_concept, axes)
                       for child_concept in concept.child_concepts}
 
     def get_cols(self):
@@ -192,11 +190,11 @@ class LineItems(object):
 
         return cols
 
-    def get_values(self):
+    def get_values(self, facts: InstanceFacts):
         """Get all values."""
         vals = {}
         for item in self.items.values():
-            vals.update(item.get_values())
+            vals.update(item.get_values(facts))
 
         return vals
 
@@ -207,14 +205,13 @@ class LineItem(object):
     @staticmethod
     def from_concept(
         concept: Concept,
-        facts: InstanceFacts,
         axes: List[str]
     ):
         """Check if table of facts or single fact."""
         if concept.name.endswith("Abstract"):
-            return LineItems(concept, facts, axes)
+            return LineItems(concept, axes)
         else:
-            return Fact(concept, facts, axes)
+            return Fact(concept, axes)
 
 
 class Fact(object):
@@ -223,23 +220,25 @@ class Fact(object):
     def __init__(
         self,
         concept: Concept,
-        facts: InstanceFacts,
         axes: List[str]
     ):
         """Get all instances of fact."""
         self.name = concept.name
         self.dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
             else DTYPE_MAP["Default"]
-        self.values = [Value(fact, self.dtype)
-                       for fact in facts.get(self.name, axes)]
+        self.axes = axes
 
     def get_cols(self):
         """Get columns for dataframe."""
         return {self.name: np.array([], self.dtype)}
 
-    def get_values(self):
+    def get_values(self, facts: InstanceFacts):
         """Get all values."""
-        return {self.name: self.values}
+        return {
+            self.name: [
+                Value(fact, self.dtype) for fact in facts.get(self.name, self.axes)
+            ]
+        }
 
 
 class Value(object):
@@ -253,7 +252,7 @@ class Value(object):
         except ValueError:
             self.value = dtype()
 
-        self.dims = {str(qname): dim.propertyView[1]
+        self.dims = {str(qname).split(':')[1]: dim.propertyView[1]
                      for qname, dim in fact.context.qnameDims.items()}
 
         if fact.context.isInstantPeriod:

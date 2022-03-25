@@ -3,7 +3,8 @@ import argparse
 import sys
 from pathlib import Path
 from sqlalchemy import create_engine
-from xbrl_extract.xbrl import Instance, Taxonomy
+from xbrl_extract.taxonomy import Taxonomy
+from xbrl_extract import xbrl
 
 
 def parse_main():
@@ -45,12 +46,7 @@ def parse_main():
     return parser.parse_args()
 
 
-def instance_iter(
-    instance_path: Path,
-    taxonomy: Taxonomy,
-    entity_id=None,
-    entity_id_fact=None
-):
+def instance_iter(instance_path: Path, taxonomy: Taxonomy):
     ALLOWABLE_SUFFIXES = [".xbrl"]
 
     if not instance_path.exists():
@@ -62,33 +58,37 @@ def instance_iter(
             raise ValueError("Must provide valid path to XBRL instance or "
                              "directory of XBRL instances.")
 
-        yield Instance(taxonomy, str(instance_path), entity_id, entity_id_fact)
+        yield str(instance_path)
     elif instance_path.is_dir():
         for instance in instance_path.iterdir():
             if instance.suffix not in ALLOWABLE_SUFFIXES:
                 continue
 
-            yield Instance(taxonomy, str(instance), entity_id, entity_id_fact)
+            yield str(instance)
 
 
 def main():
     """Parse CLI args and extract XBRL data."""
     args = parse_main()
 
+    print("TAX")
     taxonomy = Taxonomy.from_path(args.taxonomy_path)
+    print("TAX DONE")
 
     engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
 
     instances = instance_iter(
         Path(args.instance_path),
         taxonomy,
-        args.entity_id,
-        args.entity_id_fact
     )
 
-    for instance in instances:
-        if args.to_sql:
-            instance.to_sql(engine)
+    xbrl.extract(
+        taxonomy,
+        instances,
+        engine,
+        args.entity_id_fact,
+        args.entity_id
+    )
 
 
 if __name__ == "__main__":

@@ -18,11 +18,12 @@ class InstanceFacts(object):
 
     def __init__(self, instance_path: str):
         xbrl = load_xbrl(instance_path)
-        self.fact_dict = {str(qname): fact for qname, fact in xbrl.factsByQname.items()}
+        self.fact_dict = {str(qname).split(':')[1]: fact
+                          for qname, fact in xbrl.factsByQname.items()}
 
     def _verify_dimensions(self, fact: ModelFact, axes: List[str]):
         for dim in fact.context.qnameDims.keys():
-            if str(dim) not in axes:
+            if str(dim).split(':')[1] not in axes:
                 return False
 
         return True
