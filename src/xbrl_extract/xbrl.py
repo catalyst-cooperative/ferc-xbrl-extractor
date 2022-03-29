@@ -256,8 +256,8 @@ class Value(object):
                      for qname, dim in fact.context.qnameDims.items()}
 
         if fact.context.isInstantPeriod:
-            self.start_date = str(fact.context.instantDatetime)
-            self.end_date = ''
+            self.start_date = ''
+            self.end_date = str(fact.context.instantDatetime)
             self.instant = True
         else:
             self.start_date = str(fact.context.startDatetime)
