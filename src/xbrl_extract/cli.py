@@ -61,9 +61,7 @@ def main():
     """Parse CLI args and extract XBRL data."""
     args = parse_main()
 
-    print("TAX")
     taxonomy = Taxonomy.from_path(args.taxonomy_path)
-    print("TAX DONE")
 
     engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
 

@@ -33,13 +33,13 @@ def extract(
     instance_paths: Iterable[str],
     engine: sa.engine.Engine,
 ):
-    tables = FactTable.get_all_tables(taxonomy)
+    tables = {role.definition: get_fact_table(role) for role in taxonomy.roles}
     dfs = {key: None for key in tables.keys()}
     for instance in instance_paths:
         print(instance)
         contexts, facts = parse(instance)
         for key, table in tables.items():
-            df = table.to_dataframe(contexts, facts)
+            df = construct_dataframe(contexts, facts, table)
             if df is not None:
                 dfs[key] = pd.concat(
                     [dfs[key], df],
@@ -51,137 +51,65 @@ def extract(
             df.to_sql(key, engine, if_exists='append')
 
 
-class FactTable(object):
-    """Top level fact table."""
+def get_fact_table(schedule: LinkRole):
+    """Construct from an abstract and fact list."""
+    root_concept = schedule.concepts.child_concepts[0]
 
-    def __init__(
-        self,
-        schedule: LinkRole,
-    ):
-        """Construct from an abstract and fact list."""
-        self.name = schedule.definition
-        self.axes: Dict[str, Axis] = {}
-        self.table = None
+    axes = [concept.name for concept in root_concept.child_concepts
+            if concept.type == "Axis"]
 
-        root_concept = schedule.concepts.child_concepts[0]
-        for child_concept in root_concept.child_concepts:
-            if child_concept.type == "Axis":
-                self.axes[child_concept.name] = Axis(child_concept)
-            elif child_concept.name.endswith("LineItems"):
-                self.table = LineItems(child_concept)
+    columns = {
+        "context_id": str,
+        "entity_id": str,
+        "start_date": str,
+        "end_date": str,
+        "instant": np.bool8,
+        **{axis: str for axis in axes}
+    }
 
-        self.cols = self.initialize_dataframe()
+    for child_concept in root_concept.child_concepts:
+        if child_concept.name.endswith("LineItems"):
+            columns.update(get_columns_from_table(child_concept))
 
-    def to_dataframe(self, contexts, facts):
-        """Convert fact table to dataframe."""
-        if not self.table:
-            return None
-
-        df = pd.DataFrame(self.cols).set_index("context_id")
-
-        axes = list(self.axes.keys())
-        cols = list(self.cols.keys())
-
-        contexts_in_table = [key for key, context in contexts.items()
-                             if context.in_axes(axes)]
-
-        for c_id in contexts_in_table:
-            context_facts = facts[c_id]
-            row = {}
-            for fact in context_facts:
-                if fact.name in cols:
-                    row[fact.name] = fact.value
-
-            if row:
-                row.update(contexts[c_id].get_context_ids())
-                df.loc[c_id] = row
-
-        return df.sort_index()
-
-    def initialize_dataframe(self):
-        """Create dataframe based on types in table."""
-        if not self.table:
-            return None, None
-
-        cols = {"context_id": np.array([], str),
-                "entity_id": np.array([], str),
-                "start_date": np.array([], str),
-                "end_date": np.array([], str),
-                "instant": np.array([], str)}
-
-        for key, axis in self.axes.items():
-            cols[key] = pd.Series([], dtype="string")
-
-        cols.update(self.table.get_cols())
-
-        return cols
-
-    @staticmethod
-    def get_all_tables(taxonomy: Taxonomy):
-        return {role.definition: FactTable(role) for role in taxonomy.roles}
+    return {"axes": axes, "columns": columns}
 
 
-class Axis(object):
-    """Defines a single axis with an a table."""
+def construct_dataframe(contexts, facts, table_info):
+    """Convert fact table to dataframe."""
+    cols = table_info['columns']
+    axes = table_info['axes']
 
-    def __init__(self, concept: Concept):
-        """Axis concept."""
-        self.name = concept.name
-        self.domains = {}
+    contexts = {c_id: context for c_id, context in contexts.items()
+                if context.in_axes(axes)}
+    max_len = len(contexts)
+    df = {key: [None]*max_len for key, dtype in cols.items()}
 
-        if len(concept.child_concepts) > 0:
-            domain = concept.child_concepts[0]
-            for member in domain.child_concepts:
-                self.domains[member.name] = member.name
+    for i, (c_id, context) in enumerate(contexts.items()):
+        row = {fact.name: fact.value for fact in facts[c_id] if fact.name in cols}
 
+        if row:
+            row.update(contexts[c_id].get_context_ids())
 
-class LineItems(object):
-    """List of line items."""
+            for key, val in row.items():
+                df[key][i] = val
 
-    def __init__(
-        self,
-        concept: Concept,
-    ):
-        """Create line items."""
-        self.name = concept.name
-        self.items = {child_concept.name: LineItem.from_concept(child_concept)
-                      for child_concept in concept.child_concepts}
-
-    def get_cols(self):
-        """Get columns for dataframe."""
-        cols = {}
-        for item in self.items.values():
-            cols.update(item.get_cols())
-
-        return cols
+    return pd.DataFrame(df).dropna(how='all').drop('context_id', axis=1)
 
 
-class LineItem(object):
-    """Abstract LineItem."""
+def get_columns_from_table(concept: Concept):
+    """Create line items."""
+    cols = {}
+    for item in concept.child_concepts:
+        cols.update(get_cols_from_line_item(item))
 
-    @staticmethod
-    def from_concept(
-        concept: Concept,
-    ):
-        """Check if table of facts or single fact."""
-        if concept.name.endswith("Abstract"):
-            return LineItems(concept)
-        else:
-            return Fact(concept)
+    return cols
 
 
-class Fact(object):
-    """Singular fact."""
-
-    def __init__(
-        self,
-        concept: Concept,
-    ):
-        """Get all instances of fact."""
-        self.name = concept.name
-        self.dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
+def get_cols_from_line_item(concept: Concept):
+    """Check if table of facts or single fact."""
+    if concept.name.endswith("Abstract"):
+        return get_columns_from_table(concept)
+    else:
+        dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
             else DTYPE_MAP["Default"]
-
-    def get_cols(self):
-        """Get columns for dataframe."""
-        return {self.name: np.array([], self.dtype)}
+        return {concept.name: dtype}
