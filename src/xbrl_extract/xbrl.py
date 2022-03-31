@@ -9,7 +9,7 @@ from arelle.ModelInstanceObject import ModelFact
 from lxml import etree
 
 from .taxonomy import Taxonomy, Concept, LinkRole
-from .arelle_interface import InstanceFacts
+from .instance import parse
 
 
 DTYPE_MAP = {
@@ -28,34 +28,23 @@ DTYPE_MAP = {
 }
 
 
-def _get_entity_id(
-    facts: InstanceFacts,
-    entity_id_fact=None,
-    entity_id=None,
-):
-    if entity_id_fact:
-        # Assume there should only be one fact containing entity id
-        return facts[entity_id_fact].pop().value
-    elif entity_id:
-        return entity_id
-    else:
-        return 0
-
-
 def extract(
     taxonomy: Taxonomy,
     instance_paths: Iterable[str],
     engine: sa.engine.Engine,
-    entity_id_fact=None,
-    entity_id=None
 ):
     tables = FactTable.get_all_tables(taxonomy)
     dfs = {key: None for key in tables.keys()}
     for instance in instance_paths:
-        facts = InstanceFacts(instance)
-        entity_id = _get_entity_id(facts, entity_id_fact, entity_id)
+        print(instance)
+        contexts, facts = parse(instance)
         for key, table in tables.items():
-            dfs[key] = table.to_dataframe(facts, entity_id, dfs[key])
+            df = table.to_dataframe(contexts, facts)
+            if df is not None:
+                dfs[key] = pd.concat(
+                    [dfs[key], df],
+                    ignore_index=True
+                )
 
     for key, df in dfs.items():
         if df is not None:
@@ -79,34 +68,33 @@ class FactTable(object):
             if child_concept.type == "Axis":
                 self.axes[child_concept.name] = Axis(child_concept)
             elif child_concept.name.endswith("LineItems"):
-                self.table = LineItems(
-                    child_concept,
-                    list(self.axes.keys()))
+                self.table = LineItems(child_concept)
 
-        self.cols, self.indices = self.initialize_dataframe()
+        self.cols = self.initialize_dataframe()
 
-    def to_dataframe(self, facts: InstanceFacts, entity_id, df=None):
+    def to_dataframe(self, contexts, facts):
         """Convert fact table to dataframe."""
         if not self.table:
             return None
 
-        if df is None:
-            df = pd.DataFrame(self.cols).set_index(list(self.indices))
+        df = pd.DataFrame(self.cols).set_index("context_id")
 
-        indices = self.indices
-        indices["entity_id"] = entity_id
+        axes = list(self.axes.keys())
+        cols = list(self.cols.keys())
 
-        for key, values in self.table.get_values(facts).items():
-            indices.update({key: '' for key in indices.keys()
-                            if key != "entity_id"})
-            for value in values:
-                indices["start_date"] = value.start_date
-                indices["end_date"] = value.end_date
-                indices["instant"] = value.instant
-                for axis, val in value.dims.items():
-                    indices[axis] = self.axes[axis].get_value(val)
+        contexts_in_table = [key for key, context in contexts.items()
+                             if context.in_axes(axes)]
 
-                df.loc[tuple(indices.values()), key] = value.value
+        for c_id in contexts_in_table:
+            context_facts = facts[c_id]
+            row = {}
+            for fact in context_facts:
+                if fact.name in cols:
+                    row[fact.name] = fact.value
+
+            if row:
+                row.update(contexts[c_id].get_context_ids())
+                df.loc[c_id] = row
 
         return df.sort_index()
 
@@ -115,26 +103,18 @@ class FactTable(object):
         if not self.table:
             return None, None
 
-        cols = {"entity_id": np.array([]),
+        cols = {"context_id": np.array([], str),
+                "entity_id": np.array([], str),
                 "start_date": np.array([], str),
                 "end_date": np.array([], str),
-                "instant": np.array([], np.bool8)}
+                "instant": np.array([], str)}
 
         for key, axis in self.axes.items():
             cols[key] = pd.Series([], dtype="string")
 
         cols.update(self.table.get_cols())
 
-        indices = {
-            "entity_id": None,
-            "start_date": None,
-            "end_date": None,
-            "instant": None
-        }
-
-        indices.update({axis: None for axis in self.axes.keys()})
-
-        return cols, indices
+        return cols
 
     @staticmethod
     def get_all_tables(taxonomy: Taxonomy):
@@ -154,20 +134,6 @@ class Axis(object):
             for member in domain.child_concepts:
                 self.domains[member.name] = member.name
 
-    def get_value(self, key: str):
-        """Get the value associated with the axis."""
-        if key not in self.domains:
-            # Check if key is inline xml
-            try:
-                # TODO: This is removing the ferc prefix before parsing
-                # This should be made more general
-                element = etree.fromstring(key.replace('ferc:', ''))
-                return element.text
-            except etree.XMLSyntaxError:
-                return key
-
-        return self.domains[key]
-
 
 class LineItems(object):
     """List of line items."""
@@ -175,11 +141,10 @@ class LineItems(object):
     def __init__(
         self,
         concept: Concept,
-        axes: List[str]
     ):
         """Create line items."""
         self.name = concept.name
-        self.items = {child_concept.name: LineItem.from_concept(child_concept, axes)
+        self.items = {child_concept.name: LineItem.from_concept(child_concept)
                       for child_concept in concept.child_concepts}
 
     def get_cols(self):
@@ -190,14 +155,6 @@ class LineItems(object):
 
         return cols
 
-    def get_values(self, facts: InstanceFacts):
-        """Get all values."""
-        vals = {}
-        for item in self.items.values():
-            vals.update(item.get_values(facts))
-
-        return vals
-
 
 class LineItem(object):
     """Abstract LineItem."""
@@ -205,13 +162,12 @@ class LineItem(object):
     @staticmethod
     def from_concept(
         concept: Concept,
-        axes: List[str]
     ):
         """Check if table of facts or single fact."""
         if concept.name.endswith("Abstract"):
-            return LineItems(concept, axes)
+            return LineItems(concept)
         else:
-            return Fact(concept, axes)
+            return Fact(concept)
 
 
 class Fact(object):
@@ -220,46 +176,12 @@ class Fact(object):
     def __init__(
         self,
         concept: Concept,
-        axes: List[str]
     ):
         """Get all instances of fact."""
         self.name = concept.name
         self.dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
             else DTYPE_MAP["Default"]
-        self.axes = axes
 
     def get_cols(self):
         """Get columns for dataframe."""
         return {self.name: np.array([], self.dtype)}
-
-    def get_values(self, facts: InstanceFacts):
-        """Get all values."""
-        return {
-            self.name: [
-                Value(fact, self.dtype) for fact in facts.get(self.name, self.axes)
-            ]
-        }
-
-
-class Value(object):
-    """Instance of fact."""
-
-    def __init__(self, fact: ModelFact, dtype: Callable):
-        """Extract relevant data."""
-        # If value cannot be interpretated as expected dtype, use default
-        try:
-            self.value = dtype(fact.value) if fact.value else dtype()
-        except ValueError:
-            self.value = dtype()
-
-        self.dims = {str(qname).split(':')[1]: dim.propertyView[1]
-                     for qname, dim in fact.context.qnameDims.items()}
-
-        if fact.context.isInstantPeriod:
-            self.start_date = ''
-            self.end_date = str(fact.context.instantDatetime)
-            self.instant = True
-        else:
-            self.start_date = str(fact.context.startDatetime)
-            self.end_date = str(fact.context.endDatetime)
-            self.instant = False

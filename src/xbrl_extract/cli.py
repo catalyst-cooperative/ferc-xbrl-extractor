@@ -32,16 +32,6 @@ def parse_main():
         default=False,
         help="Clobber existing outputs if they exist"
     )
-    parser.add_argument(
-        "--entity-id",
-        default=None,
-        help="Specify entity_id to be used for a filings processed"
-    )
-    parser.add_argument(
-        "--entity-id-fact",
-        default=None,
-        help="Specify fact to be extracted and used as entity_id"
-    )
 
     return parser.parse_args()
 
@@ -86,8 +76,6 @@ def main():
         taxonomy,
         instances,
         engine,
-        args.entity_id_fact,
-        args.entity_id
     )
 
 
