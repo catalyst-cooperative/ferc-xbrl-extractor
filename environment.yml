@@ -2,8 +2,15 @@ name: xbrl-extract
 channels:
  - conda-forge
 dependencies:
- - jupyterlab ~= 3.0
  - pip>=21.0,<22
+
+ # Jupyter notebook specific packages
+ - jupyterlab ~= 3.0
+ - jellyfish
+ - stringcase
+ - scipy
+
+ # XBRL parsing library
  - pip:
     - git+https://github.com/Arelle/Arelle.git@master
     - --editable ./
