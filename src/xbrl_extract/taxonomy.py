@@ -1,7 +1,7 @@
 """XBRL prototype structures."""
 from typing import ForwardRef, List, Optional
 
-from .arelle_interface import load_xbrl
+from .arelle_interface import load_xbrl, save_references
 
 from arelle import XbrlConst
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
@@ -94,9 +94,16 @@ class Taxonomy(BaseModel):
         return roles
 
     @classmethod
-    def from_path(cls, path: str):
+    def from_path(cls, path: str, metadata_fname: str = ''):
         xbrl = load_xbrl(path)
         view = ViewRelationshipSet(xbrl, "taxonomy.json", "roles", None, None, None)
         view.view(XbrlConst.parentChild, None, None, None)
+
+        if metadata_fname:
+            save_references(
+                metadata_fname,
+                {str(name).split(':')[1]: concept
+                 for name, concept in xbrl.qnameConcepts.items()}
+            )
 
         return cls(**view.jsonObject)

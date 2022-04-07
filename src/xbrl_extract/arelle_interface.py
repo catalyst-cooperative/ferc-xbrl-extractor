@@ -1,8 +1,10 @@
 """Abstract away interface to Arelle XBRL Library."""
-from typing import List
+from typing import Dict, List
+import json
 
-from arelle import Cntlr, ModelManager, ModelXbrl
+from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
 from arelle.ModelInstanceObject import ModelFact
+from arelle.ModelDtsObject import ModelConcept
 
 
 def load_xbrl(path: str):
@@ -11,6 +13,31 @@ def load_xbrl(path: str):
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
     return ModelXbrl.load(model_manager, path)
+
+
+def save_references(filename: str, concepts: Dict[str, ModelConcept]):
+    ref_dict = {}
+    for name, concept in concepts.items():
+        relationships = concept.modelXbrl \
+            .relationshipSet(XbrlConst.conceptReference) \
+            .fromModelObject(concept)
+
+        relationship_dict = {}
+        for relationship in relationships:
+            relationship = relationship.toModelObject
+            relationship_name = relationship.modelXbrl.roleTypeDefinition(relationship.role)
+            part_dict = {part.localName: part.stringValue
+                         for part in relationship.iterchildren()}
+
+            if relationship_name in relationship_dict:
+                relationship_dict[relationship_name].append(part_dict)
+            else:
+                relationship_dict[relationship_name] = [part_dict]
+
+        ref_dict[name] = relationship_dict
+
+    with open(filename, 'w') as f:
+        json.dump(ref_dict, f)
 
 
 class InstanceFacts(object):

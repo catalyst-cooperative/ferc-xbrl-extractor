@@ -26,6 +26,17 @@ def parse_main():
         help="Store data in sqlite database specified in argument"
     )
     parser.add_argument(
+        "--gen-filing-id",
+        default=False,
+        action="store_true",
+        help="Generate a unique ID for each filing processed (starts at 0 and increments)"
+    )
+    parser.add_argument(
+        "--save-metadata",
+        default='',
+        help="Save metadata defined in XBRL references"
+    )
+    parser.add_argument(
         "-c",
         "--clobber",
         action="store_true",
@@ -61,7 +72,7 @@ def main():
     """Parse CLI args and extract XBRL data."""
     args = parse_main()
 
-    taxonomy = Taxonomy.from_path(args.taxonomy_path)
+    taxonomy = Taxonomy.from_path(args.taxonomy_path, args.save_metadata)
 
     engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
 
@@ -74,6 +85,7 @@ def main():
         taxonomy,
         instances,
         engine,
+        args.gen_filing_id,
     )
 
 

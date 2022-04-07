@@ -113,8 +113,11 @@ class Context(BaseModel):
     def in_axes(self, axes: List[str]) -> bool:
         return self.entity.in_axes(axes)
 
-    def get_context_ids(self) -> Dict:
+    def get_context_ids(self, filing_id: int = None) -> Dict:
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
+
+        if filing_id is not None:
+            axes_dict["filing_id"] = filing_id
 
         return {
             "context_id": self.c_id,

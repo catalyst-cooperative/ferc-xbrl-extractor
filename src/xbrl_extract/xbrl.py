@@ -1,12 +1,9 @@
 """XBRL extractor."""
-from typing import Dict, Callable, List, Iterable
+from typing import Iterable
 import pandas as pd
 import numpy as np
 
 import sqlalchemy as sa
-
-from arelle.ModelInstanceObject import ModelFact
-from lxml import etree
 
 from .taxonomy import Taxonomy, Concept, LinkRole
 from .instance import parse
@@ -32,14 +29,18 @@ def extract(
     taxonomy: Taxonomy,
     instance_paths: Iterable[str],
     engine: sa.engine.Engine,
+    gen_filing_id: bool = False,
 ):
-    tables = {role.definition: get_fact_table(role) for role in taxonomy.roles}
+    tables = {role.definition: get_fact_table(role, gen_filing_id)
+              for role in taxonomy.roles}
     dfs = {key: None for key in tables.keys()}
-    for instance in instance_paths:
+
+    for i, instance in enumerate(instance_paths):
         print(instance)
         contexts, facts = parse(instance)
+        filing_id = i if gen_filing_id else None
         for key, table in tables.items():
-            df = construct_dataframe(contexts, facts, table)
+            df = construct_dataframe(contexts, facts, table, filing_id)
             if df is not None:
                 dfs[key] = pd.concat(
                     [dfs[key], df],
@@ -51,7 +52,7 @@ def extract(
             df.to_sql(key, engine, if_exists='append')
 
 
-def get_fact_table(schedule: LinkRole):
+def get_fact_table(schedule: LinkRole, gen_filing_id: bool = False):
     """Construct from an abstract and fact list."""
     root_concept = schedule.concepts.child_concepts[0]
 
@@ -67,6 +68,9 @@ def get_fact_table(schedule: LinkRole):
         **{axis: str for axis in axes}
     }
 
+    if gen_filing_id:
+        columns["filing_id"] = int
+
     for child_concept in root_concept.child_concepts:
         if child_concept.name.endswith("LineItems"):
             columns.update(get_columns_from_table(child_concept))
@@ -74,7 +78,7 @@ def get_fact_table(schedule: LinkRole):
     return {"axes": axes, "columns": columns}
 
 
-def construct_dataframe(contexts, facts, table_info):
+def construct_dataframe(contexts, facts, table_info, filing_id: int = None):
     """Convert fact table to dataframe."""
     cols = table_info['columns']
     axes = table_info['axes']
@@ -88,7 +92,7 @@ def construct_dataframe(contexts, facts, table_info):
         row = {fact.name: fact.value for fact in facts[c_id] if fact.name in cols}
 
         if row:
-            row.update(contexts[c_id].get_context_ids())
+            row.update(contexts[c_id].get_context_ids(filing_id))
 
             for key, val in row.items():
                 df[key][i] = val
@@ -107,7 +111,7 @@ def get_columns_from_table(concept: Concept):
 
 def get_cols_from_line_item(concept: Concept):
     """Check if table of facts or single fact."""
-    if concept.name.endswith("Abstract"):
+    if len(concept.child_concepts) > 0:
         return get_columns_from_table(concept)
     else:
         dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
