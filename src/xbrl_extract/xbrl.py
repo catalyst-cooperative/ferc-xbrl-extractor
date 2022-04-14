@@ -1,7 +1,9 @@
 """XBRL extractor."""
-from typing import Iterable
+from typing import List, Optional, Tuple
 import pandas as pd
 import numpy as np
+from multiprocessing.pool import ThreadPool
+from threading import Lock
 
 import sqlalchemy as sa
 
@@ -27,15 +29,41 @@ DTYPE_MAP = {
 
 def extract(
     taxonomy: Taxonomy,
-    instance_paths: Iterable[str],
+    instance_paths: List[Tuple[str, int]],
     engine: sa.engine.Engine,
+    batch_size: int,
+    threads: Optional[int] = None,
     gen_filing_id: bool = False,
 ):
     tables = {role.definition: get_fact_table(role, gen_filing_id)
               for role in taxonomy.roles}
+
+    with ThreadPool(processes=threads) as pool:
+        db_lock = Lock()
+
+        for batch in range(len(instance_paths) // batch_size):
+            batch_start = batch * batch_size
+            batch_end = batch_start + batch_size
+
+            pool.apply(process_batch, (
+                instance_paths[batch_start:batch_end],
+                tables,
+                engine,
+                db_lock,
+                gen_filing_id
+            ))
+
+
+def process_batch(
+    instance_paths: List[Tuple[str, int]],
+    tables,
+    engine: sa.engine.Engine,
+    db_lock: Lock,
+    gen_filing_id: bool = False
+):
     dfs = {key: None for key in tables.keys()}
 
-    for i, instance in enumerate(instance_paths):
+    for instance, i in instance_paths:
         print(instance)
         contexts, facts = parse(instance)
         filing_id = i if gen_filing_id else None
@@ -47,9 +75,10 @@ def extract(
                     ignore_index=True
                 )
 
-    for key, df in dfs.items():
-        if df is not None:
-            df.to_sql(key, engine, if_exists='append')
+    with db_lock:
+        for key, df in dfs.items():
+            if df is not None:
+                df.to_sql(key, engine, if_exists='append')
 
 
 def get_fact_table(schedule: LinkRole, gen_filing_id: bool = False):

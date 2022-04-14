@@ -43,11 +43,25 @@ def parse_main():
         default=False,
         help="Clobber existing outputs if they exist"
     )
+    parser.add_argument(
+        "-b",
+        "--batch-size",
+        default=1,
+        type=int,
+        help="Specify number of instances to be processed at a time"
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        default=None,
+        type=int,
+        help="Specify number of threads in pool (defaults to `os.cpu_count()`)"
+    )
 
     return parser.parse_args()
 
 
-def instance_iter(instance_path: Path, taxonomy: Taxonomy):
+def get_instances(instance_path: Path, taxonomy: Taxonomy):
     ALLOWABLE_SUFFIXES = [".xbrl", ".xml"]
 
     if not instance_path.exists():
@@ -59,13 +73,11 @@ def instance_iter(instance_path: Path, taxonomy: Taxonomy):
             raise ValueError("Must provide valid path to XBRL instance or "
                              "directory of XBRL instances.")
 
-        yield str(instance_path)
+        return [(str(instance_path), 0)]
     elif instance_path.is_dir():
-        for instance in instance_path.iterdir():
-            if instance.suffix not in ALLOWABLE_SUFFIXES:
-                continue
-
-            yield str(instance)
+        return [(str(instance), i)
+                for i, instance in enumerate(instance_path.iterdir())
+                if instance.suffix in ALLOWABLE_SUFFIXES]
 
 
 def main():
@@ -76,7 +88,7 @@ def main():
 
     engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
 
-    instances = instance_iter(
+    instances = get_instances(
         Path(args.instance_path),
         taxonomy,
     )
@@ -85,6 +97,8 @@ def main():
         taxonomy,
         instances,
         engine,
+        args.batch_size,
+        args.threads,
         args.gen_filing_id,
     )
 
