@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+import logging
 
 import sqlalchemy as sa
 
@@ -31,21 +32,31 @@ def extract(
     taxonomy: Taxonomy,
     instance_paths: List[Tuple[str, int]],
     engine: sa.engine.Engine,
-    batch_size: int,
+    batch_size: Optional[int] = None,
     threads: Optional[int] = None,
     gen_filing_id: bool = False,
     verbose: bool = False,
     loglevel: bool = "WARNING"
 ):
+    logger = logging.Logger(__name__)
+    logger.setLevel(loglevel)
+
+    if verbose:
+        logger.addHandler(logging.StreamHandler())
+
+    num_instances = len(instance_paths)
+    if not batch_size:
+        batch_size = num_instances
+
     tables = {role.definition: get_fact_table(role, gen_filing_id)
               for role in taxonomy.roles}
 
     with ThreadPoolExecutor(max_workers=threads) as executer:
-
         process_instances = partial(
             process_instance,
             tables=tables,
             engine=engine,
+            logger=logger,
             gen_filing_id=gen_filing_id
         )
 
@@ -55,7 +66,9 @@ def extract(
             chunksize=batch_size
         )
 
-        for dfs in results:
+        current_batch = 1
+        num_batches = num_instances // batch_size
+        for i, dfs in enumerate(results):
             for key, df in dfs.items():
                 if df is not None:
                     dfs[key] = pd.concat(
@@ -63,20 +76,27 @@ def extract(
                         ignore_index=True
                     )
 
-        for key, df in dfs.items():
-            if df is not None:
-                df.to_sql(key, engine, if_exists='append')
+            # Write to disk after batch size to avoid using all memory
+            if (i + 1) % batch_size == 0 or i == num_instances - 1:
+                logger.info(f"Processed batch {current_batch}/{num_batches}")
+
+                for key, df in dfs.items():
+                    df.to_sql(key, engine, if_exists='append')
+                    dfs[key] = None
 
 
 def process_instance(
     instance: Tuple[str, int],
     tables,
     engine: sa.engine.Engine,
+    logger: logging.Logger,
     gen_filing_id: bool = False
 ):
     instance_path, i = instance
     contexts, facts = parse(instance_path)
     filing_id = i if gen_filing_id else None
+
+    logger.info(f"Extracting {instance_path}")
 
     dfs = {}
     for key, table in tables.items():

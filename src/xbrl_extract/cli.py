@@ -46,7 +46,7 @@ def parse_main():
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=1,
+        default=None,
         type=int,
         help="Specify number of instances to be processed at a time"
     )
@@ -56,6 +56,17 @@ def parse_main():
         default=None,
         type=int,
         help="Specify number of threads in pool (defaults to `os.cpu_count()`)"
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Print logging messages to stdout",
+    )
+    parser.add_argument(
+        "--loglevel",
+        help="Set log level",
+        default="INFO",
     )
 
     return parser.parse_args()
@@ -77,7 +88,7 @@ def get_instances(instance_path: Path, taxonomy: Taxonomy):
     elif instance_path.is_dir():
         instances = [str(instance) for instance in instance_path.iterdir()
                      if instance.suffix in ALLOWABLE_SUFFIXES]
-        return [(instance, i) for instance, i in enumerate(sorted(instances))]
+        return [(instance, i) for i, instance in enumerate(sorted(instances))]
 
 
 def main():
@@ -100,6 +111,8 @@ def main():
         args.batch_size,
         args.threads,
         args.gen_filing_id,
+        args.verbose,
+        args.loglevel
     )
 
 
