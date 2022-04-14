@@ -8,14 +8,14 @@ from typing import Dict, List, Optional
 INSTANCE_PREFIX = "{http://www.xbrl.org/2003/instance}"
 EXPLICIT_DIMENSION_PREFIX = "{http://xbrl.org/2006/xbrldi}explicitMember"
 TYPED_DIMENSION_PREFIX = "{http://xbrl.org/2006/xbrldi}typedMember"
-FERC_FACT_PREFIX = "{http://ferc.gov/form/2021-01-01/ferc}"
 
 
 def parse(path: str):
-    root = ET.parse(path)
+    tree = ET.parse(path)
+    root = tree.getroot()
 
     contexts = root.findall(f"{INSTANCE_PREFIX}context")
-    facts = root.findall(f"{FERC_FACT_PREFIX}*")
+    facts = root.findall(f"{{{root.nsmap['ferc']}}}*")
 
     context_dict = {}
     fact_dict = {}
