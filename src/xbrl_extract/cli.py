@@ -48,7 +48,7 @@ def parse_main():
 
 
 def instance_iter(instance_path: Path, taxonomy: Taxonomy):
-    ALLOWABLE_SUFFIXES = [".xbrl"]
+    ALLOWABLE_SUFFIXES = [".xbrl", ".xml"]
 
     if not instance_path.exists():
         raise ValueError("Must provide valid path to XBRL instance or directory"
