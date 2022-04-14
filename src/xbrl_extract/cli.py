@@ -75,9 +75,9 @@ def get_instances(instance_path: Path, taxonomy: Taxonomy):
 
         return [(str(instance_path), 0)]
     elif instance_path.is_dir():
-        return [(str(instance), i)
-                for i, instance in enumerate(instance_path.iterdir())
-                if instance.suffix in ALLOWABLE_SUFFIXES]
+        instances = [str(instance) for instance in instance_path.iterdir()
+                     if instance.suffix in ALLOWABLE_SUFFIXES]
+        return [(instance, i) for instance, i in enumerate(sorted(instances))]
 
 
 def main():

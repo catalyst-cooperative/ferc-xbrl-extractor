@@ -2,8 +2,8 @@
 from typing import List, Optional, Tuple
 import pandas as pd
 import numpy as np
-from multiprocessing.pool import ThreadPool
-from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import sqlalchemy as sa
 
@@ -34,51 +34,55 @@ def extract(
     batch_size: int,
     threads: Optional[int] = None,
     gen_filing_id: bool = False,
+    verbose: bool = False,
+    loglevel: bool = "WARNING"
 ):
     tables = {role.definition: get_fact_table(role, gen_filing_id)
               for role in taxonomy.roles}
 
-    with ThreadPool(processes=threads) as pool:
-        db_lock = Lock()
+    with ThreadPoolExecutor(max_workers=threads) as executer:
 
-        for batch in range(len(instance_paths) // batch_size):
-            batch_start = batch * batch_size
-            batch_end = batch_start + batch_size
+        process_instances = partial(
+            process_instance,
+            tables=tables,
+            engine=engine,
+            gen_filing_id=gen_filing_id
+        )
 
-            pool.apply(process_batch, (
-                instance_paths[batch_start:batch_end],
-                tables,
-                engine,
-                db_lock,
-                gen_filing_id
-            ))
+        results = executer.map(
+            process_instances,
+            instance_paths,
+            chunksize=batch_size
+        )
 
+        for dfs in results:
+            for key, df in dfs.items():
+                if df is not None:
+                    dfs[key] = pd.concat(
+                        [dfs[key], df],
+                        ignore_index=True
+                    )
 
-def process_batch(
-    instance_paths: List[Tuple[str, int]],
-    tables,
-    engine: sa.engine.Engine,
-    db_lock: Lock,
-    gen_filing_id: bool = False
-):
-    dfs = {key: None for key in tables.keys()}
-
-    for instance, i in instance_paths:
-        print(instance)
-        contexts, facts = parse(instance)
-        filing_id = i if gen_filing_id else None
-        for key, table in tables.items():
-            df = construct_dataframe(contexts, facts, table, filing_id)
-            if df is not None:
-                dfs[key] = pd.concat(
-                    [dfs[key], df],
-                    ignore_index=True
-                )
-
-    with db_lock:
         for key, df in dfs.items():
             if df is not None:
                 df.to_sql(key, engine, if_exists='append')
+
+
+def process_instance(
+    instance: Tuple[str, int],
+    tables,
+    engine: sa.engine.Engine,
+    gen_filing_id: bool = False
+):
+    instance_path, i = instance
+    contexts, facts = parse(instance_path)
+    filing_id = i if gen_filing_id else None
+
+    dfs = {}
+    for key, table in tables.items():
+        dfs[key] = construct_dataframe(contexts, facts, table, filing_id)
+
+    return dfs
 
 
 def get_fact_table(schedule: LinkRole, gen_filing_id: bool = False):
