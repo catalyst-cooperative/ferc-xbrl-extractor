@@ -8,6 +8,8 @@ from typing import Dict, List, Optional
 INSTANCE_PREFIX = "{http://www.xbrl.org/2003/instance}"
 EXPLICIT_DIMENSION_PREFIX = "{http://xbrl.org/2006/xbrldi}explicitMember"
 TYPED_DIMENSION_PREFIX = "{http://xbrl.org/2006/xbrldi}typedMember"
+TAXONOMY_PREFIX = "{http://www.w3.org/1999/xlink}href"
+SCHEMA_PREFIX = "{http://www.xbrl.org/2003/linkbase}schemaRef"
 
 
 def parse(path: str):
@@ -16,6 +18,7 @@ def parse(path: str):
 
     contexts = root.findall(f"{INSTANCE_PREFIX}context")
     facts = root.findall(f"{{{root.nsmap['ferc']}}}*")
+    taxonomy_url = root.find(SCHEMA_PREFIX).attrib[TAXONOMY_PREFIX]
 
     context_dict = {}
     fact_dict = {}
@@ -29,7 +32,7 @@ def parse(path: str):
         if new_fact.value is not None:
             fact_dict[new_fact.c_id].append(new_fact)
 
-    return context_dict, fact_dict
+    return context_dict, fact_dict, taxonomy_url
 
 
 class Period(BaseModel):

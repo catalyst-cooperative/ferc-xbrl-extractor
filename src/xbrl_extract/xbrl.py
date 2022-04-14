@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 import pandas as pd
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
+from functools import cache, partial
 import logging
 
 import sqlalchemy as sa
@@ -29,12 +29,12 @@ DTYPE_MAP = {
 
 
 def extract(
-    taxonomy: Taxonomy,
     instance_paths: List[Tuple[str, int]],
     engine: sa.engine.Engine,
     batch_size: Optional[int] = None,
     threads: Optional[int] = None,
     gen_filing_id: bool = False,
+    save_metadata: bool = False,
     verbose: bool = False,
     loglevel: bool = "WARNING"
 ):
@@ -48,15 +48,12 @@ def extract(
     if not batch_size:
         batch_size = num_instances
 
-    tables = {role.definition: get_fact_table(role, gen_filing_id)
-              for role in taxonomy.roles}
-
     with ThreadPoolExecutor(max_workers=threads) as executer:
         process_instances = partial(
             process_instance,
-            tables=tables,
             engine=engine,
             logger=logger,
+            save_metadata=save_metadata,
             gen_filing_id=gen_filing_id
         )
 
@@ -87,13 +84,15 @@ def extract(
 
 def process_instance(
     instance: Tuple[str, int],
-    tables,
     engine: sa.engine.Engine,
     logger: logging.Logger,
+    save_metadata: bool = False,
     gen_filing_id: bool = False
 ):
     instance_path, i = instance
-    contexts, facts = parse(instance_path)
+    contexts, facts, tax_url = parse(instance_path)
+
+    tables = get_fact_tables(tax_url, logger, save_metadata, gen_filing_id)
     filing_id = i if gen_filing_id else None
 
     logger.info(f"Extracting {instance_path}")
@@ -103,6 +102,20 @@ def process_instance(
         dfs[key] = construct_dataframe(contexts, facts, table, filing_id)
 
     return dfs
+
+
+@cache
+def get_fact_tables(
+    taxonomy_path: str,
+    logger: logging.Logger,
+    save_metadata: bool = False,
+    gen_filing_id: bool = False,
+):
+    logger.info(f"Parsing taxonomy from {taxonomy_path}")
+    taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
+
+    return {role.definition: get_fact_table(role, gen_filing_id)
+            for role in taxonomy.roles}
 
 
 def get_fact_table(schedule: LinkRole, gen_filing_id: bool = False):

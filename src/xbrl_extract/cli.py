@@ -3,7 +3,6 @@ import argparse
 import sys
 from pathlib import Path
 from sqlalchemy import create_engine
-from xbrl_extract.taxonomy import Taxonomy
 from xbrl_extract import xbrl
 
 
@@ -12,10 +11,6 @@ def parse_main():
     Process base commands from the CLI. More options can be added as necessary.
     """
     parser = argparse.ArgumentParser(description="Extract data from XBRL filings")
-    parser.add_argument(
-        "taxonomy_path",
-        help="File path or url to an XBRL taxonomy"
-    )
     parser.add_argument(
         "instance_path",
         help="Path to a single xbrl filing, or a directory of xbrl filings",
@@ -48,7 +43,7 @@ def parse_main():
         "--batch-size",
         default=None,
         type=int,
-        help="Specify number of instances to be processed at a time"
+        help="Specify number of instances to be processed at a time(defaults to one large batch)"
     )
     parser.add_argument(
         "-t",
@@ -72,7 +67,7 @@ def parse_main():
     return parser.parse_args()
 
 
-def get_instances(instance_path: Path, taxonomy: Taxonomy):
+def get_instances(instance_path: Path):
     ALLOWABLE_SUFFIXES = [".xbrl", ".xml"]
 
     if not instance_path.exists():
@@ -95,22 +90,19 @@ def main():
     """Parse CLI args and extract XBRL data."""
     args = parse_main()
 
-    taxonomy = Taxonomy.from_path(args.taxonomy_path, args.save_metadata)
-
     engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
 
     instances = get_instances(
         Path(args.instance_path),
-        taxonomy,
     )
 
     xbrl.extract(
-        taxonomy,
         instances,
         engine,
         args.batch_size,
         args.threads,
         args.gen_filing_id,
+        args.save_metadata,
         args.verbose,
         args.loglevel
     )
