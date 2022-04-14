@@ -13,7 +13,9 @@ Concept = ForwardRef('Concept')
 
 
 class Concept(BaseModel):
-    """Concept."""
+    """
+    Pydantic model that defines an XBRL taxonomy concept.
+    """
 
     name: str
     label: str
@@ -53,7 +55,9 @@ Concept.update_forward_refs()
 
 
 class LinkRole(BaseModel):
-    """LinkRole."""
+    """
+    Pydantic model that defines an XBRL taxonomy linkrole.
+    """
 
     role: AnyHttpUrl
     definition: str
@@ -72,7 +76,9 @@ class LinkRole(BaseModel):
 
 
 class Taxonomy(BaseModel):
-    """Taxonomy."""
+    """
+    Pydantic model that defines an XBRL taxonomy taxonomy.
+    """
 
     roles: List['LinkRole']
 
@@ -95,6 +101,7 @@ class Taxonomy(BaseModel):
 
     @classmethod
     def from_path(cls, path: str, metadata_fname: str = ''):
+        """Construct taxonomy from taxonomy URL."""
         xbrl = load_xbrl(path)
         view = ViewRelationshipSet(xbrl, "taxonomy.json", "roles", None, None, None)
         view.view(XbrlConst.parentChild, None, None, None)

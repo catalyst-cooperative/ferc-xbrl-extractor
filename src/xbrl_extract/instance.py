@@ -13,6 +13,17 @@ SCHEMA_PREFIX = "{http://www.xbrl.org/2003/linkbase}schemaRef"
 
 
 def parse(path: str):
+    """
+    Parse a single XBRL instance using XML library directly.
+
+    Args:
+        path: Path to XBRL filing.
+
+    Returns:
+        context_dict: Dictionary of contexts in filing.
+        fact_dict: Dictionary of facts in filing.
+        taxonomy_url: URL to taxonomy used for filing.
+    """
     tree = ET.parse(path)
     root = tree.getroot()
 
@@ -36,12 +47,17 @@ def parse(path: str):
 
 
 class Period(BaseModel):
+    """
+    Pydantic model that defines an XBRL period.
+    """
+
     instant: bool
     start_date: Optional[date]
     end_date: date
 
     @classmethod
     def from_xml(cls, elem: ET.Element) -> 'Period':
+        """Construct Period from XML element."""
         instant = elem.find(f"{INSTANCE_PREFIX}instant")
         if instant is not None:
             return cls(instant=True, end_date=instant.text)
@@ -54,15 +70,21 @@ class Period(BaseModel):
 
 
 class Axis(BaseModel):
+    """
+    Pydantic model that defines an XBRL Axis.
+    """
+
     name: str
     value: str
 
     @validator('name', pre=True)
     def strip_prefix(cls, name):
+        """Strip XML prefix from name."""
         return name.split(':')[1]
 
     @classmethod
     def from_xml(cls, elem: ET.Element) -> 'Axis':
+        """Construct Axis from XML element."""
         if elem.tag == EXPLICIT_DIMENSION_PREFIX:
             return cls(
                 name=elem.attrib['dimension'],
@@ -78,11 +100,16 @@ class Axis(BaseModel):
 
 
 class Entity(BaseModel):
+    """
+    Pydantic model that defines an XBRL Entity.
+    """
+
     identifier: str
     dimensions: List[Axis]
 
     @classmethod
     def from_xml(cls, elem: ET.Element) -> 'Entity':
+        """Construct Entity from XML element."""
         segment = elem.find(f"{INSTANCE_PREFIX}segment")
         dim_els = segment.getchildren() if segment is not None else []
 
@@ -99,7 +126,9 @@ class Entity(BaseModel):
 
 
 class Context(BaseModel):
-    """Context."""
+    """
+    Pydantic model that defines an XBRL Context.
+    """
 
     c_id: str
     entity: Entity
@@ -107,6 +136,7 @@ class Context(BaseModel):
 
     @classmethod
     def from_xml(cls, elem: ET.Element) -> 'Context':
+        """Construct Context from XML element."""
         return cls(**{
             'c_id': elem.attrib['id'],
             'entity': Entity.from_xml(elem.find(f"{INSTANCE_PREFIX}entity")),
@@ -114,9 +144,16 @@ class Context(BaseModel):
         })
 
     def in_axes(self, axes: List[str]) -> bool:
+        """
+        Helper function to check if a context falls within axes.
+
+        Args:
+            axes: List of axes to verify against.
+        """
         return self.entity.in_axes(axes)
 
     def get_context_ids(self, filing_id: int = None) -> Dict:
+        """Return a dictionary that defines context."""
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
 
         if filing_id is not None:
@@ -133,7 +170,9 @@ class Context(BaseModel):
 
 
 class Fact(BaseModel):
-    """Fact."""
+    """
+    Pydantic model that defines an XBRL Context.
+    """
 
     name: str
     c_id: str
@@ -141,6 +180,7 @@ class Fact(BaseModel):
 
     @classmethod
     def from_xml(cls, elem: ET.Element) -> 'Fact':
+        """Construct Fact from XML element."""
         return cls(
             name=elem.tag.split('}')[1],
             c_id=elem.attrib['contextRef'],

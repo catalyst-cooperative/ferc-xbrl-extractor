@@ -7,17 +7,14 @@ from xbrl_extract import xbrl
 
 
 def parse_main():
-    """
-    Process base commands from the CLI. More options can be added as necessary.
-    """
+    """Process base commands from the CLI."""
     parser = argparse.ArgumentParser(description="Extract data from XBRL filings")
     parser.add_argument(
         "instance_path",
         help="Path to a single xbrl filing, or a directory of xbrl filings",
     )
     parser.add_argument(
-        "--to-sql",
-        default=False,
+        "sql_path",
         help="Store data in sqlite database specified in argument"
     )
     parser.add_argument(
@@ -68,18 +65,21 @@ def parse_main():
 
 
 def get_instances(instance_path: Path):
+    """Get list of instances from specified path."""
     ALLOWABLE_SUFFIXES = [".xbrl", ".xml"]
 
     if not instance_path.exists():
         raise ValueError("Must provide valid path to XBRL instance or directory"
                          "of XBRL instances.")
 
+    # Single instance
     if instance_path.is_file():
         if instance_path.suffix not in ALLOWABLE_SUFFIXES:
             raise ValueError("Must provide valid path to XBRL instance or "
                              "directory of XBRL instances.")
 
         return [(str(instance_path), 0)]
+    # Directory of instances
     elif instance_path.is_dir():
         instances = [str(instance) for instance in instance_path.iterdir()
                      if instance.suffix in ALLOWABLE_SUFFIXES]
@@ -87,7 +87,7 @@ def get_instances(instance_path: Path):
 
 
 def main():
-    """Parse CLI args and extract XBRL data."""
+    """CLI for extracting data fro XBRL filings."""
     args = parse_main()
 
     engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
