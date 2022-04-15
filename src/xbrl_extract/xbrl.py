@@ -82,11 +82,12 @@ def extract(
         num_batches = num_instances // batch_size
 
         # Concatenate dataframes extracted from each individual filing
-        for i, dfs in enumerate(results):
-            for key, df in dfs.items():
+        dfs = {}
+        for i, instance_dfs in enumerate(results):
+            for key, df in instance_dfs.items():
                 if df is not None:
                     dfs[key] = pd.concat(
-                        [dfs[key], df],
+                        [dfs.get(key), df],
                         ignore_index=True
                     )
 
