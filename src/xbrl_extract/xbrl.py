@@ -2,7 +2,7 @@
 from typing import List, Optional, Tuple
 import pandas as pd
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor as Executer
 from functools import cache, partial
 import logging
 
@@ -35,8 +35,6 @@ def extract(
     threads: Optional[int] = None,
     gen_filing_id: bool = False,
     save_metadata: bool = False,
-    verbose: bool = False,
-    loglevel: bool = "WARNING"
 ):
     """
     Extract data from all specified XBRL filings.
@@ -48,25 +46,17 @@ def extract(
         threads: Number of threads to create for parsing filings.
         gen_filing_id: Generate a unique ID for each filing.
         save_metadata: Save XBRL references to JSON file.
-        verbose: Output logs to stdout.
-        loglevel: Log level.
     """
     logger = logging.Logger(__name__)
-    logger.setLevel(loglevel)
-
-    if verbose:
-        logger.addHandler(logging.StreamHandler())
 
     num_instances = len(instance_paths)
     if not batch_size:
         batch_size = num_instances
 
-    with ThreadPoolExecutor(max_workers=threads) as executer:
+    with Executer(max_workers=threads) as executer:
         # Bind arguments generic to all filings
         process_instances = partial(
             process_instance,
-            engine=engine,
-            logger=logger,
             save_metadata=save_metadata,
             gen_filing_id=gen_filing_id
         )
@@ -85,25 +75,23 @@ def extract(
         dfs = {}
         for i, instance_dfs in enumerate(results):
             for key, df in instance_dfs.items():
-                if df is not None:
-                    dfs[key] = pd.concat(
-                        [dfs.get(key), df],
-                        ignore_index=True
-                    )
+                if key not in dfs:
+                    dfs[key] = []
+                dfs[key].append(df)
 
             # Write to disk after batch size to avoid using all memory
             if (i + 1) % batch_size == 0 or i == num_instances - 1:
                 logger.info(f"Processed batch {current_batch}/{num_batches}")
+                current_batch += 1
 
-                for key, df in dfs.items():
+                for key, df_list in dfs.items():
+                    df = pd.concat(df_list, ignore_index=True)
                     df.to_sql(key, engine, if_exists='append')
-                    dfs[key] = None
+                    dfs[key] = []
 
 
 def process_instance(
     instance: Tuple[str, int],
-    engine: sa.engine.Engine,
-    logger: logging.Logger,
     save_metadata: bool = False,
     gen_filing_id: bool = False
 ):
@@ -112,15 +100,14 @@ def process_instance(
 
     Args:
         instance: Tuple of path to instance and filing_id for instance.
-        engine: SQLite connection.
-        logger: Logger handle.
         save_metadata: Save XBRL references in JSON file.
         gen_filing_id: Include filing_id in dataframes.
     """
+    logger = logging.getLogger(__name__)
     instance_path, i = instance
     contexts, facts, tax_url = parse(instance_path)
 
-    tables = get_fact_tables(tax_url, logger, save_metadata, gen_filing_id)
+    tables = get_fact_tables(tax_url, save_metadata, gen_filing_id)
     filing_id = i if gen_filing_id else None
 
     logger.info(f"Extracting {instance_path}")
@@ -135,7 +122,6 @@ def process_instance(
 @cache
 def get_fact_tables(
     taxonomy_path: str,
-    logger: logging.Logger,
     save_metadata: bool = False,
     gen_filing_id: bool = False,
 ):
@@ -145,13 +131,13 @@ def get_fact_tables(
 
     Args:
         taxonomy_path: URL of taxonomy.
-        logger: Logging handle.
         save_metadata: Save XBRL references in JSON file.
         gen_filing_id: Include filing_id in dataframes.
 
     Returns:
         Dictionary mapping to table names to structure.
     """
+    logger = logging.getLogger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
 

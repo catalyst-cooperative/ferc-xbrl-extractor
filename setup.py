@@ -19,6 +19,7 @@ setup(
     license="MIT",
     install_requires=[
         "pydantic>=1.9,<2",
+        "coloredlogs~=15.0",
         "arelle @ git+https://github.com/Arelle/Arelle.git@master",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5"

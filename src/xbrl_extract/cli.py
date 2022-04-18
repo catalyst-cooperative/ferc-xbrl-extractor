@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from sqlalchemy import create_engine
 from xbrl_extract import xbrl
+import logging
+import coloredlogs
 
 
 def parse_main():
@@ -50,15 +52,14 @@ def parse_main():
         help="Specify number of threads in pool (defaults to `os.cpu_count()`)"
     )
     parser.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Print logging messages to stdout",
-    )
-    parser.add_argument(
         "--loglevel",
         help="Set log level",
         default="INFO",
+    )
+    parser.add_argument(
+        "--logfile",
+        help="Path to logfile",
+        default=None
     )
 
     return parser.parse_args()
@@ -90,6 +91,16 @@ def main():
     """CLI for extracting data fro XBRL filings."""
     args = parse_main()
 
+    logger = logging.getLogger("xbrl_extract")
+    logger.setLevel(args.loglevel)
+    log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
+    coloredlogs.install(fmt=log_format, level=args.loglevel, logger=logger)
+
+    if args.logfile:
+        file_logger = logging.FileHandler(args.logfile)
+        file_logger.setFormatter(logging.Formatter(log_format))
+        logger.addHandler(file_logger)
+
     engine = create_engine(f"sqlite:///{args.sql_path}")
 
     instances = get_instances(
@@ -103,8 +114,6 @@ def main():
         args.threads,
         args.gen_filing_id,
         args.save_metadata,
-        args.verbose,
-        args.loglevel
     )
 
 
