@@ -90,7 +90,7 @@ def main():
     """CLI for extracting data fro XBRL filings."""
     args = parse_main()
 
-    engine = create_engine(f"sqlite:///{args.to_sql}") if args.to_sql else None
+    engine = create_engine(f"sqlite:///{args.sql_path}")
 
     instances = get_instances(
         Path(args.instance_path),
