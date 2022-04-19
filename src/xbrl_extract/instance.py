@@ -152,12 +152,9 @@ class Context(BaseModel):
         """
         return self.entity.in_axes(axes)
 
-    def get_context_ids(self, filing_id: int = None) -> Dict:
+    def get_context_ids(self, filing_name: str) -> Dict:
         """Return a dictionary that defines context."""
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
-
-        if filing_id is not None:
-            axes_dict["filing_id"] = filing_id
 
         return {
             "context_id": self.c_id,
@@ -165,6 +162,7 @@ class Context(BaseModel):
             "start_date": self.period.start_date,
             "end_date": self.period.end_date,
             "instant": self.period.instant,
+            "filing_name": filing_name,
             **axes_dict
         }
 

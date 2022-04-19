@@ -204,7 +204,7 @@ def get_cols_from_line_item(concept: Concept):
         return {concept.name: dtype}
 
 
-def construct_dataframe(contexts, facts, table_info, filing_id: int = None):
+def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
     """
     Populate table with relevant data from filing.
 
@@ -212,7 +212,7 @@ def construct_dataframe(contexts, facts, table_info, filing_id: int = None):
         contexts (Dict): Dictionary containing all contexts in filing.
         facts (Dict): Dictionary containing all facts in filing.
         table_info (Dict): Dictionary containing columns and axes in table.
-        filing_id: Unique filing id.
+        filing_name: Unique filing id.
     """
     cols = table_info['columns']
     axes = table_info['axes']
@@ -230,7 +230,7 @@ def construct_dataframe(contexts, facts, table_info, filing_id: int = None):
         row = {fact.name: fact.value for fact in facts[c_id] if fact.name in cols}
 
         if row:
-            row.update(contexts[c_id].get_context_ids(filing_id))
+            row.update(contexts[c_id].get_context_ids(filing_name))
 
             for key, val in row.items():
                 df[key][i] = val
