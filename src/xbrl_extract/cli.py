@@ -3,9 +3,11 @@ import argparse
 import sys
 from pathlib import Path
 from sqlalchemy import create_engine
-from xbrl_extract import xbrl
 import logging
 import coloredlogs
+
+from xbrl_extract import xbrl
+from xbrl_extract import helpers
 
 
 def parse_main():
@@ -102,6 +104,9 @@ def main():
         logger.addHandler(file_logger)
 
     engine = create_engine(f"sqlite:///{args.sql_path}")
+
+    if args.clobber:
+        helpers.drop_tables(engine)
 
     instances = get_instances(
         Path(args.instance_path),
