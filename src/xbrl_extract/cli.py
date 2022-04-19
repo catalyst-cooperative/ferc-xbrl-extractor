@@ -22,12 +22,6 @@ def parse_main():
         help="Store data in sqlite database specified in argument"
     )
     parser.add_argument(
-        "--gen-filing-id",
-        default=False,
-        action="store_true",
-        help="Generate a unique ID for each filing processed (starts at 0 and increments)"
-    )
-    parser.add_argument(
         "--save-metadata",
         default='',
         help="Save metadata defined in XBRL references"
@@ -81,12 +75,12 @@ def get_instances(instance_path: Path):
             raise ValueError("Must provide valid path to XBRL instance or "
                              "directory of XBRL instances.")
 
-        return [(str(instance_path), 0)]
+        return [(str(instance_path), instance_path.name.rstrip(instance_path.prefix))]
     # Directory of instances
     elif instance_path.is_dir():
-        instances = [str(instance) for instance in instance_path.iterdir()
-                     if instance.suffix in ALLOWABLE_SUFFIXES]
-        return [(instance, i) for i, instance in enumerate(sorted(instances))]
+        return [(str(instance), instance.name.rstrip(instance.suffix))
+                for instance in sorted(instance_path.iterdir())
+                if instance.suffix in ALLOWABLE_SUFFIXES]
 
 
 def main():
@@ -117,7 +111,6 @@ def main():
         engine,
         args.batch_size,
         args.threads,
-        args.gen_filing_id,
         args.save_metadata,
     )
 

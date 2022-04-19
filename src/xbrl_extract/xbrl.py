@@ -33,7 +33,6 @@ def extract(
     engine: sa.engine.Engine,
     batch_size: Optional[int] = None,
     threads: Optional[int] = None,
-    gen_filing_id: bool = False,
     save_metadata: bool = False,
 ):
     """
@@ -44,7 +43,6 @@ def extract(
         engine: SQLite connection.
         batch_size: Number of filings to process before writing to DB.
         threads: Number of threads to create for parsing filings.
-        gen_filing_id: Generate a unique ID for each filing.
         save_metadata: Save XBRL references to JSON file.
     """
     logger = logging.Logger(__name__)
@@ -58,7 +56,6 @@ def extract(
         process_instances = partial(
             process_instance,
             save_metadata=save_metadata,
-            gen_filing_id=gen_filing_id
         )
 
         # Use thread pool to extract data from all filings in parallel
@@ -93,28 +90,25 @@ def extract(
 def process_instance(
     instance: Tuple[str, int],
     save_metadata: bool = False,
-    gen_filing_id: bool = False
 ):
     """
     Extract data from a single XBRL filing.
 
     Args:
-        instance: Tuple of path to instance and filing_id for instance.
+        instance: Tuple of path to instance and filing_name for instance.
         save_metadata: Save XBRL references in JSON file.
-        gen_filing_id: Include filing_id in dataframes.
     """
     logger = logging.getLogger(__name__)
-    instance_path, i = instance
+    instance_path, filing_name = instance
     contexts, facts, tax_url = parse(instance_path)
 
-    tables = get_fact_tables(tax_url, save_metadata, gen_filing_id)
-    filing_id = i if gen_filing_id else None
+    tables = get_fact_tables(tax_url, save_metadata)
 
     logger.info(f"Extracting {instance_path}")
 
     dfs = {}
     for key, table in tables.items():
-        dfs[key] = construct_dataframe(contexts, facts, table, filing_id)
+        dfs[key] = construct_dataframe(contexts, facts, table, filing_name)
 
     return dfs
 
@@ -123,7 +117,6 @@ def process_instance(
 def get_fact_tables(
     taxonomy_path: str,
     save_metadata: bool = False,
-    gen_filing_id: bool = False,
 ):
     """
     Parse taxonomy from URL. Caches results so each taxonomy is only retrieved
@@ -132,7 +125,6 @@ def get_fact_tables(
     Args:
         taxonomy_path: URL of taxonomy.
         save_metadata: Save XBRL references in JSON file.
-        gen_filing_id: Include filing_id in dataframes.
 
     Returns:
         Dictionary mapping to table names to structure.
@@ -141,17 +133,16 @@ def get_fact_tables(
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
 
-    return {role.definition: get_fact_table(role, gen_filing_id)
+    return {role.definition: get_fact_table(role)
             for role in taxonomy.roles}
 
 
-def get_fact_table(schedule: LinkRole, gen_filing_id: bool = False):
+def get_fact_table(schedule: LinkRole):
     """
     Get columns and axes defining a single table.
 
     Args:
         schedule: Top level table structure.
-        gen_filing_id: Include filing_id in dataframes.
 
     Returns:
         Dictionary axes and columns.
@@ -167,11 +158,9 @@ def get_fact_table(schedule: LinkRole, gen_filing_id: bool = False):
         "start_date": str,
         "end_date": str,
         "instant": np.bool8,
+        "filing_name": str,
         **{axis: str for axis in axes}
     }
-
-    if gen_filing_id:
-        columns["filing_id"] = int
 
     for child_concept in root_concept.child_concepts:
         if child_concept.name.endswith("LineItems"):
