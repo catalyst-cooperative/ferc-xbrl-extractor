@@ -2,7 +2,7 @@
 from typing import List, Optional, Tuple
 import pandas as pd
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor as Executer
+from concurrent.futures import ProcessPoolExecutor as Executer
 from functools import cache, partial
 import logging
 
@@ -139,7 +139,10 @@ def get_fact_tables(
 
 def get_fact_table(schedule: LinkRole):
     """
-    Get columns and axes defining a single table.
+    Use relationships described in LinkRole to initialize the structure of the
+    fact table. Returns a dictionary containing axes and columns. 'axes' is a list
+    of column names that make up the various dimensions which identify the contexts
+    in the table. 'columns' is a dictionary that maps column names to data types.
 
     Args:
         schedule: Top level table structure.
@@ -164,14 +167,16 @@ def get_fact_table(schedule: LinkRole):
 
     for child_concept in root_concept.child_concepts:
         if child_concept.name.endswith("LineItems"):
-            columns.update(get_columns_from_table(child_concept))
+            columns.update(get_columns_from_concept_tree(child_concept))
 
     return {"axes": axes, "columns": columns}
 
 
-def get_columns_from_table(concept: Concept):
+def get_columns_from_concept_tree(concept: Concept):
     """
-    Loop through all concepts in table and create column for each concept.
+    Traverse through concept DAG and create a column for any concepts that do not
+    have any child concepts. Concepts with no children represent individual facts,
+    while those with children are containers with one or more facts.
 
     Args:
         concept: Top level concept.
@@ -179,16 +184,18 @@ def get_columns_from_table(concept: Concept):
     Returns:
         Dictionary of columns.
     """
-    cols = {}
+    columns = {}
     for item in concept.child_concepts:
-        cols.update(get_cols_from_line_item(item))
+        columns.update(get_column_from_concept(item))
 
-    return cols
+    return columns
 
 
-def get_cols_from_line_item(concept: Concept):
+def get_column_from_concept(concept: Concept):
     """
-    Check if concept contains child concepts, or is a lone fact.
+    Check if concept contains child concepts, or is a lone fact. If concept is a
+    fact, return a dictionary with the name and dtype, if it's a container treat it
+    as the new root concept and get columns from sub-tree.
 
     Args:
         concept: Concept in question.
@@ -197,7 +204,7 @@ def get_cols_from_line_item(concept: Concept):
         Dictionary of columns for concept and child concepts.
     """
     if len(concept.child_concepts) > 0:
-        return get_columns_from_table(concept)
+        return get_columns_from_concept_tree(concept)
     else:
         dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
             else DTYPE_MAP["Default"]
@@ -214,7 +221,7 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
         table_info (Dict): Dictionary containing columns and axes in table.
         filing_name: Unique filing id.
     """
-    cols = table_info['columns']
+    columns = table_info['columns']
     axes = table_info['axes']
 
     # Filter contexts to only those relevant to table
@@ -223,11 +230,11 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
 
     # Get the maximum number of rows that could be in table and allocate space
     max_len = len(contexts)
-    df = {key: [None]*max_len for key, dtype in cols.items()}
+    df = {key: [None]*max_len for key, dtype in columns.items()}
 
     # Loop through contexts and get facts in each context
     for i, (c_id, context) in enumerate(contexts.items()):
-        row = {fact.name: fact.value for fact in facts[c_id] if fact.name in cols}
+        row = {fact.name: fact.value for fact in facts[c_id] if fact.name in columns}
 
         if row:
             row.update(contexts[c_id].get_context_ids(filing_name))

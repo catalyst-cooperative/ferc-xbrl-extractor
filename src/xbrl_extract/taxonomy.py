@@ -14,7 +14,11 @@ Concept = ForwardRef('Concept')
 
 class Concept(BaseModel):
     """
-    Pydantic model that defines an XBRL taxonomy concept.
+    Pydantic model that defines an XBRL taxonomy Concept.
+
+    A Concept in the XBRL context can represent either a single fact or a
+    'container' for multiple facts. If child_concepts is empty, that indicates
+    that the Concept is a single fact.
     """
 
     name: str
@@ -22,7 +26,7 @@ class Concept(BaseModel):
     references: Optional[str]
     label: str
     type: str  # noqa: A003
-    child_concepts: Optional[List[Concept]] = None
+    child_concepts: List[Concept]
 
     @root_validator(pre=True)
     def map_label(cls, values):
@@ -38,7 +42,14 @@ class Concept(BaseModel):
 
     @classmethod
     def from_list(cls, concept_list: List):
-        """Construct from list."""
+        """
+        Construct a Concept from a list.
+
+        The way Arelle depicts the structure of the
+        of a taxonomy is a bit unintuitive, but a concept will be represented as a
+        list with the first element being the string 'concept', and the second two
+        being dictionaries containing relevant information.
+        """
         if concept_list[0] != 'concept':
             raise ValueError("First element should be 'concept'")
 
@@ -57,15 +68,28 @@ Concept.update_forward_refs()
 class LinkRole(BaseModel):
     """
     Pydantic model that defines an XBRL taxonomy linkrole.
+
+    In XBRL taxonomies, Link Roles are used to group Concepts together in a
+    meaningful way. These groups are often referred to as "Fact Tables". A
+    Link Role contains a Directed Acyclic Graph (DAG) of concepts, which defines
+    relationships.
     """
 
     role: AnyHttpUrl
     definition: str
-    concepts: 'Concept'
+    concepts: Concept
 
     @classmethod
     def from_list(cls, linkrole_list: List) -> 'Concept':
-        """Construct from list."""
+        """
+        Construct from list.
+
+        The way Arelle depicts the structure of the
+        of a taxonomy is a bit unintuitive, but a Link Role will be represented as a
+        list with the first element being the string 'linkRole', the second being
+        dictionaries containing relevant information, then a list which defines
+        the root concept in the DAG.
+        """
         if linkrole_list[0] != 'linkRole':
             raise ValueError("First element should be 'linkRole'")
 
@@ -77,35 +101,30 @@ class LinkRole(BaseModel):
 
 class Taxonomy(BaseModel):
     """
-    Pydantic model that defines an XBRL taxonomy taxonomy.
+    Pydantic model that defines an XBRL taxonomy.
+
+    A Taxonomy is an XBRL document, which is used to interpret/validate the facts in
+    individual filings.
     """
 
     roles: List['LinkRole']
 
     @validator('roles', pre=True)
     def validate_taxonomy(cls, roles):
-        """Create children."""
+        """Parse all Link Roles defined in taxonomy."""
         taxonomy = [LinkRole.from_list(role) for role in roles]
         return taxonomy
-
-    def get_page(self, page_num: int, section: str = '') -> List[LinkRole]:
-        """Helper to get tables from page."""
-        roles = []
-        page_id = f"{str(page_num).zfill(3)}{section}"
-
-        for role in self.roles:
-            if role.definition.startswith(page_id):
-                roles.append(role)
-
-        return roles
 
     @classmethod
     def from_path(cls, path: str, metadata_fname: str = ''):
         """Construct taxonomy from taxonomy URL."""
         xbrl = load_xbrl(path)
+
+        # Interpret structure/relationships
         view = ViewRelationshipSet(xbrl, "taxonomy.json", "roles", None, None, None)
         view.view(XbrlConst.parentChild, None, None, None)
 
+        # References provide sometimes useful metadata that can be saved in JSON
         if metadata_fname:
             save_references(
                 metadata_fname,
