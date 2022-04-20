@@ -2,7 +2,7 @@
 from typing import List, Optional, Tuple
 import pandas as pd
 import numpy as np
-from concurrent.futures import ProcessPoolExecutor as Executer
+from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import cache, partial
 import logging
 
@@ -51,7 +51,7 @@ def extract(
     if not batch_size:
         batch_size = num_instances
 
-    with Executer(max_workers=threads) as executer:
+    with Executor(max_workers=threads) as executor:
         # Bind arguments generic to all filings
         process_instances = partial(
             process_instance,
@@ -59,7 +59,7 @@ def extract(
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = executer.map(
+        results = executor.map(
             process_instances,
             instance_paths,
             chunksize=batch_size
