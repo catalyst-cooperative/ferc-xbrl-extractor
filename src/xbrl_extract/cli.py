@@ -41,11 +41,11 @@ def parse_main():
         help="Specify number of instances to be processed at a time(defaults to one large batch)"
     )
     parser.add_argument(
-        "-t",
-        "--threads",
+        "-w",
+        "--workers",
         default=None,
         type=int,
-        help="Specify number of threads in pool (defaults to `os.cpu_count()`)"
+        help="Specify number of workers in pool (will attempt to choose a reasonable default if not specified)"
     )
     parser.add_argument(
         "--loglevel",
