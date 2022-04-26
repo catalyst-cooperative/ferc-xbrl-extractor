@@ -1,16 +1,21 @@
 name: xbrl-extract
 channels:
- - conda-forge
+  - conda-forge
+  - defaults
 dependencies:
- - pip>=21.0,<22
+  # Packages required for setting up the environment
+  - pip>=21.0,<22
+  - python>=3.8,<3.11
+  - setuptools<62
 
- # Jupyter notebook specific packages
- - jupyterlab ~= 3.0
- - jellyfish
- - stringcase
- - scipy
+  # Jupyter packages:
+  - jupyterlab>=3.2,<4
+  - nbconvert>=6,<7  # Used to clear notebook outputs in pre-commit hooks
+  - jellyfish
+  - stringcase
+  - scipy
 
- # XBRL parsing library
- - pip:
+  # XBRL parsing library
+  - pip:
     - git+https://github.com/Arelle/Arelle.git@master
-    - --editable ./
+    - --editable ./[docs,tests,dev]

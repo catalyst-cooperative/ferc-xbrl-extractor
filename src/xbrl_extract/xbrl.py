@@ -1,16 +1,15 @@
 """XBRL extractor."""
-from typing import List, Optional, Tuple
-import pandas as pd
-import numpy as np
+import logging
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import cache, partial
-import logging
+from typing import List, Optional, Tuple
 
+import numpy as np
+import pandas as pd
 import sqlalchemy as sa
 
-from .taxonomy import Taxonomy, Concept, LinkRole
 from .instance import parse
-
+from .taxonomy import Concept, LinkRole, Taxonomy
 
 DTYPE_MAP = {
     "String": str,
@@ -59,11 +58,7 @@ def extract(
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = executor.map(
-            process_instances,
-            instance_paths,
-            chunksize=batch_size
-        )
+        results = executor.map(process_instances, instance_paths, chunksize=batch_size)
 
         current_batch = 1
         num_batches = num_instances // batch_size
@@ -77,13 +72,15 @@ def extract(
                 dfs[key].append(df)
 
             # Write to disk after batch size to avoid using all memory
-            if (i + 1) % batch_size == 0 or i == num_instances - 1:
+            if (i + 1) % batch_size == 0 or i == num_instances - 1:  # noqa: FS001
                 logger.info(f"Processed batch {current_batch}/{num_batches}")
                 current_batch += 1
 
                 for key, df_list in dfs.items():
+                    logger.debug(f"Concatenating table - {key}")
+
                     df = pd.concat(df_list, ignore_index=True)
-                    df.to_sql(key, engine, if_exists='append')
+                    df.to_sql(key, engine, if_exists="append")
                     dfs[key] = []
 
 
@@ -119,8 +116,9 @@ def get_fact_tables(
     save_metadata: bool = False,
 ):
     """
-    Parse taxonomy from URL. Caches results so each taxonomy is only retrieved
-    and parsed once.
+    Parse taxonomy from URL.
+
+    Caches results so each taxonomy is only retrieved and parsed once.
 
     Args:
         taxonomy_path: URL of taxonomy.
@@ -133,12 +131,13 @@ def get_fact_tables(
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
 
-    return {role.definition: get_fact_table(role)
-            for role in taxonomy.roles}
+    return {role.definition: get_fact_table(role) for role in taxonomy.roles}
 
 
 def get_fact_table(schedule: LinkRole):
     """
+    Extract fact table structure from LinkRole.
+
     Use relationships described in LinkRole to initialize the structure of the
     fact table. Returns a dictionary containing axes and columns. 'axes' is a list
     of column names that make up the various dimensions which identify the contexts
@@ -152,8 +151,11 @@ def get_fact_table(schedule: LinkRole):
     """
     root_concept = schedule.concepts.child_concepts[0]
 
-    axes = [concept.name for concept in root_concept.child_concepts
-            if concept.type == "Axis"]
+    axes = [
+        concept.name
+        for concept in root_concept.child_concepts
+        if concept.type == "Axis"
+    ]
 
     columns = {
         "context_id": str,
@@ -162,7 +164,7 @@ def get_fact_table(schedule: LinkRole):
         "end_date": str,
         "instant": np.bool8,
         "filing_name": str,
-        **{axis: str for axis in axes}
+        **{axis: str for axis in axes},
     }
 
     for child_concept in root_concept.child_concepts:
@@ -174,9 +176,11 @@ def get_fact_table(schedule: LinkRole):
 
 def get_columns_from_concept_tree(concept: Concept):
     """
-    Traverse through concept DAG and create a column for any concepts that do not
-    have any child concepts. Concepts with no children represent individual facts,
-    while those with children are containers with one or more facts.
+    Loop through concepts to get column names.
+
+    Traverse through concept DAG and create a column for any concepts that do
+    not have any child concepts. Concepts with no children represent individual
+    facts, while those with children are containers with one or more facts.
 
     Args:
         concept: Top level concept.
@@ -193,9 +197,11 @@ def get_columns_from_concept_tree(concept: Concept):
 
 def get_column_from_concept(concept: Concept):
     """
-    Check if concept contains child concepts, or is a lone fact. If concept is a
-    fact, return a dictionary with the name and dtype, if it's a container treat it
-    as the new root concept and get columns from sub-tree.
+    Check if concept is individual fact or has child facts.
+
+    Check if concept contains child concepts, or is a lone fact. If concept is
+    a fact, return a dictionary with the name and dtype, if it's a container
+    treat it as the new root concept and get columns from sub-tree.
 
     Args:
         concept: Concept in question.
@@ -206,8 +212,11 @@ def get_column_from_concept(concept: Concept):
     if len(concept.child_concepts) > 0:
         return get_columns_from_concept_tree(concept)
     else:
-        dtype = DTYPE_MAP[concept.type] if concept.type in DTYPE_MAP \
+        dtype = (
+            DTYPE_MAP[concept.type]
+            if concept.type in DTYPE_MAP
             else DTYPE_MAP["Default"]
+        )
         return {concept.name: dtype}
 
 
@@ -221,16 +230,19 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
         table_info (Dict): Dictionary containing columns and axes in table.
         filing_name: Unique filing id.
     """
-    columns = table_info['columns']
-    axes = table_info['axes']
+    columns = table_info["columns"]
+    axes = table_info["axes"]
 
     # Filter contexts to only those relevant to table
-    contexts = {c_id: context for c_id, context in contexts.items()
-                if context.in_axes(axes)}
+    contexts = {
+        c_id: context
+        for c_id, context in contexts.items()
+        if context.check_dimensions(axes)
+    }
 
     # Get the maximum number of rows that could be in table and allocate space
     max_len = len(contexts)
-    df = {key: [None]*max_len for key, dtype in columns.items()}
+    df = {key: [None] * max_len for key, dtype in columns.items()}
 
     # Loop through contexts and get facts in each context
     for i, (c_id, context) in enumerate(contexts.items()):
@@ -242,4 +254,4 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
             for key, val in row.items():
                 df[key][i] = val
 
-    return pd.DataFrame(df).dropna(how='all').drop('context_id', axis=1)
+    return pd.DataFrame(df).dropna(how="all").drop("context_id", axis=1)
