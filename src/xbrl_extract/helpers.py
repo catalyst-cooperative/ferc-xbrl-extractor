@@ -1,5 +1,6 @@
-import sqlalchemy as sa
 import logging
+
+import sqlalchemy as sa
 
 
 def drop_tables(engine):
