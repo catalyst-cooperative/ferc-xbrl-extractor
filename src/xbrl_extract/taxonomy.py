@@ -1,15 +1,13 @@
 """XBRL prototype structures."""
 from typing import ForwardRef, List, Optional
 
-from .arelle_interface import load_xbrl, save_references
-
 from arelle import XbrlConst
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
+from pydantic import AnyHttpUrl, BaseModel, root_validator, validator
 
-from pydantic import BaseModel, root_validator, validator, AnyHttpUrl
+from .arelle_interface import load_xbrl, save_references
 
-
-Concept = ForwardRef('Concept')
+Concept = ForwardRef("Concept")
 
 
 class Concept(BaseModel):
@@ -31,14 +29,14 @@ class Concept(BaseModel):
     @root_validator(pre=True)
     def map_label(cls, values):
         """Change label name."""
-        if 'pref.Label' in values:
-            values['label'] = values.pop('pref.Label')
+        if "pref.Label" in values:
+            values["label"] = values.pop("pref.Label")
 
         return values
 
-    @validator('name', pre=True)
+    @validator("name", pre=True)
     def strip_prefix(cls, name):
-        return name.split(':')[1]
+        return name.split(":")[1]
 
     @classmethod
     def from_list(cls, concept_list: List):
@@ -50,15 +48,18 @@ class Concept(BaseModel):
         list with the first element being the string 'concept', and the second two
         being dictionaries containing relevant information.
         """
-        if concept_list[0] != 'concept':
+        if concept_list[0] != "concept":
             raise ValueError("First element should be 'concept'")
 
-        if not isinstance(concept_list[1], dict) or not isinstance(concept_list[2], dict):
+        if not isinstance(concept_list[1], dict) or not isinstance(
+            concept_list[2], dict
+        ):
             raise TypeError("Second 2 elements should be dicts")
 
         return cls(
-            **concept_list[1], **concept_list[2],
-            child_concepts=[Concept.from_list(concept) for concept in concept_list[3:]]
+            **concept_list[1],
+            **concept_list[2],
+            child_concepts=[Concept.from_list(concept) for concept in concept_list[3:]],
         )
 
 
@@ -80,7 +81,7 @@ class LinkRole(BaseModel):
     concepts: Concept
 
     @classmethod
-    def from_list(cls, linkrole_list: List) -> 'Concept':
+    def from_list(cls, linkrole_list: List) -> "Concept":
         """
         Construct from list.
 
@@ -90,7 +91,7 @@ class LinkRole(BaseModel):
         dictionaries containing relevant information, then a list which defines
         the root concept in the DAG.
         """
-        if linkrole_list[0] != 'linkRole':
+        if linkrole_list[0] != "linkRole":
             raise ValueError("First element should be 'linkRole'")
 
         if not isinstance(linkrole_list[1], dict):
@@ -107,16 +108,16 @@ class Taxonomy(BaseModel):
     individual filings.
     """
 
-    roles: List['LinkRole']
+    roles: List["LinkRole"]
 
-    @validator('roles', pre=True)
+    @validator("roles", pre=True)
     def validate_taxonomy(cls, roles):
         """Parse all Link Roles defined in taxonomy."""
         taxonomy = [LinkRole.from_list(role) for role in roles]
         return taxonomy
 
     @classmethod
-    def from_path(cls, path: str, metadata_fname: str = ''):
+    def from_path(cls, path: str, metadata_fname: str = ""):
         """Construct taxonomy from taxonomy URL."""
         xbrl = load_xbrl(path)
 
@@ -128,8 +129,10 @@ class Taxonomy(BaseModel):
         if metadata_fname:
             save_references(
                 metadata_fname,
-                {str(name).split(':')[1]: concept
-                 for name, concept in xbrl.qnameConcepts.items()}
+                {
+                    str(name).split(":")[1]: concept
+                    for name, concept in xbrl.qnameConcepts.items()
+                },
             )
 
         return cls(**view.jsonObject)

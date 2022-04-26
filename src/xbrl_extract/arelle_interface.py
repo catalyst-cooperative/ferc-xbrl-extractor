@@ -1,10 +1,10 @@
 """Abstract away interface to Arelle XBRL Library."""
-from typing import Dict, List
 import json
+from typing import Dict, List
 
 from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
-from arelle.ModelInstanceObject import ModelFact
 from arelle.ModelDtsObject import ModelConcept
+from arelle.ModelInstanceObject import ModelFact
 
 
 def load_xbrl(path: str):
@@ -18,16 +18,19 @@ def load_xbrl(path: str):
 def save_references(filename: str, concepts: Dict[str, ModelConcept]):
     ref_dict = {}
     for name, concept in concepts.items():
-        relationships = concept.modelXbrl \
-            .relationshipSet(XbrlConst.conceptReference) \
-            .fromModelObject(concept)
+        relationships = concept.modelXbrl.relationshipSet(
+            XbrlConst.conceptReference
+        ).fromModelObject(concept)
 
         relationship_dict = {}
         for relationship in relationships:
             relationship = relationship.toModelObject
-            relationship_name = relationship.modelXbrl.roleTypeDefinition(relationship.role)
-            part_dict = {part.localName: part.stringValue
-                         for part in relationship.iterchildren()}
+            relationship_name = relationship.modelXbrl.roleTypeDefinition(
+                relationship.role
+            )
+            part_dict = {
+                part.localName: part.stringValue for part in relationship.iterchildren()
+            }
 
             if relationship_name in relationship_dict:
                 relationship_dict[relationship_name].append(part_dict)
@@ -36,7 +39,7 @@ def save_references(filename: str, concepts: Dict[str, ModelConcept]):
 
         ref_dict[name] = relationship_dict
 
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         json.dump(ref_dict, f)
 
 
@@ -45,12 +48,13 @@ class InstanceFacts(object):
 
     def __init__(self, instance_path: str):
         xbrl = load_xbrl(instance_path)
-        self.fact_dict = {str(qname).split(':')[1]: fact
-                          for qname, fact in xbrl.factsByQname.items()}
+        self.fact_dict = {
+            str(qname).split(":")[1]: fact for qname, fact in xbrl.factsByQname.items()
+        }
 
     def _verify_dimensions(self, fact: ModelFact, axes: List[str]):
         for dim in fact.context.qnameDims.keys():
-            if str(dim).split(':')[1] not in axes:
+            if str(dim).split(":")[1] not in axes:
                 return False
 
         return True
