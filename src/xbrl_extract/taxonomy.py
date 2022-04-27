@@ -1,11 +1,9 @@
 """XBRL prototype structures."""
 from typing import ForwardRef, List, Optional
 
-from arelle import XbrlConst
-from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 from pydantic import AnyHttpUrl, BaseModel, root_validator, validator
 
-from .arelle_interface import load_xbrl, save_references
+from .arelle_interface import load_taxonomy, save_references
 
 Concept = ForwardRef("Concept")
 
@@ -27,7 +25,7 @@ class Concept(BaseModel):
     child_concepts: List[Concept]
 
     @root_validator(pre=True)
-    def map_label(cls, values):
+    def map_label(cls, values):  # noqa: N805
         """Change label name."""
         if "pref.Label" in values:
             values["label"] = values.pop("pref.Label")
@@ -35,7 +33,8 @@ class Concept(BaseModel):
         return values
 
     @validator("name", pre=True)
-    def strip_prefix(cls, name):
+    def strip_prefix(cls, name):  # noqa: N805
+        """Strip namespace prefix to make names cleaner."""
         return name.split(":")[1]
 
     @classmethod
@@ -111,7 +110,7 @@ class Taxonomy(BaseModel):
     roles: List["LinkRole"]
 
     @validator("roles", pre=True)
-    def validate_taxonomy(cls, roles):
+    def validate_taxonomy(cls, roles):  # noqa: N805
         """Parse all Link Roles defined in taxonomy."""
         taxonomy = [LinkRole.from_list(role) for role in roles]
         return taxonomy
@@ -119,11 +118,7 @@ class Taxonomy(BaseModel):
     @classmethod
     def from_path(cls, path: str, metadata_fname: str = ""):
         """Construct taxonomy from taxonomy URL."""
-        xbrl = load_xbrl(path)
-
-        # Interpret structure/relationships
-        view = ViewRelationshipSet(xbrl, "taxonomy.json", "roles", None, None, None)
-        view.view(XbrlConst.parentChild, None, None, None)
+        taxonomy, view = load_taxonomy(path)
 
         # References provide sometimes useful metadata that can be saved in JSON
         if metadata_fname:
@@ -131,7 +126,7 @@ class Taxonomy(BaseModel):
                 metadata_fname,
                 {
                     str(name).split(":")[1]: concept
-                    for name, concept in xbrl.qnameConcepts.items()
+                    for name, concept in taxonomy.qnameConcepts.items()
                 },
             )
 

@@ -17,5 +17,4 @@ dependencies:
 
   # XBRL parsing library
   - pip:
-    - git+https://github.com/Arelle/Arelle.git@master
     - --editable ./[docs,tests,dev]

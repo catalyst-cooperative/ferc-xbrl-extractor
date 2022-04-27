@@ -4,6 +4,7 @@ from typing import Dict
 
 from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
 from arelle.ModelDtsObject import ModelConcept
+from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 
 
 def load_xbrl(path: str):
@@ -12,6 +13,17 @@ def load_xbrl(path: str):
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
     return ModelXbrl.load(model_manager, path)
+
+
+def load_taxonomy(path: str):
+    """Load XBRL taxonomy, and parse relationships."""
+    taxonomy = load_taxonomy(path)
+
+    # Interpret structure/relationships
+    view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
+    view.view(XbrlConst.parentChild, None, None, None)
+
+    return taxonomy, view
 
 
 def save_references(filename: str, concepts: Dict[str, ModelConcept]):

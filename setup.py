@@ -22,9 +22,9 @@ setup(
     maintainer_email="zach.schira@catalyst.coop",
     url="",  # Can be repo or docs URL if no separate web page exists.
     project_urls={
-        "Source": "https://github.com/catalyst-cooperative/REPO_NAME",
+        "Source": "https://github.com/catalyst-cooperative/xbrl-extract",
         "Documentation": "https://PACKAGE_NAME.readthedocs.io",
-        "Issue Tracker": "https://github.com/catalyst-cooperative/REPO_NAME/issues",
+        "Issue Tracker": "https://github.com/catalyst-cooperative/xbrl-extract/issues",
     },
     keywords=["xbrl", "ferc", "financial"],
     python_requires=">=3.8,<3.11",
@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "pydantic>=1.9,<2",
         "coloredlogs~=15.0",
-        "arelle @ git+https://github.com/Arelle/Arelle.git@master",
+        "w-versioned-arelle @ git+https://github.com/Arelle/Arelle.git@0.9.91",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
     ],
