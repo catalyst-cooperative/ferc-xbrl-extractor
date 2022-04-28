@@ -2,16 +2,12 @@
 from datetime import date
 from enum import Enum, auto
 from typing import Dict, List, Optional
-from xml.etree.ElementTree import Element  # nosec: B405
 
-from defusedxml import ElementTree
+from lxml import etree  # nosec: B410
+from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
 
-INSTANCE_PREFIX = "{http://www.xbrl.org/2003/instance}"  # noqa: FS003
-EXPLICIT_DIMENSION_PREFIX = "{http://xbrl.org/2006/xbrldi}explicitMember"  # noqa: FS003
-TYPED_DIMENSION_PREFIX = "{http://xbrl.org/2006/xbrldi}typedMember"  # noqa: FS003
 TAXONOMY_PREFIX = "{http://www.w3.org/1999/xlink}href"  # noqa: FS003
-SCHEMA_PREFIX = "{http://www.xbrl.org/2003/linkbase}schemaRef"  # noqa: FS003
 
 
 def parse(path: str):
@@ -26,24 +22,26 @@ def parse(path: str):
         fact_dict: Dictionary of facts in filing.
         taxonomy_url: URL to taxonomy used for filing.
     """
-    tree = ElementTree.parse(path)
+    tree = etree.parse(path)  # nosec: B320
     root = tree.getroot()
 
-    contexts = root.findall(f"{INSTANCE_PREFIX}context")
-    facts = root.findall(f"{{{root.nsmap['ferc']}}}*")
-    taxonomy_url = root.find(SCHEMA_PREFIX).attrib[TAXONOMY_PREFIX]
+    taxonomy_url = root.find("link:schemaRef", root.nsmap).attrib[TAXONOMY_PREFIX]
 
     context_dict = {}
     fact_dict = {}
-    for context in contexts:
-        new_context = Context.from_xml(context)
-        context_dict[new_context.c_id] = new_context
-        fact_dict[new_context.c_id] = []
+    for child in root.iterchildren():
+        if "id" not in child.attrib:
+            continue
 
-    for fact in facts:
-        new_fact = Fact.from_xml(fact)
-        if new_fact.value is not None:
-            fact_dict[new_fact.c_id].append(new_fact)
+        if child.attrib["id"].startswith("c"):
+            new_context = Context.from_xml(child)
+            context_dict[new_context.c_id] = new_context
+            fact_dict[new_context.c_id] = []
+
+        elif child.attrib["id"].startswith("f"):
+            new_fact = Fact.from_xml(child)
+            if new_fact.value is not None:
+                fact_dict[new_fact.c_id].append(new_fact)
 
     return context_dict, fact_dict, taxonomy_url
 
@@ -62,14 +60,14 @@ class Period(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Period":
         """Construct Period from XML element."""
-        instant = elem.find(f"{INSTANCE_PREFIX}instant")
+        instant = elem.find("instant", elem.nsmap)
         if instant is not None:
             return cls(instant=True, end_date=instant.text)
 
         return cls(
             instant=False,
-            start_date=elem.find(f"{INSTANCE_PREFIX}startDate").text,
-            end_date=elem.find(f"{INSTANCE_PREFIX}endDate").text,
+            start_date=elem.find("startDate", elem.nsmap).text,
+            end_date=elem.find("endDate", elem.nsmap).text,
         )
 
 
@@ -107,14 +105,14 @@ class Axis(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Axis":
         """Construct Axis from XML element."""
-        if elem.tag == EXPLICIT_DIMENSION_PREFIX:
+        if elem.tag.endswith("explicitMember"):
             return cls(
                 name=elem.attrib["dimension"],
                 value=elem.text,
                 dimension_type=DimensionType.EXPLICIT,
             )
 
-        elif elem.tag == TYPED_DIMENSION_PREFIX:
+        elif elem.tag.endswith("typedMember"):
             dim = elem.getchildren()[0]
             return cls(
                 name=elem.attrib["dimension"],
@@ -138,12 +136,13 @@ class Entity(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Entity":
         """Construct Entity from XML element."""
-        segment = elem.find(f"{INSTANCE_PREFIX}segment")
-        dim_els = segment.getchildren() if segment is not None else []
+        # Segment node contains dimensions prefixed with xbrldi
+        segment = elem.find("segment", elem.nsmap)
+        dims = segment.findall("xbrldi:*", segment.nsmap) if segment is not None else []
 
         return cls(
-            identifier=elem.find(f"{INSTANCE_PREFIX}identifier").text,
-            dimensions=[Axis.from_xml(child) for child in dim_els],
+            identifier=elem.find("identifier", elem.nsmap).text,
+            dimensions=[Axis.from_xml(child) for child in dims],
         )
 
     def check_dimensions(self, axes: List[str]) -> bool:
@@ -176,8 +175,8 @@ class Context(BaseModel):
         return cls(
             **{
                 "c_id": elem.attrib["id"],
-                "entity": Entity.from_xml(elem.find(f"{INSTANCE_PREFIX}entity")),
-                "period": Period.from_xml(elem.find(f"{INSTANCE_PREFIX}period")),
+                "entity": Entity.from_xml(elem.find("entity", elem.nsmap)),
+                "period": Period.from_xml(elem.find("period", elem.nsmap)),
             }
         )
 
@@ -221,5 +220,7 @@ class Fact(BaseModel):
     def from_xml(cls, elem: Element) -> "Fact":
         """Construct Fact from XML element."""
         return cls(
-            name=elem.tag.split("}")[1], c_id=elem.attrib["contextRef"], value=elem.text
+            name=elem.tag.replace(f"{{{elem.nsmap['ferc']}}}", ""),  # Strip prefix
+            c_id=elem.attrib["contextRef"],
+            value=elem.text,
         )

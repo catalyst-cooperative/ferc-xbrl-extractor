@@ -17,7 +17,7 @@ def load_xbrl(path: str):
 
 def load_taxonomy(path: str):
     """Load XBRL taxonomy, and parse relationships."""
-    taxonomy = load_taxonomy(path)
+    taxonomy = load_xbrl(path)
 
     # Interpret structure/relationships
     view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
