@@ -219,8 +219,10 @@ class Fact(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Fact":
         """Construct Fact from XML element."""
+        # Get prefix from namespace map to strip from fact name
+        prefix = f"{{{elem.nsmap[elem.prefix]}}}"
         return cls(
-            name=elem.tag.replace(f"{{{elem.nsmap['ferc']}}}", ""),  # Strip prefix
+            name=elem.tag.replace(prefix, ""),  # Strip prefix
             c_id=elem.attrib["contextRef"],
             value=elem.text,
         )
