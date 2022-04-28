@@ -154,7 +154,7 @@ def get_fact_table(schedule: LinkRole):
     axes = [
         concept.name
         for concept in root_concept.child_concepts
-        if concept.type == "Axis"
+        if concept.name.endswith("Axis")
     ]
 
     columns = {

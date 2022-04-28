@@ -1,11 +1,14 @@
 """XBRL prototype structures."""
-from typing import ForwardRef, List, Optional
+from typing import Dict, ForwardRef, List, Literal
 
-from pydantic import AnyHttpUrl, BaseModel, root_validator, validator
+from arelle import XbrlConst
+from arelle.ModelDtsObject import ModelConcept
+from pydantic import AnyHttpUrl, BaseModel
 
 from .arelle_interface import load_taxonomy, save_references
 
 Concept = ForwardRef("Concept")
+ConceptDict = Dict[str, ModelConcept]
 
 
 class Concept(BaseModel):
@@ -18,27 +21,13 @@ class Concept(BaseModel):
     """
 
     name: str
-    label: str
-    references: Optional[str]
-    label: str
+    documentation: str
     type: str  # noqa: A003
+    period_type: Literal["duration", "instant"]
     child_concepts: List[Concept]
 
-    @root_validator(pre=True)
-    def map_label(cls, values):  # noqa: N805
-        """Change label name."""
-        if "pref.Label" in values:
-            values["label"] = values.pop("pref.Label")
-
-        return values
-
-    @validator("name", pre=True)
-    def strip_prefix(cls, name):  # noqa: N805
-        """Strip namespace prefix to make names cleaner."""
-        return name.split(":")[1]
-
     @classmethod
-    def from_list(cls, concept_list: List):
+    def from_list(cls, concept_list: List, concept_dict: ConceptDict):
         """
         Construct a Concept from a list.
 
@@ -55,10 +44,16 @@ class Concept(BaseModel):
         ):
             raise TypeError("Second 2 elements should be dicts")
 
+        concept = concept_dict[concept_list[1]["name"]]
+
         return cls(
-            **concept_list[1],
-            **concept_list[2],
-            child_concepts=[Concept.from_list(concept) for concept in concept_list[3:]],
+            name=concept.name,
+            documentation=concept.label(XbrlConst.documentationLabel),
+            type=concept.type.name,
+            period_type=concept.periodType,
+            child_concepts=[
+                Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
+            ],
         )
 
 
@@ -80,7 +75,7 @@ class LinkRole(BaseModel):
     concepts: Concept
 
     @classmethod
-    def from_list(cls, linkrole_list: List) -> "Concept":
+    def from_list(cls, linkrole_list: List, concept_dict: ConceptDict) -> "LinkRole":
         """
         Construct from list.
 
@@ -96,7 +91,10 @@ class LinkRole(BaseModel):
         if not isinstance(linkrole_list[1], dict):
             raise TypeError("Second element should be dicts")
 
-        return cls(**linkrole_list[1], concepts=Concept.from_list(linkrole_list[3]))
+        return cls(
+            **linkrole_list[1],
+            concepts=Concept.from_list(linkrole_list[3], concept_dict),
+        )
 
 
 class Taxonomy(BaseModel):
@@ -109,25 +107,22 @@ class Taxonomy(BaseModel):
 
     roles: List["LinkRole"]
 
-    @validator("roles", pre=True)
-    def validate_taxonomy(cls, roles):  # noqa: N805
-        """Parse all Link Roles defined in taxonomy."""
-        taxonomy = [LinkRole.from_list(role) for role in roles]
-        return taxonomy
-
     @classmethod
     def from_path(cls, path: str, metadata_fname: str = ""):
         """Construct taxonomy from taxonomy URL."""
         taxonomy, view = load_taxonomy(path)
 
+        # Create dictionary mapping concept names to concepts (also strips prefix from name)
+        concept_dict = {
+            str(name): concept for name, concept in taxonomy.qnameConcepts.items()
+        }
+
         # References provide sometimes useful metadata that can be saved in JSON
         if metadata_fname:
-            save_references(
-                metadata_fname,
-                {
-                    str(name).split(":")[1]: concept
-                    for name, concept in taxonomy.qnameConcepts.items()
-                },
-            )
+            save_references(metadata_fname, concept_dict)
 
-        return cls(**view.jsonObject)
+        roles = [
+            LinkRole.from_list(role, concept_dict) for role in view.jsonObject["roles"]
+        ]
+
+        return cls(roles=roles)
