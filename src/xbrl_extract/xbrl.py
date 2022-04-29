@@ -44,7 +44,7 @@ def extract(
         threads: Number of threads to create for parsing filings.
         save_metadata: Save XBRL references to JSON file.
     """
-    logger = logging.Logger(__name__)
+    logger = logging.getLogger(__name__)
 
     num_instances = len(instance_paths)
     if not batch_size:
