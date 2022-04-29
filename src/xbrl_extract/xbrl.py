@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from .instance import parse
+from .instance import XbrlDb, parse
 from .taxonomy import Concept, LinkRole, Taxonomy
 
 DTYPE_MAP = {
@@ -44,11 +44,12 @@ def extract(
         threads: Number of threads to create for parsing filings.
         save_metadata: Save XBRL references to JSON file.
     """
-    logger = logging.getLogger(__name__)
-
     num_instances = len(instance_paths)
     if not batch_size:
         batch_size = num_instances
+
+    # Prepare helper class for managing writing to db
+    db_manager = XbrlDb(engine, batch_size, num_instances)
 
     with Executor(max_workers=threads) as executor:
         # Bind arguments generic to all filings
@@ -60,28 +61,8 @@ def extract(
         # Use thread pool to extract data from all filings in parallel
         results = executor.map(process_instances, instance_paths, chunksize=batch_size)
 
-        current_batch = 1
-        num_batches = num_instances // batch_size
-
-        # Concatenate dataframes extracted from each individual filing
-        dfs = {}
-        for i, instance_dfs in enumerate(results):
-            for key, df in instance_dfs.items():
-                if key not in dfs:
-                    dfs[key] = []
-                dfs[key].append(df)
-
-            # Write to disk after batch size to avoid using all memory
-            if (i + 1) % batch_size == 0 or i == num_instances - 1:  # noqa: FS001
-                logger.info(f"Processed batch {current_batch}/{num_batches}")
-                current_batch += 1
-
-                for key, df_list in dfs.items():
-                    logger.debug(f"Concatenating table - {key}")
-
-                    df = pd.concat(df_list, ignore_index=True)
-                    df.to_sql(key, engine, if_exists="append")
-                    dfs[key] = []
+        for instance_dfs in results:
+            db_manager.append_instance(instance_dfs)
 
 
 def process_instance(
@@ -160,9 +141,6 @@ def get_fact_table(schedule: LinkRole):
     columns = {
         "context_id": str,
         "entity_id": str,
-        "start_date": str,
-        "end_date": str,
-        "instant": np.bool8,
         "filing_name": str,
         **{axis: str for axis in axes},
     }
@@ -242,7 +220,13 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
 
     # Get the maximum number of rows that could be in table and allocate space
     max_len = len(contexts)
-    df = {key: [None] * max_len for key, dtype in columns.items()}
+
+    # Split into two dataframes (one for instant period, one for duration)
+    columns_duration = {"start_date": str, "end_date": str, **columns}
+    df_duration = {key: [None] * max_len for key, dtype in columns_duration.items()}
+
+    columns_instant = {"date": str, **columns}
+    df_instant = {key: [None] * max_len for key, dtype in columns_instant.items()}
 
     # Loop through contexts and get facts in each context
     for i, (c_id, context) in enumerate(contexts.items()):
@@ -252,6 +236,12 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
             row.update(contexts[c_id].get_context_ids(filing_name))
 
             for key, val in row.items():
-                df[key][i] = val
+                if context.period.instant:
+                    df_instant[key][i] = val
+                else:
+                    df_duration[key][i] = val
 
-    return pd.DataFrame(df).dropna(how="all").drop("context_id", axis=1)
+    return (
+        pd.DataFrame(df_duration).dropna(how="all").drop("context_id", axis=1),
+        pd.DataFrame(df_instant).dropna(how="all").drop("context_id", axis=1),
+    )

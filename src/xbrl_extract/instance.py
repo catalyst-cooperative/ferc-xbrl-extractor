@@ -1,8 +1,10 @@
 """Parse a single instance."""
 from datetime import date
 from enum import Enum, auto
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
+import pandas as pd
+import sqlalchemy as sa
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
@@ -44,6 +46,39 @@ def parse(path: str):
                 fact_dict[new_fact.c_id].append(new_fact)
 
     return context_dict, fact_dict, taxonomy_url
+
+
+class XbrlDb(object):
+    """Class to manage writing extracted XBRL data to SQLite database."""
+
+    def __init__(self, engine: sa.engine.Engine, batch_size: int, num_instances: int):
+        """Construct db manager."""
+        self.engine = engine
+        self.batch_size = batch_size
+        self.num_instances = num_instances
+        self.dfs = {}
+        self.counter = 1
+
+    def append_instance(self, instance: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]]):
+        """Append dataframes from one instance, and write to disk if batch is finished."""
+        for key, (duration_dfs, instant_dfs) in instance.items():
+            if key not in self.dfs:
+                self.dfs[key] = {"duration": [], "instant": []}
+
+            self.dfs[key]["duration"].append(duration_dfs)
+            self.dfs[key]["instant"].append(instant_dfs)
+
+        if (self.counter % self.batch_size == 0) or (  # noqa: FS001
+            self.counter == self.num_instances
+        ):
+            for key, df_dict in self.dfs.items():
+                duration_df = pd.concat(df_dict["duration"], ignore_index=True)
+                duration_df.to_sql(f"{key} - duration", self.engine, if_exists="append")
+
+                instant_df = pd.concat(df_dict["instant"], ignore_index=True)
+                instant_df.to_sql(f"{key} - instant", self.engine, if_exists="append")
+
+        self.counter += 1
 
 
 class Period(BaseModel):
@@ -193,13 +228,20 @@ class Context(BaseModel):
         """Return a dictionary that defines context."""
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
 
+        # Get date based on period type
+        if self.period.instant:
+            date_dict = {"date": self.period.end_date}
+        else:
+            date_dict = {
+                "start_date": self.period.start_date,
+                "end_date": self.period.end_date,
+            }
+
         return {
             "context_id": self.c_id,
             "entity_id": self.entity.identifier,
-            "start_date": self.period.start_date,
-            "end_date": self.period.end_date,
-            "instant": self.period.instant,
             "filing_name": filing_name,
+            **date_dict,
             **axes_dict,
         }
 
