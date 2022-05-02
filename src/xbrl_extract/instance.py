@@ -32,14 +32,17 @@ def parse(path: str):
     context_dict = {}
     fact_dict = {}
     for child in root.iterchildren():
+        # All contexts/facts should have 'id' in attributes
         if "id" not in child.attrib:
             continue
 
+        # Context elements should have an id formatted as 'c-{num}'
         if child.attrib["id"].startswith("c"):
             new_context = Context.from_xml(child)
             context_dict[new_context.c_id] = new_context
             fact_dict[new_context.c_id] = []
 
+        # Facts elements should have an id formatted as 'f-{num}'
         elif child.attrib["id"].startswith("f"):
             new_fact = Fact.from_xml(child)
             if new_fact.value is not None:
@@ -49,7 +52,21 @@ def parse(path: str):
 
 
 class XbrlDb(object):
-    """Class to manage writing extracted XBRL data to SQLite database."""
+    """
+    Class to manage writing extracted XBRL data to SQLite database.
+
+    Each XBRL filing is processed individually and extracted to a set of dataframes.
+    This class takes those extracted dataframes, and writes them to a SQLite database
+    containing data from all filings.
+
+    Attributes:
+        engine (sa.engine.Engine): SQLAlchemy engine for database to be created.
+        batch_size (int): Maximum number of instances to process before writing to disk
+            to avoid using all memory.
+        num_instances (int): The total number of instances that will be processed.
+        dfs (Dict[str, Dict[str, pd.DataFrame]]): Dictionary containing extracted dataframes.
+        counter (int): Increments as instances are processed.
+    """
 
     def __init__(self, engine: sa.engine.Engine, batch_size: int, num_instances: int):
         """Construct db manager."""
@@ -60,7 +77,13 @@ class XbrlDb(object):
         self.counter = 1
 
     def append_instance(self, instance: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]]):
-        """Append dataframes from one instance, and write to disk if batch is finished."""
+        """
+        Append dataframes from one instance, and write to disk if batch is finished.
+
+        Each time an instance is processed, the extracted dataframes are concatenated.
+        When the number of instances processed reaches the batch size, or the total number
+        of instances, all dataframes will be written to disk, and cleared from memory.
+        """
         for key, (duration_dfs, instant_dfs) in instance.items():
             if key not in self.dfs:
                 self.dfs[key] = {"duration": [], "instant": []}
@@ -68,9 +91,11 @@ class XbrlDb(object):
             self.dfs[key]["duration"].append(duration_dfs)
             self.dfs[key]["instant"].append(instant_dfs)
 
+        # Check if batch_size has been reached, or all instances have been processed
         if (self.counter % self.batch_size == 0) or (  # noqa: FS001
             self.counter == self.num_instances
         ):
+            # Write dataframes to database
             for key, df_dict in self.dfs.items():
                 duration_df = pd.concat(df_dict["duration"], ignore_index=True)
                 if not duration_df.empty:
