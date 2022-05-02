@@ -84,6 +84,8 @@ class XbrlDb(object):
                         f"{key} - instant", self.engine, if_exists="append"
                     )
 
+            self.dfs = {}
+
         self.counter += 1
 
 
