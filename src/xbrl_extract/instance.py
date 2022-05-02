@@ -73,10 +73,16 @@ class XbrlDb(object):
         ):
             for key, df_dict in self.dfs.items():
                 duration_df = pd.concat(df_dict["duration"], ignore_index=True)
-                duration_df.to_sql(f"{key} - duration", self.engine, if_exists="append")
+                if not duration_df.empty:
+                    duration_df.to_sql(
+                        f"{key} - duration", self.engine, if_exists="append"
+                    )
 
                 instant_df = pd.concat(df_dict["instant"], ignore_index=True)
-                instant_df.to_sql(f"{key} - instant", self.engine, if_exists="append")
+                if not instant_df.empty:
+                    instant_df.to_sql(
+                        f"{key} - instant", self.engine, if_exists="append"
+                    )
 
         self.counter += 1
 

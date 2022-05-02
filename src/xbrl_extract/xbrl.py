@@ -138,16 +138,23 @@ def get_fact_table(schedule: LinkRole):
         if concept.name.endswith("Axis")
     ]
 
-    columns = {
+    generic_columns = {
         "context_id": str,
         "entity_id": str,
         "filing_name": str,
         **{axis: str for axis in axes},
     }
 
-    for child_concept in root_concept.child_concepts:
-        if child_concept.name.endswith("LineItems"):
-            columns.update(get_columns_from_concept_tree(child_concept))
+    concept_columns = get_columns_from_concept_tree(root_concept)
+    columns = {
+        "duration": {
+            **generic_columns,
+            "start_date": str,
+            "end_date": str,
+            **concept_columns["duration"],
+        },
+        "instant": {**generic_columns, "date": str, **concept_columns["instant"]},
+    }
 
     return {"axes": axes, "columns": columns}
 
@@ -166,36 +173,22 @@ def get_columns_from_concept_tree(concept: Concept):
     Returns:
         Dictionary of columns.
     """
-    columns = {}
+    columns = {"duration": {}, "instant": {}}
     for item in concept.child_concepts:
-        columns.update(get_column_from_concept(item))
+        if item.name.endswith("Axis"):
+            continue
+
+        if len(item.child_concepts) > 0:
+            return get_columns_from_concept_tree(item)
+        else:
+            dtype = (
+                DTYPE_MAP[item.type]
+                if concept.type in DTYPE_MAP
+                else DTYPE_MAP["Default"]
+            )
+            columns[item.period_type][item.name] = dtype
 
     return columns
-
-
-def get_column_from_concept(concept: Concept):
-    """
-    Check if concept is individual fact or has child facts.
-
-    Check if concept contains child concepts, or is a lone fact. If concept is
-    a fact, return a dictionary with the name and dtype, if it's a container
-    treat it as the new root concept and get columns from sub-tree.
-
-    Args:
-        concept: Concept in question.
-
-    Returns:
-        Dictionary of columns for concept and child concepts.
-    """
-    if len(concept.child_concepts) > 0:
-        return get_columns_from_concept_tree(concept)
-    else:
-        dtype = (
-            DTYPE_MAP[concept.type]
-            if concept.type in DTYPE_MAP
-            else DTYPE_MAP["Default"]
-        )
-        return {concept.name: dtype}
 
 
 def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
@@ -222,15 +215,17 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
     max_len = len(contexts)
 
     # Split into two dataframes (one for instant period, one for duration)
-    columns_duration = {"start_date": str, "end_date": str, **columns}
-    df_duration = {key: [None] * max_len for key, dtype in columns_duration.items()}
-
-    columns_instant = {"date": str, **columns}
-    df_instant = {key: [None] * max_len for key, dtype in columns_instant.items()}
+    df_duration = {key: [None] * max_len for key, dtype in columns["duration"].items()}
+    df_instant = {key: [None] * max_len for key, dtype in columns["instant"].items()}
 
     # Loop through contexts and get facts in each context
     for i, (c_id, context) in enumerate(contexts.items()):
-        row = {fact.name: fact.value for fact in facts[c_id] if fact.name in columns}
+        period_type = "instant" if context.period.instant else "duration"
+        row = {
+            fact.name: fact.value
+            for fact in facts[c_id]
+            if fact.name in columns[period_type]
+        }
 
         if row:
             row.update(contexts[c_id].get_context_ids(filing_name))
