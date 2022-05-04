@@ -1,3 +1,4 @@
+"""Helper functions."""
 import logging
 
 import sqlalchemy as sa
