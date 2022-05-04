@@ -8,27 +8,7 @@ import pandas as pd
 import sqlalchemy as sa
 
 from .instance import XbrlDb, parse
-from .taxonomy import Concept, LinkRole, Taxonomy
-
-DTYPE_MAP = {
-    "string": "string",
-    "decimal": "Float64",
-    "gyear": "Int64",
-    "integer": "Int64",
-    "boolean": "boolean",
-    "perunit": "Float64",
-    "energy": "Int64",
-    "date": "string",
-    "formtype": "string",
-    "reportperiod": "string",
-}
-
-PARSER_MAP = {
-    "string": str,
-    "Float64": float,
-    "Int64": int,
-    "bool": bool,
-}
+from .taxonomy import Concept, LinkRole, Taxonomy, XBRLType
 
 
 def extract(
@@ -143,21 +123,25 @@ def get_fact_table(schedule: LinkRole):
     ]
 
     generic_columns = {
-        "context_id": "string",
-        "entity_id": "string",
-        "filing_name": "string",
-        **{axis: "string" for axis in axes},
+        "context_id": XBRLType(),
+        "entity_id": XBRLType(),
+        "filing_name": XBRLType(),
+        **{axis: XBRLType() for axis in axes},
     }
 
     concept_columns = get_columns_from_concept_tree(root_concept)
     columns = {
         "duration": {
             **generic_columns,
-            "start_date": "string",
-            "end_date": "string",
+            "start_date": XBRLType(),
+            "end_date": XBRLType(),
             **concept_columns["duration"],
         },
-        "instant": {**generic_columns, "date": "string", **concept_columns["instant"]},
+        "instant": {
+            **generic_columns,
+            "date": XBRLType(),
+            **concept_columns["instant"],
+        },
     }
 
     return {"axes": axes, "columns": columns}
@@ -185,8 +169,7 @@ def get_columns_from_concept_tree(concept: Concept):
         if len(item.child_concepts) > 0:
             return get_columns_from_concept_tree(item)
         else:
-            dtype = DTYPE_MAP.get(item.base_type, "string")
-            columns[item.period_type][item.name] = dtype
+            columns[item.period_type][item.name] = item.type
 
     return columns
 
@@ -216,11 +199,11 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
 
     # Split into two dataframes (one for instant period, one for duration)
     df_duration = {
-        key: pd.Series([pd.NA] * max_len, dtype=dtype)
+        key: pd.Series([pd.NA] * max_len, dtype=dtype.get_pandas_type())
         for key, dtype in columns["duration"].items()
     }
     df_instant = {
-        key: pd.Series([pd.NA] * max_len, dtype=dtype)
+        key: pd.Series([pd.NA] * max_len, dtype=dtype.get_pandas_type())
         for key, dtype in columns["instant"].items()
     }
 
@@ -238,11 +221,11 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
 
             for key, val in row.items():
                 if context.period.instant:
-                    dtype_parser = PARSER_MAP[columns["instant"][key]]
-                    df_instant[key][i] = dtype_parser(val)
+                    xbrl_type = columns["instant"][key]
+                    df_instant[key][i] = xbrl_type.parse(val)
                 else:
-                    dtype_parser = PARSER_MAP[columns["duration"][key]]
-                    df_duration[key][i] = dtype_parser(val)
+                    xbrl_type = columns["duration"][key]
+                    df_duration[key][i] = xbrl_type.parse(val)
 
     return (
         pd.DataFrame(df_duration).dropna(how="all").drop("context_id", axis=1),

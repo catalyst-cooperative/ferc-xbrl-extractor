@@ -2,13 +2,72 @@
 from typing import Dict, ForwardRef, List, Literal
 
 from arelle import XbrlConst
-from arelle.ModelDtsObject import ModelConcept
+from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
 from .arelle_interface import load_taxonomy, save_references
 
 Concept = ForwardRef("Concept")
 ConceptDict = Dict[str, ModelConcept]
+
+
+class XBRLType(BaseModel):
+    """
+    Pydantic model that defines the type of a Concept.
+
+    XBRL provides an inheritance model for defining types. There are a number of
+    standardized types, as well as support for user defined types. For simplicity,
+    this model stores just the name of the type, and the base type which it is
+    derived from. The base type is then used for determining what type to use in
+    the resulting database. The list of base types defined/dealt with here is not
+    a comprehensive list of all types in the XBRL standard, but it does contain all
+    types used in the FERC Form 1 taxonomy.
+    """
+
+    name: str = "string"
+    base: Literal[
+        "string", "decimal", "gyear", "integer", "boolean", "date", "duration"
+    ] = "string"
+
+    @classmethod
+    def from_arelle_type(cls, arelle_type: ModelType):
+        """Construct XBRLType class from arelle ModelType."""
+        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
+
+    def get_pandas_type(self):
+        """
+        Return corresponding pandas type.
+
+        Gets a string representation of the pandas type best suited to represent the
+        base type.
+        """
+        if self.base == "string" or self.base == "date" or self.base == "duration":
+            return "string"
+        elif self.base == "decimal":
+            return "Float64"
+        elif self.base == "gyear" or self.base == "integer":
+            return "Int64"
+        elif self.base == "boolean":
+            return "boolean"
+
+    def parse(self, value: str):
+        """
+        Parse a value from an XBRL fact based on the underlying type.
+
+        When parsing an XBRL instance, facts provide a string representation of the
+        actual value. This method uses the type specified in the taxonomy to
+        convert that value to a more fitting datatype.
+        """
+        pandas_type = self.get_pandas_type()
+
+        if pandas_type == "string":
+            return str(value)
+        elif pandas_type == "Float64":
+            return float(value)
+        elif pandas_type == "Int64":
+            return int(value)
+        elif pandas_type == "bool":
+            return bool(value)
 
 
 class Concept(BaseModel):
@@ -22,8 +81,7 @@ class Concept(BaseModel):
 
     name: str
     documentation: str
-    type: str  # noqa: A003
-    base_type: str
+    type: XBRLType  # noqa: A003
     period_type: Literal["duration", "instant"]
     child_concepts: List[Concept]
 
@@ -50,8 +108,7 @@ class Concept(BaseModel):
         return cls(
             name=concept.name,
             documentation=concept.label(XbrlConst.documentationLabel),
-            type=concept.type.name,
-            base_type=concept.type.baseXsdType.lower(),
+            type=XBRLType.from_arelle_type(concept.type),
             period_type=concept.periodType,
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
