@@ -23,6 +23,7 @@ class Concept(BaseModel):
     name: str
     documentation: str
     type: str  # noqa: A003
+    base_type: str
     period_type: Literal["duration", "instant"]
     child_concepts: List[Concept]
 
@@ -50,6 +51,7 @@ class Concept(BaseModel):
             name=concept.name,
             documentation=concept.label(XbrlConst.documentationLabel),
             type=concept.type.name,
+            base_type=concept.type.baseXsdType.lower(),
             period_type=concept.periodType,
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]

@@ -4,7 +4,6 @@ from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import cache, partial
 from typing import List, Optional, Tuple
 
-import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
@@ -12,18 +11,23 @@ from .instance import XbrlDb, parse
 from .taxonomy import Concept, LinkRole, Taxonomy
 
 DTYPE_MAP = {
-    "String": str,
-    "Decimal": np.float64,
-    "GYear": np.int64,
-    "Power": np.float64,
-    "Integer": np.int64,
-    "Monetary": np.int64,
-    "PerUnit": np.float64,
-    "Energy": np.int64,
-    "Date": str,
-    "FormType": str,
-    "ReportPeriod": str,
-    "Default": str,
+    "string": "string",
+    "decimal": "Float64",
+    "gyear": "Int64",
+    "integer": "Int64",
+    "boolean": "boolean",
+    "perunit": "Float64",
+    "energy": "Int64",
+    "date": "string",
+    "formtype": "string",
+    "reportperiod": "string",
+}
+
+PARSER_MAP = {
+    "string": str,
+    "Float64": float,
+    "Int64": int,
+    "bool": bool,
 }
 
 
@@ -139,21 +143,21 @@ def get_fact_table(schedule: LinkRole):
     ]
 
     generic_columns = {
-        "context_id": str,
-        "entity_id": str,
-        "filing_name": str,
-        **{axis: str for axis in axes},
+        "context_id": "string",
+        "entity_id": "string",
+        "filing_name": "string",
+        **{axis: "string" for axis in axes},
     }
 
     concept_columns = get_columns_from_concept_tree(root_concept)
     columns = {
         "duration": {
             **generic_columns,
-            "start_date": str,
-            "end_date": str,
+            "start_date": "string",
+            "end_date": "string",
             **concept_columns["duration"],
         },
-        "instant": {**generic_columns, "date": str, **concept_columns["instant"]},
+        "instant": {**generic_columns, "date": "string", **concept_columns["instant"]},
     }
 
     return {"axes": axes, "columns": columns}
@@ -181,11 +185,7 @@ def get_columns_from_concept_tree(concept: Concept):
         if len(item.child_concepts) > 0:
             return get_columns_from_concept_tree(item)
         else:
-            dtype = (
-                DTYPE_MAP[item.type]
-                if concept.type in DTYPE_MAP
-                else DTYPE_MAP["Default"]
-            )
+            dtype = DTYPE_MAP.get(item.base_type, "string")
             columns[item.period_type][item.name] = dtype
 
     return columns
@@ -215,8 +215,14 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
     max_len = len(contexts)
 
     # Split into two dataframes (one for instant period, one for duration)
-    df_duration = {key: [None] * max_len for key, dtype in columns["duration"].items()}
-    df_instant = {key: [None] * max_len for key, dtype in columns["instant"].items()}
+    df_duration = {
+        key: pd.Series([pd.NA] * max_len, dtype=dtype)
+        for key, dtype in columns["duration"].items()
+    }
+    df_instant = {
+        key: pd.Series([pd.NA] * max_len, dtype=dtype)
+        for key, dtype in columns["instant"].items()
+    }
 
     # Loop through contexts and get facts in each context
     for i, (c_id, context) in enumerate(contexts.items()):
@@ -232,9 +238,11 @@ def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
 
             for key, val in row.items():
                 if context.period.instant:
-                    df_instant[key][i] = val
+                    dtype_parser = PARSER_MAP[columns["instant"][key]]
+                    df_instant[key][i] = dtype_parser(val)
                 else:
-                    df_duration[key][i] = val
+                    dtype_parser = PARSER_MAP[columns["duration"][key]]
+                    df_duration[key][i] = dtype_parser(val)
 
     return (
         pd.DataFrame(df_duration).dropna(how="all").drop("context_id", axis=1),
