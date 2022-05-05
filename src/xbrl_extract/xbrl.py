@@ -167,7 +167,9 @@ def get_columns_from_concept_tree(concept: Concept):
             continue
 
         if len(item.child_concepts) > 0:
-            return get_columns_from_concept_tree(item)
+            subtree_columns = get_columns_from_concept_tree(item)
+            columns["duration"].update(subtree_columns["duration"])
+            columns["instant"].update(subtree_columns["instant"])
         else:
             columns[item.period_type][item.name] = item.type
 
