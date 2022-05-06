@@ -107,9 +107,9 @@ def main():
     xbrl.extract(
         instances,
         engine,
-        args.batch_size,
-        args.workers,
-        args.save_metadata,
+        batch_size=args.batch_size,
+        workers=args.workers,
+        save_metadata=args.save_metadata,
     )
 
 
