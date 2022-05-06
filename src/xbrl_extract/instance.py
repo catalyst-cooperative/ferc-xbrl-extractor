@@ -1,4 +1,5 @@
 """Parse a single instance."""
+import logging
 from datetime import date
 from enum import Enum, auto
 from typing import Dict, List, Optional, Tuple
@@ -75,6 +76,10 @@ class XbrlDb(object):
         self.num_instances = num_instances
         self.dfs = {}
         self.counter = 1
+        self.logger = logging.getLogger(__name__)
+
+        quotient, remainder = divmod(num_instances, batch_size)
+        self.num_batches = quotient + 1 if remainder > 0 else quotient
 
     def append_instance(self, instance: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]]):
         """
@@ -95,6 +100,13 @@ class XbrlDb(object):
         if (self.counter % self.batch_size == 0) or (  # noqa: FS001
             self.counter == self.num_instances
         ):
+            current_batch = (
+                self.counter // self.batch_size
+                if self.counter < self.num_instances
+                else self.num_batches
+            )
+            self.logger.info(f"Finished batch {current_batch}/{self.num_batches}")
+
             # Write dataframes to database
             for key, df_dict in self.dfs.items():
                 duration_df = pd.concat(df_dict["duration"], ignore_index=True)
