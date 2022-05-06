@@ -1,13 +1,15 @@
 """XBRL extractor."""
 import logging
+import math
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import cache, partial
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 
+import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from .instance import XbrlDb, parse
+from .instance import parse
 from .taxonomy import Concept, LinkRole, Taxonomy, XBRLType
 
 
@@ -15,7 +17,8 @@ def extract(
     instance_paths: List[Tuple[str, int]],
     engine: sa.engine.Engine,
     batch_size: Optional[int] = None,
-    threads: Optional[int] = None,
+    workers: Optional[int] = None,
+    write_batch: bool = False,
     save_metadata: bool = False,
 ):
     """
@@ -28,29 +31,79 @@ def extract(
         threads: Number of threads to create for parsing filings.
         save_metadata: Save XBRL references to JSON file.
     """
+    logger = logging.getLogger(__name__)
+
     num_instances = len(instance_paths)
     if not batch_size:
-        batch_size = num_instances
+        batch_size = num_instances // workers if workers else num_instances
 
-    # Prepare helper class for managing writing to db
-    db_manager = XbrlDb(engine, batch_size, num_instances)
+    num_batches = math.ceil(num_instances / batch_size)
 
-    with Executor(max_workers=threads) as executor:
+    with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings
-        process_instances = partial(
-            process_instance,
+        process_batches = partial(
+            process_batch,
             save_metadata=save_metadata,
         )
 
-        # Use thread pool to extract data from all filings in parallel
-        results = executor.map(process_instances, instance_paths, chunksize=batch_size)
+        batched_instances = np.array_split(
+            instance_paths, math.ceil(num_instances / batch_size)
+        )
 
-        for instance_dfs in results:
-            db_manager.append_instance(instance_dfs)
+        # Use thread pool to extract data from all filings in parallel
+        results = executor.map(process_batches, batched_instances)
+
+        # Write extracted data to database
+        for i, batch in enumerate(results):
+            logger.info(f"Finished batch {i}/{num_batches}")
+
+            # Loop through tables and write to database
+            for key, df_dict in batch.items():
+                if not df_dict["duration"].empty:
+                    df_dict["duration"].to_sql(
+                        f"{key} - duration", engine, if_exists="append"
+                    )
+
+                if not df_dict["instant"].empty:
+                    df_dict["instant"].to_sql(
+                        f"{key} - instant", engine, if_exists="append"
+                    )
+
+
+def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = False):
+    """
+    Extract data from one batch of instances.
+
+    Splitting instances into batches significantly improves multiprocessing
+    performance. This is done explicitly rather than using ProcessPoolExecutor's
+    chunk_size option so dataframes within the batch can be concatenated prior to
+    returning to the parent process.
+
+    Args:
+        instances: Iterator of instances.
+        save_metadata: Save XBRL references in JSON file.
+    """
+    dfs = {}
+    for instance in instances:
+        instance_dfs = process_instance(instance, save_metadata)
+
+        for key, (duration_df, instant_df) in instance_dfs.items():
+            if key not in dfs:
+                dfs[key] = {"duration": [], "instant": []}
+
+            dfs[key]["duration"].append(duration_df)
+            dfs[key]["instant"].append(instant_df)
+
+    dfs = {
+        key: {period: pd.concat(df_list) for period, df_list in df_dict.items()}
+        for key, df_dict in dfs.items()
+    }
+
+    return dfs
 
 
 def process_instance(
-    instance: Tuple[str, int],
+    instance: Tuple[str, str],
     save_metadata: bool = False,
 ):
     """

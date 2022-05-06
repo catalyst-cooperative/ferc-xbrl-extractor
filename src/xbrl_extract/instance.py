@@ -1,11 +1,8 @@
 """Parse a single instance."""
-import logging
 from datetime import date
 from enum import Enum, auto
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
-import pandas as pd
-import sqlalchemy as sa
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
@@ -50,80 +47,6 @@ def parse(path: str):
                 fact_dict[new_fact.c_id].append(new_fact)
 
     return context_dict, fact_dict, taxonomy_url
-
-
-class XbrlDb(object):
-    """
-    Class to manage writing extracted XBRL data to SQLite database.
-
-    Each XBRL filing is processed individually and extracted to a set of dataframes.
-    This class takes those extracted dataframes, and writes them to a SQLite database
-    containing data from all filings.
-
-    Attributes:
-        engine (sa.engine.Engine): SQLAlchemy engine for database to be created.
-        batch_size (int): Maximum number of instances to process before writing to disk
-            to avoid using all memory.
-        num_instances (int): The total number of instances that will be processed.
-        dfs (Dict[str, Dict[str, pd.DataFrame]]): Dictionary containing extracted dataframes.
-        counter (int): Increments as instances are processed.
-    """
-
-    def __init__(self, engine: sa.engine.Engine, batch_size: int, num_instances: int):
-        """Construct db manager."""
-        self.engine = engine
-        self.batch_size = batch_size
-        self.num_instances = num_instances
-        self.dfs = {}
-        self.counter = 1
-        self.logger = logging.getLogger(__name__)
-
-        quotient, remainder = divmod(num_instances, batch_size)
-        self.num_batches = quotient + 1 if remainder > 0 else quotient
-
-    def append_instance(self, instance: Dict[str, Tuple[pd.DataFrame, pd.DataFrame]]):
-        """
-        Append dataframes from one instance, and write to disk if batch is finished.
-
-        Each time an instance is processed, the extracted dataframes are concatenated.
-        When the number of instances processed reaches the batch size, or the total number
-        of instances, all dataframes will be written to disk, and cleared from memory.
-        """
-        for key, (duration_dfs, instant_dfs) in instance.items():
-            if key not in self.dfs:
-                self.dfs[key] = {"duration": [], "instant": []}
-
-            self.dfs[key]["duration"].append(duration_dfs)
-            self.dfs[key]["instant"].append(instant_dfs)
-
-        # Check if batch_size has been reached, or all instances have been processed
-        if (self.counter % self.batch_size == 0) or (  # noqa: FS001
-            self.counter == self.num_instances
-        ):
-            current_batch = (
-                self.counter // self.batch_size
-                if self.counter < self.num_instances
-                else self.num_batches
-            )
-            self.logger.info(f"Finished batch {current_batch}/{self.num_batches}")
-
-            # Write dataframes to database
-            for key, df_dict in self.dfs.items():
-                duration_df = pd.concat(df_dict["duration"], ignore_index=True)
-                if not duration_df.empty:
-                    duration_df.to_sql(
-                        f"{key} - duration", self.engine, if_exists="append"
-                    )
-
-                instant_df = pd.concat(df_dict["instant"], ignore_index=True)
-                if not instant_df.empty:
-                    instant_df.to_sql(
-                        f"{key} - instant", self.engine, if_exists="append"
-                    )
-
-            self.dfs = {}
-
-        self.counter += 1
 
 
 class Period(BaseModel):
