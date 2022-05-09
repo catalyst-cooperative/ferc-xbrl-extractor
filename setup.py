@@ -32,6 +32,7 @@ setup(
     install_requires=[
         "pydantic>=1.9,<2",
         "coloredlogs~=15.0",
+        "feedparser~=6.0.8",
         "w-versioned-arelle @ git+https://github.com/Arelle/Arelle.git@0.9.91",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
@@ -100,6 +101,7 @@ setup(
     entry_points={
         "console_scripts": [
             "xbrl_extract = xbrl_extract.cli:main",
+            "xbrl_archive = xbrl_extract.archive:main",
         ]
     },
 )
