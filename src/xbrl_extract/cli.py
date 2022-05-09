@@ -21,7 +21,10 @@ def parse_main():
         "sql_path", help="Store data in sqlite database specified in argument"
     )
     parser.add_argument(
-        "--save-metadata", default="", help="Save metadata defined in XBRL references"
+        "-s",
+        "--save-metadata",
+        default=None,
+        help="Save metadata defined in XBRL references",
     )
     parser.add_argument(
         "-c",
