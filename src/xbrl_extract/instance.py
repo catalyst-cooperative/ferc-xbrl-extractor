@@ -10,7 +10,7 @@ from pydantic import BaseModel, validator
 TAXONOMY_PREFIX = "{http://www.w3.org/1999/xlink}href"  # noqa: FS003
 
 
-def parse(path: str):
+def parse(path: str, fact_prefix: str = "ferc"):
     """
     Parse a single XBRL instance using XML library directly.
 
@@ -29,22 +29,19 @@ def parse(path: str):
 
     context_dict = {}
     fact_dict = {}
-    for child in root.iterchildren():
-        # All contexts/facts should have 'id' in attributes
-        if "id" not in child.attrib:
-            continue
 
-        # Context elements should have an id formatted as 'c-{num}'
-        if child.attrib["id"].startswith("c"):
-            new_context = Context.from_xml(child)
-            context_dict[new_context.c_id] = new_context
-            fact_dict[new_context.c_id] = []
+    contexts = root.findall("xbrli:context", root.nsmap)
+    facts = root.findall(f"{fact_prefix}:*", root.nsmap)
 
-        # Facts elements should have an id formatted as 'f-{num}'
-        elif child.attrib["id"].startswith("f"):
-            new_fact = Fact.from_xml(child)
-            if new_fact.value is not None:
-                fact_dict[new_fact.c_id].append(new_fact)
+    for context in contexts:
+        new_context = Context.from_xml(context)
+        context_dict[new_context.c_id] = new_context
+        fact_dict[new_context.c_id] = []
+
+    for fact in facts:
+        new_fact = Fact.from_xml(fact)
+        if new_fact.value is not None:
+            fact_dict[new_fact.c_id].append(new_fact)
 
     return context_dict, fact_dict, taxonomy_url
 
@@ -63,14 +60,14 @@ class Period(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Period":
         """Construct Period from XML element."""
-        instant = elem.find("instant", elem.nsmap)
+        instant = elem.find("xbrli:instant", elem.nsmap)
         if instant is not None:
             return cls(instant=True, end_date=instant.text)
 
         return cls(
             instant=False,
-            start_date=elem.find("startDate", elem.nsmap).text,
-            end_date=elem.find("endDate", elem.nsmap).text,
+            start_date=elem.find("xbrli:startDate", elem.nsmap).text,
+            end_date=elem.find("xbrli:endDate", elem.nsmap).text,
         )
 
 
@@ -144,7 +141,7 @@ class Entity(BaseModel):
         dims = segment.findall("xbrldi:*", segment.nsmap) if segment is not None else []
 
         return cls(
-            identifier=elem.find("identifier", elem.nsmap).text,
+            identifier=elem.find("xbrli:identifier", elem.nsmap).text,
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
@@ -178,8 +175,8 @@ class Context(BaseModel):
         return cls(
             **{
                 "c_id": elem.attrib["id"],
-                "entity": Entity.from_xml(elem.find("entity", elem.nsmap)),
-                "period": Period.from_xml(elem.find("period", elem.nsmap)),
+                "entity": Entity.from_xml(elem.find("xbrli:entity", elem.nsmap)),
+                "period": Period.from_xml(elem.find("xbrli:period", elem.nsmap)),
             }
         )
 

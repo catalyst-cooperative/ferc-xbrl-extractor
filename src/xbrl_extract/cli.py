@@ -45,6 +45,13 @@ def parse_main():
         help="Specify number of workers in pool (will attempt to choose a reasonable default if not specified)",
     )
     parser.add_argument(
+        "-t",
+        "--taxonomy",
+        default=None,
+        type=str,
+        help="Explicitly specify taxonomy used to construct database",
+    )
+    parser.add_argument(
         "--loglevel",
         help="Set log level",
         default="INFO",
@@ -109,6 +116,7 @@ def main():
         engine,
         batch_size=args.batch_size,
         workers=args.workers,
+        taxonomy=args.taxonomy,
         save_metadata=args.save_metadata,
     )
 

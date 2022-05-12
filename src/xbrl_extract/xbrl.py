@@ -18,7 +18,7 @@ def extract(
     engine: sa.engine.Engine,
     batch_size: Optional[int] = None,
     workers: Optional[int] = None,
-    write_batch: bool = False,
+    taxonomy: Optional[str] = None,
     save_metadata: bool = False,
 ):
     """
@@ -43,6 +43,7 @@ def extract(
         # Bind arguments generic to all filings
         process_batches = partial(
             process_batch,
+            taxonomy=taxonomy,
             save_metadata=save_metadata,
         )
 
@@ -70,7 +71,11 @@ def extract(
                     )
 
 
-def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = False):
+def process_batch(
+    instances: Iterable[Tuple[str, str]],
+    taxonomy: Optional[str] = None,
+    save_metadata: bool = False,
+):
     """
     Extract data from one batch of instances.
 
@@ -85,7 +90,7 @@ def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = Fa
     """
     dfs = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, save_metadata)
+        instance_dfs = process_instance(instance, taxonomy, save_metadata)
 
         for key, (duration_df, instant_df) in instance_dfs.items():
             if key not in dfs:
@@ -104,6 +109,7 @@ def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = Fa
 
 def process_instance(
     instance: Tuple[str, str],
+    taxonomy: Optional[str] = None,
     save_metadata: bool = False,
 ):
     """
@@ -115,9 +121,13 @@ def process_instance(
     """
     logger = logging.getLogger(__name__)
     instance_path, filing_name = instance
-    contexts, facts, tax_url = parse(instance_path)
+    contexts, facts, taxonomy_url = parse(instance_path)
 
-    tables = get_fact_tables(tax_url, save_metadata)
+    # If taxonomy is explicitly specified, use that
+    if taxonomy:
+        taxonomy_url = taxonomy
+
+    tables = get_fact_tables(taxonomy_url, save_metadata)
 
     logger.info(f"Extracting {instance_path}")
 
