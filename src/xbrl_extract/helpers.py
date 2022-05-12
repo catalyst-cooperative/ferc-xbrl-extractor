@@ -28,6 +28,6 @@ def drop_tables(engine):
     md = sa.MetaData()
     md.reflect(engine)
     md.drop_all(engine)
-    conn = engine.connect()
-    conn.exec_driver_sql("VACUUM")
-    conn.close()
+
+    with engine.begin() as conn:
+        conn.exec_driver_sql("VACUUM")

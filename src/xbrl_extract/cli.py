@@ -68,20 +68,18 @@ def get_instances(instance_path: Path):
 
     # Single instance
     if instance_path.is_file():
-        if instance_path.suffix not in allowable_suffixes:
-            raise ValueError(
-                "Must provide valid path to XBRL instance or "
-                "directory of XBRL instances."
-            )
-
-        return [(str(instance_path), instance_path.name.rstrip(instance_path.prefix))]
+        instances = [instance_path]
     # Directory of instances
-    elif instance_path.is_dir():
-        return [
-            (str(instance), instance.name.rstrip(instance.suffix))
-            for instance in sorted(instance_path.iterdir())
-            if instance.suffix in allowable_suffixes
-        ]
+    else:
+        # Must be either a directory or file
+        assert instance_path.is_dir()
+        instances = instance_path.iterdir()
+
+    return [
+        (str(instance), instance.name.rstrip(instance.suffix))
+        for instance in sorted(instances)
+        if instance.suffix in allowable_suffixes
+    ]
 
 
 def main():

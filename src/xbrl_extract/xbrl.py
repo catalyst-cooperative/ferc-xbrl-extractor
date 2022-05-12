@@ -58,16 +58,17 @@ def extract(
             logger.info(f"Finished batch {i}/{num_batches}")
 
             # Loop through tables and write to database
-            for key, df_dict in batch.items():
-                if not df_dict["duration"].empty:
-                    df_dict["duration"].to_sql(
-                        f"{key} - duration", engine, if_exists="append"
-                    )
+            with engine.begin() as conn:
+                for key, df_dict in batch.items():
+                    if not df_dict["duration"].empty:
+                        df_dict["duration"].to_sql(
+                            f"{key} - duration", conn, if_exists="append"
+                        )
 
-                if not df_dict["instant"].empty:
-                    df_dict["instant"].to_sql(
-                        f"{key} - instant", engine, if_exists="append"
-                    )
+                    if not df_dict["instant"].empty:
+                        df_dict["instant"].to_sql(
+                            f"{key} - instant", conn, if_exists="append"
+                        )
 
 
 def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = False):
