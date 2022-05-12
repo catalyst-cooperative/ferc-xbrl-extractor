@@ -49,7 +49,7 @@ def parse_main():
     )
     parser.add_argument(
         "--loglevel",
-        help="Set log level",
+        help="Set log level (valid arguments include DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         default="INFO",
     )
     parser.add_argument("--logfile", help="Path to logfile", default=None)
