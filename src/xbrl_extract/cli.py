@@ -58,7 +58,14 @@ def parse_main():
 
 
 def get_instances(instance_path: Path):
-    """Get list of instances from specified path."""
+    """
+    Get list of instances from specified path.
+
+    Args:
+        instance_path: Path to one or more XBRL filings.
+    Returns:
+        List of tuples containing the path to an instance and the name of the filing.
+    """
     allowable_suffixes = [".xbrl", ".xml"]
 
     if not instance_path.exists():

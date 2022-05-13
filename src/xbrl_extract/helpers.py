@@ -4,8 +4,9 @@ import logging
 import sqlalchemy as sa
 
 
-def drop_tables(engine):
-    """Drops all tables from a SQLite database.
+def drop_tables(engine: sa.engine.Engine):
+    """
+    Drops all tables from a SQLite database.
 
     Creates an sa.schema.MetaData object reflecting the structure of the
     database that the passed in ``engine`` refers to, and uses that schema to
