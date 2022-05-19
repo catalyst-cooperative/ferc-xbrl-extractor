@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
         (
             {
                 "name": "test_concept",
+                "standard_label": "generic label",
                 "documentation": "Test concept.",
                 "type": {
                     "name": "type",
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
                 "child_concepts": [
                     {
                         "name": "TestAxis",
+                        "standard_label": "generic label",
                         "documentation": "Concept to test Axis",
                         "type": {
                             "name": "type",
@@ -34,6 +36,7 @@ logger = logging.getLogger(__name__)
                     },
                     {
                         "name": "DurationConcept",
+                        "standard_label": "generic label",
                         "documentation": "Test a generic duration column.",
                         "type": {"name": "type", "base": "string"},
                         "period_type": "duration",
@@ -41,6 +44,7 @@ logger = logging.getLogger(__name__)
                     },
                     {
                         "name": "DurationConceptInt",
+                        "standard_label": "generic label",
                         "documentation": "Test a duration column with int type.",
                         "type": {"name": "type", "base": "integer"},
                         "period_type": "duration",
@@ -48,6 +52,7 @@ logger = logging.getLogger(__name__)
                     },
                     {
                         "name": "InstantConcept",
+                        "standard_label": "generic label",
                         "documentation": "Test a generic instant column.",
                         "type": {"name": "type", "base": "string"},
                         "period_type": "instant",
@@ -55,12 +60,14 @@ logger = logging.getLogger(__name__)
                     },
                     {
                         "name": "ConceptContainer",
+                        "standard_label": "generic label",
                         "documentation": "Test a concept with child concepts.",
                         "type": {"name": "type", "base": "string"},
                         "period_type": "instant",
                         "child_concepts": [
                             {
                                 "name": "ChildConcept",
+                                "standard_label": "generic label",
                                 "documentation": "Test child concept.",
                                 "type": {"name": "type", "base": "gyear"},
                                 "period_type": "instant",
@@ -70,6 +77,7 @@ logger = logging.getLogger(__name__)
                     },
                     {
                         "name": "ConceptBool",
+                        "standard_label": "generic label",
                         "documentation": "Test a column with bool type.",
                         "type": {"name": "type", "base": "boolean"},
                         "period_type": "instant",

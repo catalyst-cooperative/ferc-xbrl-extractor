@@ -1,6 +1,5 @@
 """Test XBRL instance interface."""
 import logging
-from datetime import date
 
 import pytest
 
@@ -103,10 +102,9 @@ def test_context_ids(context_dict, axes):
     context = Context(**context_dict)
     context_ids = context.get_context_ids("filing_name")
 
-    assert context_ids.get("context_id") == "c-01"
     assert context_ids.get("entity_id") == "fake_id"
     assert context_ids.get("filing_name") == "filing_name"
-    assert context_ids.get("date") == date.fromisoformat("2020-01-01")
+    assert context_ids.get("date") == "2020-01-01"
 
     # Change context to have a duration period, then change
     context_dict["period"]["instant"] = False
@@ -115,5 +113,5 @@ def test_context_ids(context_dict, axes):
     context = Context(**context_dict)
     context_ids = context.get_context_ids("filing_name")
 
-    assert context_ids.get("start_date") == date.fromisoformat("2019-01-01")
-    assert context_ids.get("end_date") == date.fromisoformat("2020-01-01")
+    assert context_ids.get("start_date") == "2019-01-01"
+    assert context_ids.get("end_date") == "2020-01-01"

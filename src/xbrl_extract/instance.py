@@ -1,5 +1,4 @@
 """Parse a single instance."""
-from datetime import date
 from enum import Enum, auto
 from typing import Dict, List, Optional
 
@@ -57,8 +56,8 @@ class Period(BaseModel):
     """
 
     instant: bool
-    start_date: Optional[date]
-    end_date: date
+    start_date: Optional[str]
+    end_date: str
 
     @classmethod
     def from_xml(cls, elem: Element) -> "Period":
@@ -206,7 +205,6 @@ class Context(BaseModel):
             }
 
         return {
-            "context_id": self.c_id,
             "entity_id": self.entity.identifier,
             "filing_name": filing_name,
             **date_dict,
@@ -232,7 +230,7 @@ class Fact(BaseModel):
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
         return cls(
-            name=elem.tag.replace(prefix, ""),  # Strip prefix
+            name=(elem.tag.replace(prefix, "")),  # Strip prefix
             c_id=elem.attrib["contextRef"],
             value=elem.text,
         )

@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
+from .datapackage import Datapackage
 from .instance import parse
 from .taxonomy import Concept, LinkRole, Taxonomy, XBRLType
 
@@ -58,16 +59,9 @@ def extract(
             logger.info(f"Finished batch {i}/{num_batches}")
 
             # Loop through tables and write to database
-            for key, df_dict in batch.items():
-                if not df_dict["duration"].empty:
-                    df_dict["duration"].to_sql(
-                        f"{key} - duration", engine, if_exists="append"
-                    )
-
-                if not df_dict["instant"].empty:
-                    df_dict["instant"].to_sql(
-                        f"{key} - instant", engine, if_exists="append"
-                    )
+            for key, df in batch.items():
+                if not df.empty:
+                    df.to_sql(key, engine, if_exists="append")
 
 
 def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = False):
@@ -87,17 +81,13 @@ def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = Fa
     for instance in instances:
         instance_dfs = process_instance(instance, save_metadata)
 
-        for key, (duration_df, instant_df) in instance_dfs.items():
+        for key, df in instance_dfs.items():
             if key not in dfs:
-                dfs[key] = {"duration": [], "instant": []}
+                dfs[key] = []
 
-            dfs[key]["duration"].append(duration_df)
-            dfs[key]["instant"].append(instant_df)
+            dfs[key].append(df)
 
-    dfs = {
-        key: {period: pd.concat(df_list) for period, df_list in df_dict.items()}
-        for key, df_dict in dfs.items()
-    }
+    dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
     return dfs
 
@@ -123,7 +113,7 @@ def process_instance(
 
     dfs = {}
     for key, table in tables.items():
-        dfs[key] = construct_dataframe(contexts, facts, table, filing_name)
+        dfs[key] = table.construct_dataframe(facts, contexts, filing_name)
 
     return dfs
 
@@ -148,8 +138,14 @@ def get_fact_tables(
     logger = logging.getLogger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
+    datapackage = Datapackage.from_taxonomy(taxonomy)
 
-    return {role.definition: get_fact_table(role) for role in taxonomy.roles}
+    if save_metadata:
+        json = datapackage.json()
+        with open("datapackage.json", "w") as f:
+            f.write(json)
+
+    return datapackage.get_fact_tables()
 
 
 def get_fact_table(schedule: LinkRole):

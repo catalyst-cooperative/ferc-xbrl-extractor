@@ -1,0 +1,357 @@
+"""Define structures for creating a datapackage descriptor."""
+import re
+from typing import Callable, Dict, List, Optional, Tuple
+
+import pandas as pd
+import pydantic
+from pydantic import BaseModel
+
+from .instance import Context, Fact
+from .taxonomy import Concept, LinkRole, Taxonomy
+
+
+class Field(BaseModel):
+    """
+    A generic field descriptor, as per Frictionless Data specs.
+
+    See https://specs.frictionlessdata.io/table-schema/#field-descriptors.
+    """
+
+    name: str
+    title: str
+    type_: str = pydantic.Field(alias="type", default="string")
+    format_: Optional[str] = pydantic.Field(alias="format")
+    description: str
+
+    @classmethod
+    def from_concept(cls, concept: Concept) -> "Field":
+        """Construct a Field from an XBRL Concept."""
+        return cls(
+            name=(concept.name),
+            title=concept.standard_label,
+            type=concept.type.get_schema_type(),
+            description=concept.documentation,
+        )
+
+
+ENTITY_ID = Field(
+    name="entity_id",
+    title="Entity Identifier",
+    type="string",
+    description="Unique identifier of respondent",
+)
+"""
+Field representing an entity ID (Present in all tables).
+"""
+
+FILING_NAME = Field(
+    name="filing_name", title="Filing Name", type="string", description="Name of filing"
+)
+"""
+Field representing the filing name (Present in all tables).
+"""
+
+START_DATE = Field(
+    name="start_date",
+    title="Start Date",
+    type="date",
+    description="Start date of report period",
+)
+"""
+Field representing start date (Present in all duration tables).
+"""
+
+END_DATE = Field(
+    name="end_date",
+    title="End Date",
+    type="date",
+    description="End date of report period",
+)
+"""
+Field representing end date (Present in all duration tables).
+"""
+
+INSTANT_DATE = Field(
+    name="date", title="Instant Date", type="date", description="Date of instant period"
+)
+"""
+Field representing an instant date (Present in all instant tables).
+"""
+
+DURATION_COLUMNS = [ENTITY_ID, FILING_NAME, START_DATE, END_DATE]
+"""
+Fields common to all duration tables.
+"""
+
+INSTANT_COLUMNS = [ENTITY_ID, FILING_NAME, INSTANT_DATE]
+"""
+Fields common to all instant tables.
+"""
+
+
+FIELD_TO_PANDAS: Dict[str, str] = {
+    "string": "string",
+    "number": "Float64",
+    "integer": "Int64",
+    "boolean": "boolean",
+    "date": "string",
+    "duration": "string",
+    "year": "datetime64[ns]",
+}
+"""
+Pandas data type by schema field type (Data Package `field.type`).
+"""
+
+CONVERT_DTYPES: Dict[str, Callable] = {
+    "string": str,
+    "integer": int,
+    "year": int,
+    "number": float,
+    "boolean": bool,
+    "duration": str,
+    "date": str,
+}
+"""
+Map callables to schema field type to convert parsed values (Data Package `field.type`).
+"""
+
+TABLE_NAME_PATTERN = re.compile("(\d{3}[a-z]?) - Schedule - (.*)")  # noqa: W605, FS003
+"""
+Simple regex pattern used to clean up table names.
+"""
+
+
+def _get_fields_from_concepts(
+    concept: Concept, period_type: str
+) -> Tuple[List[Field], List[Field]]:
+    """
+    Traverse concept tree to get columns and axes that will be used in output table.
+
+    A 'fact table' in XBRL arranges Concepts into a a tree where the leaf nodes are
+    individual facts that will become columns in the output tables. Axes are used to
+    identify context of each fact, and will become a part of the primary key in the
+    output table.
+
+    Args:
+        concept: The root concept of the tree.
+        period_type: Period type of current table (only return columns with corresponding period type).
+    Returns:
+        axes: Axes in table (become part of primary key).
+        columns: List of fields in table.
+    """
+    axes = []
+    columns = []
+    for item in concept.child_concepts:
+        if item.name.endswith("Axis"):
+            axes.append(Field.from_concept(item))
+        elif len(item.child_concepts) > 0:
+            subtree_axes, subtree_columns = _get_fields_from_concepts(item, period_type)
+            axes.extend(subtree_axes)
+            columns.extend(subtree_columns)
+        else:
+            if item.period_type == period_type:
+                columns.append(Field.from_concept(item))
+
+    return axes, columns
+
+
+def _clean_table_names(name: str) -> Optional[str]:
+    """
+    Function to clean table names.
+
+    Args:
+        name: Unprocessed table name.
+
+    Returns:
+        table_name: Cleaned table name or None if table name doesn't match expected pattern.
+    """
+    m = TABLE_NAME_PATTERN.match(name)
+    if not m:
+        return None
+
+    table_name = f"{m.group(2)}_{m.group(1)}"
+    table_name = (
+        table_name.replace(" ", "")
+        .replace("-", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace(".", "_")
+        .replace(",", "_")
+        .replace("/", "_")
+    )
+
+    return table_name
+
+
+class Schema(BaseModel):
+    """
+    A generic table schema, as per Frictionless Data specs.
+
+    See https://specs.frictionlessdata.io/table-schema/.
+    """
+
+    fields: List[Field]
+    primary_key: List[str]
+
+    @classmethod
+    def from_concept_tree(cls, concept: Concept, period_type: str) -> "Schema":
+        """
+        Deduce schema from concept tree.
+
+        Args:
+            concept: Root concept of concept tree.
+            period_type: Period type of table.
+        """
+        axes, columns = _get_fields_from_concepts(concept, period_type)
+        if period_type == "duration":
+            primary_key_columns = DURATION_COLUMNS + axes
+        else:
+            primary_key_columns = INSTANT_COLUMNS + axes
+
+        fields = primary_key_columns + columns
+        primary_key = [field.name for field in primary_key_columns]
+
+        return cls(fields=fields, primary_key=primary_key)
+
+
+class Resource(BaseModel):
+    """
+    A generic data resource, as per Frictionless Data specs.
+
+    See https://specs.frictionlessdata.io/data-resource.
+    """
+
+    path: Optional[str]
+    profile: str = "tabular-data-resource"
+    name: str
+    title: str
+    description: str
+    format_: str = pydantic.Field(alias="sqlite", default="sqlite")
+    mediatype: str = "application/vnd.sqlite3"
+    encoding: str = "binary"
+    schema_: Schema = pydantic.Field(alias="schema")
+
+    @classmethod
+    def from_link_role(cls, fact_table: LinkRole, period_type: str) -> "Resource":
+        """
+        Generate a Resource from a fact table (defined by a LinkRole).
+
+        Args:
+            fact_table: Link role which defines a fact table.
+            period_type: Period type of table.
+        """
+        cleaned_name = _clean_table_names(fact_table.definition)
+
+        if not cleaned_name:
+            return None
+
+        return cls(
+            name=f"{cleaned_name}_{period_type}",
+            title=f"{fact_table.definition} - {period_type}",
+            description=fact_table.concepts.documentation,
+            schema=Schema.from_concept_tree(fact_table.concepts, period_type),
+        )
+
+    def get_period_type(self):
+        """Helper function to get period type from schema."""
+        period_type = "instant" if "date" in self.schema_.primary_key else "duration"
+        return period_type
+
+
+class Datapackage(BaseModel):
+    """
+    A generic Data Package, as per Frictionless Data specs.
+
+    See https://specs.frictionlessdata.io/data-package.
+    """
+
+    profile: str = "tabular-data-package"
+    name: str = "ferc1-extracted-xbrl"
+    title: str = "Ferc1 data extracted from XBRL filings"
+    resources: List[Resource]
+
+    @classmethod
+    def from_taxonomy(cls, taxonomy: Taxonomy) -> "Datapackage":
+        """
+        Construct a Datapackage from an XBRL Taxonomy.
+
+        Args:
+            taxonomy: XBRL taxonomy which defines the structure of the database.
+        """
+        resources = []
+        for role in taxonomy.roles:
+            for period_type in ["duration", "instant"]:
+                resource = Resource.from_link_role(role, period_type)
+                if resource:
+                    resources.append(resource)
+
+        return cls(resources=resources)
+
+    def get_fact_tables(self):
+        """Get FactTables from datapackage."""
+        return {
+            resource.name: FactTable(resource.schema_, resource.get_period_type())
+            for resource in self.resources
+        }
+
+
+class FactTable(object):
+    """
+    Class to handle constructing a dataframe from an XBRL fact table.
+
+    Structure of the dataframe is defined by the XBRL taxonomy. Facts and contexts
+    parsed from an individual XBRL filing are then used to populate the dataframe
+    with relevant data.
+    """
+
+    def __init__(self, schema: Schema, period_type: str):
+        """Create FactTable and prepare for constructing dataframe."""
+        self.schema = schema
+        # Map column names to function to convert parsed values
+        self.columns = {
+            field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
+        }
+        self.axes = [name for name in schema.primary_key if name.endswith("Axis")]
+        self.instant = period_type == "instant"
+
+    def construct_dataframe(
+        self, facts: Dict[str, Fact], contexts: Dict[str, Context], filing_name: str
+    ) -> pd.DataFrame:
+        """
+        Construct dataframe from facts and contexts extracted from filing.
+
+        Args:
+            facts: Dictionary mapping context id's to facts.
+            contexts: Dictionary mapping context id's to contexts.
+            filing_name: Name of current filing.
+        """
+        # Filter contexts to only those relevant to table
+        contexts = {
+            c_id: context
+            for c_id, context in contexts.items()
+            if context.check_dimensions(self.axes)
+        }
+
+        # Get the maximum number of rows that could be in table and allocate space
+        max_len = len(contexts)
+
+        # Allocate space for columns
+        df = {
+            field.name: pd.Series([pd.NA] * max_len, dtype=FIELD_TO_PANDAS[field.type_])
+            for field in self.schema.fields
+        }
+
+        # Loop through contexts and get facts in each context
+        for i, (c_id, context) in enumerate(contexts.items()):
+            if self.instant != context.period.instant:
+                continue
+
+            row = {fact.name: fact.value for fact in facts[c_id] if fact.name in df}
+
+            if row:
+                row.update(contexts[c_id].get_context_ids(filing_name))
+
+                for key, val in row.items():
+                    df[key][i] = self.columns[key](val)
+
+        return pd.DataFrame(df).dropna(how="all")
