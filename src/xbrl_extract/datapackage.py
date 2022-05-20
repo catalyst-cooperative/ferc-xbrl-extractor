@@ -4,6 +4,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 import pydantic
+import stringcase
 from pydantic import BaseModel
 
 from .instance import Context, Fact
@@ -120,6 +121,14 @@ TABLE_NAME_PATTERN = re.compile("(\d{3}[a-z]?) - Schedule - (.*)")  # noqa: W605
 Simple regex pattern used to clean up table names.
 """
 
+UPPERCASE_WORD_PATTERN = re.compile("[^A-Z][A-Z]([A-Z]+)")
+"""
+Regex pattern to find fully uppercase words.
+
+There are several tables in the FERC taxonomy that contain completely uppercase words,
+which make converting to snakecase difficult.
+"""
+
 
 def _get_fields_from_concepts(
     concept: Concept, period_type: str
@@ -134,7 +143,8 @@ def _get_fields_from_concepts(
 
     Args:
         concept: The root concept of the tree.
-        period_type: Period type of current table (only return columns with corresponding period type).
+        period_type: Period type of current table (only return columns with corresponding
+                     period type).
     Returns:
         axes: Axes in table (become part of primary key).
         columns: List of fields in table.
@@ -155,6 +165,22 @@ def _get_fields_from_concepts(
     return axes, columns
 
 
+def _lowercase_words(name: str) -> str:
+    """
+    Convert fully uppercase words so only first letter is uppercase.
+
+    Pattern finds uppercase characters that are immediately preceded by
+    an uppercase character. Later when the name is converted to snakecase,
+    an underscore would be inserted between each of these charaters if this
+    conversion is not performed.
+    """
+    matches = UPPERCASE_WORD_PATTERN.findall(name)
+    for upper in matches:
+        name = name.replace(upper, upper.lower())
+
+    return name
+
+
 def _clean_table_names(name: str) -> Optional[str]:
     """
     Function to clean table names.
@@ -163,22 +189,27 @@ def _clean_table_names(name: str) -> Optional[str]:
         name: Unprocessed table name.
 
     Returns:
-        table_name: Cleaned table name or None if table name doesn't match expected pattern.
+        table_name: Cleaned table name or None if table name doesn't match expected
+                    pattern.
     """
+    name = _lowercase_words(name)
     m = TABLE_NAME_PATTERN.match(name)
     if not m:
         return None
 
     table_name = f"{m.group(2)}_{m.group(1)}"
     table_name = (
-        table_name.replace(" ", "")
-        .replace("-", "")
+        table_name.replace("-", "")
         .replace("(", "")
         .replace(")", "")
-        .replace(".", "_")
-        .replace(",", "_")
-        .replace("/", "_")
+        .replace(".", "")
+        .replace(",", "")
+        .replace("/", "")
     )
+    table_name = stringcase.snakecase(table_name)
+
+    # The conversion to snakecase leaves some names with multiple underscores in a row
+    table_name = table_name.replace("___", "_").replace("__", "_")
 
     return table_name
 
