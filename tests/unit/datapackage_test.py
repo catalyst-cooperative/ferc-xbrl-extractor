@@ -113,8 +113,8 @@ logger = logging.getLogger(__name__)
 def test_columns_from_concepts(link_role, duration_column_names, instant_column_names):
     """Test creation of column dictionary from concept tree."""
     link_role = LinkRole(**link_role)
-    duration_resource = Resource.from_link_role(link_role, "duration")
-    instant_resource = Resource.from_link_role(link_role, "instant")
+    duration_resource = Resource.from_link_role(link_role, "duration", "test_path")
+    instant_resource = Resource.from_link_role(link_role, "instant", "test_path")
 
     # Verify column names are correct
     duration_columns = {field.name: field for field in duration_resource.schema_.fields}

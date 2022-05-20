@@ -21,7 +21,7 @@ class Field(BaseModel):
     name: str
     title: str
     type_: str = pydantic.Field(alias="type", default="string")
-    format_: Optional[str] = pydantic.Field(alias="format")
+    format_: str = pydantic.Field(alias="format", default="default")
     description: str
 
     @classmethod
@@ -245,6 +245,12 @@ class Schema(BaseModel):
         return cls(fields=fields, primary_key=primary_key)
 
 
+class Dialect(BaseModel):
+    """Dialect used for frictionless SQL resources."""
+
+    table: str
+
+
 class Resource(BaseModel):
     """
     A generic data resource, as per Frictionless Data specs.
@@ -252,9 +258,10 @@ class Resource(BaseModel):
     See https://specs.frictionlessdata.io/data-resource.
     """
 
-    path: Optional[str]
+    path: str
     profile: str = "tabular-data-resource"
     name: str
+    dialect: Dialect
     title: str
     description: str
     format_: str = pydantic.Field(alias="sqlite", default="sqlite")
@@ -263,7 +270,9 @@ class Resource(BaseModel):
     schema_: Schema = pydantic.Field(alias="schema")
 
     @classmethod
-    def from_link_role(cls, fact_table: LinkRole, period_type: str) -> "Resource":
+    def from_link_role(
+        cls, fact_table: LinkRole, period_type: str, db_path: str
+    ) -> "Resource":
         """
         Generate a Resource from a fact table (defined by a LinkRole).
 
@@ -276,8 +285,12 @@ class Resource(BaseModel):
         if not cleaned_name:
             return None
 
+        name = f"{cleaned_name}_{period_type}"
+
         return cls(
-            name=f"{cleaned_name}_{period_type}",
+            path=db_path,
+            name=name,
+            dialect=Dialect(table=name),
             title=f"{fact_table.definition} - {period_type}",
             description=fact_table.concepts.documentation,
             schema=Schema.from_concept_tree(fact_table.concepts, period_type),
@@ -302,7 +315,7 @@ class Datapackage(BaseModel):
     resources: List[Resource]
 
     @classmethod
-    def from_taxonomy(cls, taxonomy: Taxonomy) -> "Datapackage":
+    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> "Datapackage":
         """
         Construct a Datapackage from an XBRL Taxonomy.
 
@@ -312,7 +325,7 @@ class Datapackage(BaseModel):
         resources = []
         for role in taxonomy.roles:
             for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type)
+                resource = Resource.from_link_role(role, period_type, db_path)
                 if resource:
                     resources.append(resource)
 

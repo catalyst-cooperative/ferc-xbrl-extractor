@@ -44,6 +44,7 @@ def extract(
         # Bind arguments generic to all filings
         process_batches = partial(
             process_batch,
+            db_path=str(engine.url),
             save_metadata=save_metadata,
         )
 
@@ -64,7 +65,9 @@ def extract(
                     df.to_sql(key, engine, if_exists="append")
 
 
-def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = False):
+def process_batch(
+    instances: Iterable[Tuple[str, str]], db_path: str, save_metadata: bool = False
+):
     """
     Extract data from one batch of instances.
 
@@ -79,7 +82,7 @@ def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = Fa
     """
     dfs = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, save_metadata)
+        instance_dfs = process_instance(instance, db_path, save_metadata)
 
         for key, df in instance_dfs.items():
             if key not in dfs:
@@ -94,6 +97,7 @@ def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = Fa
 
 def process_instance(
     instance: Tuple[str, str],
+    db_path: str,
     save_metadata: bool = False,
 ):
     """
@@ -107,7 +111,7 @@ def process_instance(
     instance_path, filing_name = instance
     contexts, facts, tax_url = parse(instance_path)
 
-    tables = get_fact_tables(tax_url, save_metadata)
+    tables = get_fact_tables(tax_url, db_path, save_metadata)
 
     logger.info(f"Extracting {instance_path}")
 
@@ -121,6 +125,7 @@ def process_instance(
 @cache
 def get_fact_tables(
     taxonomy_path: str,
+    db_path: str,
     save_metadata: bool = False,
 ):
     """
@@ -138,7 +143,7 @@ def get_fact_tables(
     logger = logging.getLogger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
-    datapackage = Datapackage.from_taxonomy(taxonomy)
+    datapackage = Datapackage.from_taxonomy(taxonomy, db_path)
 
     if save_metadata:
         json = datapackage.json(by_alias=True)
