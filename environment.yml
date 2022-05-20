@@ -11,8 +11,6 @@ dependencies:
   # Jupyter packages:
   - jupyterlab>=3.2,<4
   - nbconvert>=6,<7  # Used to clear notebook outputs in pre-commit hooks
-  - jellyfish
-  - stringcase
   - scipy
 
   # XBRL parsing library

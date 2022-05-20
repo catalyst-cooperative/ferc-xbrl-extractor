@@ -35,6 +35,7 @@ setup(
         "w-versioned-arelle @ git+https://github.com/Arelle/Arelle.git@0.9.91",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
+        "stringcase~=1.2.0",
     ],
     extras_require={
         "dev": [
