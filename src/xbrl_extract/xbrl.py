@@ -141,7 +141,7 @@ def get_fact_tables(
     datapackage = Datapackage.from_taxonomy(taxonomy)
 
     if save_metadata:
-        json = datapackage.json()
+        json = datapackage.json(by_alias=True)
         with open("datapackage.json", "w") as f:
             f.write(json)
 
