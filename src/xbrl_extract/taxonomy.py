@@ -50,24 +50,14 @@ class XBRLType(BaseModel):
         elif self.base == "boolean":
             return "boolean"
 
-    def parse(self, value: str):
-        """
-        Parse a value from an XBRL fact based on the underlying type.
-
-        When parsing an XBRL instance, facts provide a string representation of the
-        actual value. This method uses the type specified in the taxonomy to
-        convert that value to a more fitting datatype.
-        """
-        pandas_type = self.get_pandas_type()
-
-        if pandas_type == "string":
-            return str(value)
-        elif pandas_type == "Float64":
-            return float(value)
-        elif pandas_type == "Int64":
-            return int(value)
-        elif pandas_type == "bool":
-            return bool(value)
+    def get_schema_type(self):
+        """Return string specifying type for schema."""
+        if self.base == "gyear":
+            return "year"
+        elif self.base == "decimal":
+            return "number"
+        else:
+            return self.base
 
 
 class Concept(BaseModel):
@@ -80,6 +70,7 @@ class Concept(BaseModel):
     """
 
     name: str
+    standard_label: str
     documentation: str
     type: XBRLType  # noqa: A003
     period_type: Literal["duration", "instant"]
@@ -107,6 +98,7 @@ class Concept(BaseModel):
 
         return cls(
             name=concept.name,
+            standard_label=concept.label(XbrlConst.standardLabel),
             documentation=concept.label(XbrlConst.documentationLabel),
             type=XBRLType.from_arelle_type(concept.type),
             period_type=concept.periodType,

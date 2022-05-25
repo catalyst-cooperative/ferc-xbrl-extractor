@@ -9,16 +9,17 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
+from .datapackage import Datapackage
 from .instance import parse
-from .taxonomy import Concept, LinkRole, Taxonomy, XBRLType
+from .taxonomy import Taxonomy
 
 
 def extract(
     instance_paths: List[Tuple[str, int]],
     engine: sa.engine.Engine,
+    taxonomy: str,
     batch_size: Optional[int] = None,
     workers: Optional[int] = None,
-    write_batch: bool = False,
     save_metadata: bool = False,
 ):
     """
@@ -27,8 +28,9 @@ def extract(
     Args:
         instance_paths: List of all XBRL filings to extract.
         engine: SQLite connection.
+        taxonomy: Specify taxonomy used to create structure of output DB.
         batch_size: Number of filings to process before writing to DB.
-        threads: Number of threads to create for parsing filings.
+        workers: Number of threads to create for parsing filings.
         save_metadata: Save XBRL references to JSON file.
     """
     logger = logging.getLogger(__name__)
@@ -43,6 +45,8 @@ def extract(
         # Bind arguments generic to all filings
         process_batches = partial(
             process_batch,
+            db_path=str(engine.url),
+            taxonomy=taxonomy,
             save_metadata=save_metadata,
         )
 
@@ -59,19 +63,17 @@ def extract(
 
             # Loop through tables and write to database
             with engine.begin() as conn:
-                for key, df_dict in batch.items():
-                    if not df_dict["duration"].empty:
-                        df_dict["duration"].to_sql(
-                            f"{key} - duration", conn, if_exists="append"
-                        )
-
-                    if not df_dict["instant"].empty:
-                        df_dict["instant"].to_sql(
-                            f"{key} - instant", conn, if_exists="append"
-                        )
+                for key, df in batch.items():
+                    if not df.empty:
+                        df.to_sql(key, conn, if_exists="append")
 
 
-def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = False):
+def process_batch(
+    instances: Iterable[Tuple[str, str]],
+    db_path: str,
+    taxonomy: str,
+    save_metadata: bool = False,
+):
     """
     Extract data from one batch of instances.
 
@@ -82,29 +84,29 @@ def process_batch(instances: Iterable[Tuple[str, str]], save_metadata: bool = Fa
 
     Args:
         instances: Iterator of instances.
+        db_path: Path to database used for constructing datapackage descriptor.
+        taxonomy: Specify taxonomy used to create structure of output DB.
         save_metadata: Save XBRL references in JSON file.
     """
     dfs = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, save_metadata)
+        instance_dfs = process_instance(instance, db_path, taxonomy, save_metadata)
 
-        for key, (duration_df, instant_df) in instance_dfs.items():
+        for key, df in instance_dfs.items():
             if key not in dfs:
-                dfs[key] = {"duration": [], "instant": []}
+                dfs[key] = []
 
-            dfs[key]["duration"].append(duration_df)
-            dfs[key]["instant"].append(instant_df)
+            dfs[key].append(df)
 
-    dfs = {
-        key: {period: pd.concat(df_list) for period, df_list in df_dict.items()}
-        for key, df_dict in dfs.items()
-    }
+    dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
     return dfs
 
 
 def process_instance(
     instance: Tuple[str, str],
+    db_path: str,
+    taxonomy: str,
     save_metadata: bool = False,
 ):
     """
@@ -112,19 +114,21 @@ def process_instance(
 
     Args:
         instance: Tuple of path to instance and filing_name for instance.
+        db_path: Path to database used for constructing datapackage descriptor.
+        taxonomy: Specify taxonomy used to create structure of output DB.
         save_metadata: Save XBRL references in JSON file.
     """
     logger = logging.getLogger(__name__)
     instance_path, filing_name = instance
-    contexts, facts, tax_url = parse(instance_path)
+    contexts, facts = parse(instance_path)
 
-    tables = get_fact_tables(tax_url, save_metadata)
+    tables = get_fact_tables(taxonomy, db_path, save_metadata)
 
     logger.info(f"Extracting {instance_path}")
 
     dfs = {}
     for key, table in tables.items():
-        dfs[key] = construct_dataframe(contexts, facts, table, filing_name)
+        dfs[key] = table.construct_dataframe(facts, contexts, filing_name)
 
     return dfs
 
@@ -132,6 +136,7 @@ def process_instance(
 @cache
 def get_fact_tables(
     taxonomy_path: str,
+    db_path: str,
     save_metadata: bool = False,
 ):
     """
@@ -141,6 +146,7 @@ def get_fact_tables(
 
     Args:
         taxonomy_path: URL of taxonomy.
+        db_path: Path to database used for constructing datapackage descriptor.
         save_metadata: Save XBRL references in JSON file.
 
     Returns:
@@ -149,141 +155,11 @@ def get_fact_tables(
     logger = logging.getLogger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
+    datapackage = Datapackage.from_taxonomy(taxonomy, db_path)
 
-    return {role.definition: get_fact_table(role) for role in taxonomy.roles}
+    if save_metadata:
+        json = datapackage.json(by_alias=True)
+        with open("datapackage.json", "w") as f:
+            f.write(json)
 
-
-def get_fact_table(schedule: LinkRole):
-    """
-    Extract fact table structure from LinkRole.
-
-    Use relationships described in LinkRole to initialize the structure of the
-    fact table. Returns a dictionary containing axes and columns. 'axes' is a list
-    of column names that make up the various dimensions which identify the contexts
-    in the table. 'columns' is a dictionary that maps column names to data types.
-
-    Args:
-        schedule: Top level table structure.
-
-    Returns:
-        Dictionary axes and columns.
-    """
-    root_concept = schedule.concepts.child_concepts[0]
-
-    axes = [
-        concept.name
-        for concept in root_concept.child_concepts
-        if concept.name.endswith("Axis")
-    ]
-
-    generic_columns = {
-        "context_id": XBRLType(),
-        "entity_id": XBRLType(),
-        "filing_name": XBRLType(),
-        **{axis: XBRLType() for axis in axes},
-    }
-
-    concept_columns = get_columns_from_concept_tree(root_concept)
-    columns = {
-        "duration": {
-            **generic_columns,
-            "start_date": XBRLType(),
-            "end_date": XBRLType(),
-            **concept_columns["duration"],
-        },
-        "instant": {
-            **generic_columns,
-            "date": XBRLType(),
-            **concept_columns["instant"],
-        },
-    }
-
-    return {"axes": axes, "columns": columns}
-
-
-def get_columns_from_concept_tree(concept: Concept):
-    """
-    Loop through concepts to get column names.
-
-    Traverse through concept DAG and create a column for any concepts that do
-    not have any child concepts. Concepts with no children represent individual
-    facts, while those with children are containers with one or more facts.
-
-    Args:
-        concept: Top level concept.
-
-    Returns:
-        Dictionary of columns.
-    """
-    columns = {"duration": {}, "instant": {}}
-    for item in concept.child_concepts:
-        if item.name.endswith("Axis"):
-            continue
-
-        if len(item.child_concepts) > 0:
-            subtree_columns = get_columns_from_concept_tree(item)
-            columns["duration"].update(subtree_columns["duration"])
-            columns["instant"].update(subtree_columns["instant"])
-        else:
-            columns[item.period_type][item.name] = item.type
-
-    return columns
-
-
-def construct_dataframe(contexts, facts, table_info, filing_name: str = None):
-    """
-    Populate table with relevant data from filing.
-
-    Args:
-        contexts (Dict): Dictionary containing all contexts in filing.
-        facts (Dict): Dictionary containing all facts in filing.
-        table_info (Dict): Dictionary containing columns and axes in table.
-        filing_name: Unique filing id.
-    """
-    columns = table_info["columns"]
-    axes = table_info["axes"]
-
-    # Filter contexts to only those relevant to table
-    contexts = {
-        c_id: context
-        for c_id, context in contexts.items()
-        if context.check_dimensions(axes)
-    }
-
-    # Get the maximum number of rows that could be in table and allocate space
-    max_len = len(contexts)
-
-    # Split into two dataframes (one for instant period, one for duration)
-    df_duration = {
-        key: pd.Series([pd.NA] * max_len, dtype=dtype.get_pandas_type())
-        for key, dtype in columns["duration"].items()
-    }
-    df_instant = {
-        key: pd.Series([pd.NA] * max_len, dtype=dtype.get_pandas_type())
-        for key, dtype in columns["instant"].items()
-    }
-
-    # Loop through contexts and get facts in each context
-    for i, (c_id, context) in enumerate(contexts.items()):
-        period_type = "instant" if context.period.instant else "duration"
-        row = {
-            fact.name: fact.value
-            for fact in facts[c_id]
-            if fact.name in columns[period_type]
-        }
-
-        if row:
-            row.update(contexts[c_id].get_context_ids(filing_name))
-
-            for key, val in row.items():
-                if context.period.instant:
-                    xbrl_type = columns["instant"][key]
-                    df_instant[key][i] = xbrl_type.parse(val)
-                else:
-                    xbrl_type = columns["duration"][key]
-                    df_duration[key][i] = xbrl_type.parse(val)
-
-    return (
-        pd.DataFrame(df_duration).dropna(how="all").drop("context_id", axis=1),
-        pd.DataFrame(df_instant).dropna(how="all").drop("context_id", axis=1),
-    )
+    return datapackage.get_fact_tables()

@@ -35,6 +35,7 @@ setup(
         "w-versioned-arelle @ git+https://github.com/Arelle/Arelle.git@0.9.91",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
+        "stringcase~=1.2.0",
     ],
     extras_require={
         "dev": [
@@ -70,6 +71,7 @@ setup(
             "pytest-cov>=2.10,<4.0",  # Pytest plugin for working with coverage
             "rstcheck>=5,<6",  # ReStructuredText linter
             "tox>=3.20,<4",  # Python test environment manager
+            "frictionless>=4,<5",  # Test that datapackage descriptor is valid
         ],
     },
     # A controlled vocabulary of tags used by the Python Package Index.

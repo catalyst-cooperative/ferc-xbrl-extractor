@@ -9,6 +9,8 @@ from sqlalchemy import create_engine
 
 from xbrl_extract import helpers, xbrl
 
+DEFAULT_TAXONOMY = "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
+
 
 def parse_main():
     """Process base commands from the CLI."""
@@ -46,6 +48,12 @@ def parse_main():
         default=None,
         type=int,
         help="Specify number of workers in pool (will attempt to choose a reasonable default if not specified)",
+    )
+    parser.add_argument(
+        "-t",
+        "--taxonomy",
+        default=DEFAULT_TAXONOMY,
+        help="Specify taxonomy used create structure of final database",
     )
     parser.add_argument(
         "--loglevel",
@@ -115,6 +123,7 @@ def main():
     xbrl.extract(
         instances,
         engine,
+        args.taxonomy,
         batch_size=args.batch_size,
         workers=args.workers,
         save_metadata=args.save_metadata,
