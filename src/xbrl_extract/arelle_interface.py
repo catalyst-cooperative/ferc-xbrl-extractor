@@ -8,7 +8,12 @@ from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 
 
 def load_xbrl(path: str):
-    """Load XBRL (either taxonomy or individual filing)."""
+    """
+    Load XBRL (either taxonomy or individual filing).
+
+    Args:
+        path: URL or local path pointing to an XBRL taxonomy or instance.
+    """
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
@@ -16,7 +21,12 @@ def load_xbrl(path: str):
 
 
 def load_taxonomy(path: str):
-    """Load XBRL taxonomy, and parse relationships."""
+    """
+    Load XBRL taxonomy, and parse relationships.
+
+    Args:
+        path: URL or local path pointing to an XBRL taxonomy.
+    """
     taxonomy = load_xbrl(path)
 
     # Interpret structure/relationships
@@ -33,6 +43,10 @@ def save_references(filename: str, concepts: Dict[str, ModelConcept]):
     References are used in XBRL to provide additional metadata for Concepts.
     FERC provides references that identify the location of a concept in the
     raw form, which can be useful when linking data to historical data.
+
+    Args:
+        filename: File name to write references
+        concepts: Dictionary mapping concept names to concepts
     """
     ref_dict = {}
     for name, concept in concepts.items():
