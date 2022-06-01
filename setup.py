@@ -9,7 +9,7 @@ readme_path = Path(__file__).parent / "README.rst"
 long_description = readme_path.read_text()
 
 setup(
-    name="catalystcoop.xbrl_extract",
+    name="catalystcoop.ferc_xbrl_extractor",
     description="A tool for extracting data from FERC XBRL Filings.",
     long_description=long_description,
     long_description_content_type="text/x-rst",
@@ -101,7 +101,7 @@ setup(
     # Can also be used for other resource deployments, like intake catalogs.
     entry_points={
         "console_scripts": [
-            "xbrl_extract = xbrl_extract.cli:main",
+            "xbrl_extract = ferc_xbrl_extractor.cli:main",
         ]
     },
 )

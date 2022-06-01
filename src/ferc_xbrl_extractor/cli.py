@@ -7,8 +7,8 @@ from pathlib import Path
 import coloredlogs
 from sqlalchemy import create_engine
 
-from xbrl_extract import helpers, xbrl
-from xbrl_extract.instance import Instance
+from ferc_xbrl_extractor import helpers, xbrl
+from ferc_xbrl_extractor.instance import Instance
 
 DEFAULT_TAXONOMY = "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
 
@@ -102,7 +102,7 @@ def main():
     """CLI for extracting data fro XBRL filings."""
     args = parse_main()
 
-    logger = logging.getLogger("xbrl_extract")
+    logger = logging.getLogger("ferc_xbrl_extractor")
     logger.setLevel(args.loglevel)
     log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
     coloredlogs.install(fmt=log_format, level=args.loglevel, logger=logger)

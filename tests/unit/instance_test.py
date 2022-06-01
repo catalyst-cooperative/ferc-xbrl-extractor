@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from xbrl_extract.instance import Context, DimensionType
+from ferc_xbrl_extractor.instance import Context, DimensionType
 
 logger = logging.getLogger(__name__)
 

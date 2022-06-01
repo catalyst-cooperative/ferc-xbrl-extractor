@@ -92,7 +92,7 @@ repos:
       verbose: false
       pass_filenames: false
       always_run: true
-      entry: pytest --doctest-modules src/xbrl_extract tests/unit
+      entry: pytest --doctest-modules src/ferc_xbrl_extractor tests/unit
 
 # Configuration for pre-commit.ci
 ci:

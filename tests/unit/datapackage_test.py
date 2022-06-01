@@ -3,8 +3,8 @@ import logging
 
 import pytest
 
-from xbrl_extract.datapackage import Resource
-from xbrl_extract.taxonomy import LinkRole
+from ferc_xbrl_extractor.datapackage import Resource
+from ferc_xbrl_extractor.taxonomy import LinkRole
 
 logger = logging.getLogger(__name__)
 

@@ -2,8 +2,8 @@
 import pytest
 from frictionless import Package
 
-from xbrl_extract.datapackage import Datapackage
-from xbrl_extract.taxonomy import Taxonomy
+from ferc_xbrl_extractor.datapackage import Datapackage
+from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 
 @pytest.mark.parametrize(
