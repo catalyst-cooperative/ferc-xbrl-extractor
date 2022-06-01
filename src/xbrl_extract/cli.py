@@ -8,6 +8,7 @@ import coloredlogs
 from sqlalchemy import create_engine
 
 from xbrl_extract import helpers, xbrl
+from xbrl_extract.instance import Instance
 
 DEFAULT_TAXONOMY = "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
 
@@ -91,7 +92,7 @@ def get_instances(instance_path: Path):
         instances = instance_path.iterdir()
 
     return [
-        (str(instance), instance.name.rstrip(instance.suffix))
+        Instance(str(instance), instance.name.rstrip(instance.suffix))
         for instance in sorted(instances)
         if instance.suffix in allowable_suffixes
     ]

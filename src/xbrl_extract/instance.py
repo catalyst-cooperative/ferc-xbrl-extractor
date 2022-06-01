@@ -1,43 +1,70 @@
 """Parse a single instance."""
+import io
 from enum import Enum, auto
-from typing import Dict, List, Optional
+from typing import BinaryIO, Dict, List, Optional, Union
 
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
 
+XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
-def parse(path: str, fact_prefix: str = "ferc"):
-    """
-    Parse a single XBRL instance using XML library directly.
 
-    Args:
-        path: Path to XBRL filing.
+class Instance:
+    """Class to manage parsing XBRL filings."""
 
-    Returns:
-        context_dict: Dictionary of contexts in filing.
-        fact_dict: Dictionary of facts in filing.
-    """
-    tree = etree.parse(path)  # nosec: B320
-    root = tree.getroot()
+    def __init__(self, file_info: Union[str, BinaryIO], name: str):
+        """
+        Construct Instance class.
 
-    context_dict = {}
-    fact_dict = {}
+        Args:
+            file_info: Either path to filing, or file data.
+            name: Name of filing.
+        """
+        self.name = name
+        self.file = file_info
 
-    contexts = root.findall("xbrli:context", root.nsmap)
-    facts = root.findall(f"{fact_prefix}:*", root.nsmap)
+    def parse(self, fact_prefix: str = "ferc"):
+        """
+        Parse a single XBRL instance using XML library directly.
 
-    for context in contexts:
-        new_context = Context.from_xml(context)
-        context_dict[new_context.c_id] = new_context
-        fact_dict[new_context.c_id] = []
+        Args:
+            fact_prefix: Prefix to identify facts in filing (defaults to 'ferc').
 
-    for fact in facts:
-        new_fact = Fact.from_xml(fact)
-        if new_fact.value is not None:
-            fact_dict[new_fact.c_id].append(new_fact)
+        Returns:
+            context_dict: Dictionary of contexts in filing.
+            fact_dict: Dictionary of facts in filing.
+            filing_name: Name of filing.
+        """
+        # Create parser to enable parsing 'huge' xml files
+        parser = etree.XMLParser(huge_tree=True)
 
-    return context_dict, fact_dict
+        # Check if instance contains path to file or file data and parse accordingly
+        if isinstance(self.file, str):
+            tree = etree.parse(self.file, parser=parser)  # nosec: B320
+            root = tree.getroot()
+        elif isinstance(self.file, io.BytesIO):
+            root = etree.fromstring(self.file.read(), parser=parser)  # nosec: B320
+        else:
+            raise TypeError("Can only parse XBRL from path to file or file like object")
+
+        context_dict = {}
+        fact_dict = {}
+
+        contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
+        facts = root.findall(f"{fact_prefix}:*", root.nsmap)
+
+        for context in contexts:
+            new_context = Context.from_xml(context)
+            context_dict[new_context.c_id] = new_context
+            fact_dict[new_context.c_id] = []
+
+        for fact in facts:
+            new_fact = Fact.from_xml(fact)
+            if new_fact.value is not None:
+                fact_dict[new_fact.c_id].append(new_fact)
+
+        return context_dict, fact_dict, self.name
 
 
 class Period(BaseModel):
@@ -54,14 +81,14 @@ class Period(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Period":
         """Construct Period from XML element."""
-        instant = elem.find("xbrli:instant", elem.nsmap)
+        instant = elem.find(f"{{{XBRL_INSTANCE}}}instant")
         if instant is not None:
             return cls(instant=True, end_date=instant.text)
 
         return cls(
             instant=False,
-            start_date=elem.find("xbrli:startDate", elem.nsmap).text,
-            end_date=elem.find("xbrli:endDate", elem.nsmap).text,
+            start_date=elem.find(f"{{{XBRL_INSTANCE}}}startDate").text,
+            end_date=elem.find(f"{{{XBRL_INSTANCE}}}endDate").text,
         )
 
 
@@ -132,10 +159,10 @@ class Entity(BaseModel):
         """Construct Entity from XML element."""
         # Segment node contains dimensions prefixed with xbrldi
         segment = elem.find("segment", elem.nsmap)
-        dims = segment.findall("xbrldi:*", segment.nsmap) if segment is not None else []
+        dims = segment.findall(f"{{{XBRL_INSTANCE}}}*") if segment is not None else []
 
         return cls(
-            identifier=elem.find("xbrli:identifier", elem.nsmap).text,
+            identifier=elem.find(f"{{{XBRL_INSTANCE}}}identifier").text,
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
@@ -169,8 +196,8 @@ class Context(BaseModel):
         return cls(
             **{
                 "c_id": elem.attrib["id"],
-                "entity": Entity.from_xml(elem.find("xbrli:entity", elem.nsmap)),
-                "period": Period.from_xml(elem.find("xbrli:period", elem.nsmap)),
+                "entity": Entity.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}entity")),
+                "period": Period.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}period")),
             }
         )
 

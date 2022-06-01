@@ -3,19 +3,19 @@ import logging
 import math
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import cache, partial
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
 from .datapackage import Datapackage
-from .instance import parse
+from .instance import Instance
 from .taxonomy import Taxonomy
 
 
 def extract(
-    instance_paths: List[Tuple[str, int]],
+    instances: List[Instance],
     engine: sa.engine.Engine,
     taxonomy: str,
     batch_size: Optional[int] = None,
@@ -35,7 +35,7 @@ def extract(
     """
     logger = logging.getLogger(__name__)
 
-    num_instances = len(instance_paths)
+    num_instances = len(instances)
     if not batch_size:
         batch_size = num_instances // workers if workers else num_instances
 
@@ -51,7 +51,7 @@ def extract(
         )
 
         batched_instances = np.array_split(
-            instance_paths, math.ceil(num_instances / batch_size)
+            instances, math.ceil(num_instances / batch_size)
         )
 
         # Use thread pool to extract data from all filings in parallel
@@ -59,7 +59,7 @@ def extract(
 
         # Write extracted data to database
         for i, batch in enumerate(results):
-            logger.info(f"Finished batch {i}/{num_batches}")
+            logger.info(f"Finished batch {i + 1}/{num_batches}")
 
             # Loop through tables and write to database
             with engine.begin() as conn:
@@ -69,7 +69,7 @@ def extract(
 
 
 def process_batch(
-    instances: Iterable[Tuple[str, str]],
+    instances: Iterable[Instance],
     db_path: str,
     taxonomy: str,
     save_metadata: bool = False,
@@ -104,7 +104,7 @@ def process_batch(
 
 
 def process_instance(
-    instance: Tuple[str, str],
+    instance: Instance,
     db_path: str,
     taxonomy: str,
     save_metadata: bool = False,
@@ -119,12 +119,11 @@ def process_instance(
         save_metadata: Save XBRL references in JSON file.
     """
     logger = logging.getLogger(__name__)
-    instance_path, filing_name = instance
-    contexts, facts = parse(instance_path)
+    contexts, facts, filing_name = instance.parse()
 
     tables = get_fact_tables(taxonomy, db_path, save_metadata)
 
-    logger.info(f"Extracting {instance_path}")
+    logger.info(f"Extracting {filing_name}")
 
     dfs = {}
     for key, table in tables.items():
