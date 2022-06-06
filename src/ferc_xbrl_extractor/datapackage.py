@@ -1,4 +1,5 @@
 """Define structures for creating a datapackage descriptor."""
+import logging
 import re
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -357,6 +358,7 @@ class FactTable(object):
         }
         self.axes = [name for name in schema.primary_key if name.endswith("Axis")]
         self.instant = period_type == "instant"
+        self.logger = logging.getLogger(__name__)
 
     def construct_dataframe(
         self, facts: Dict[str, Fact], contexts: Dict[str, Context], filing_name: str
@@ -396,6 +398,12 @@ class FactTable(object):
                 row.update(contexts[c_id].get_context_ids(filing_name))
 
                 for key, val in row.items():
-                    df[key][i] = self.columns[key](val)
+                    # Try to parse value from XBRL if not possible it will remain NA
+                    try:
+                        df[key][i] = self.columns[key](val)
+                    except ValueError:
+                        self.logger.warning(
+                            f"Could not parse {val} as {self.columns[key]} in column {key}"
+                        )
 
         return pd.DataFrame(df).dropna(how="all")
