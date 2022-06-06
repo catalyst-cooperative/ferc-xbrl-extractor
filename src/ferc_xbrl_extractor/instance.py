@@ -158,8 +158,8 @@ class Entity(BaseModel):
     def from_xml(cls, elem: Element) -> "Entity":
         """Construct Entity from XML element."""
         # Segment node contains dimensions prefixed with xbrldi
-        segment = elem.find("segment", elem.nsmap)
-        dims = segment.findall(f"{{{XBRL_INSTANCE}}}*") if segment is not None else []
+        segment = elem.find(f"{{{XBRL_INSTANCE}}}segment")
+        dims = segment.findall("*") if segment is not None else []
 
         return cls(
             identifier=elem.find(f"{{{XBRL_INSTANCE}}}identifier").text,
