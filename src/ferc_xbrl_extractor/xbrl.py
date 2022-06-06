@@ -2,7 +2,7 @@
 import logging
 import math
 from concurrent.futures import ProcessPoolExecutor as Executor
-from functools import cache, partial
+from functools import lru_cache, partial
 from typing import Iterable, List, Optional
 
 import numpy as np
@@ -132,7 +132,7 @@ def process_instance(
     return dfs
 
 
-@cache
+@lru_cache
 def get_fact_tables(
     taxonomy_path: str,
     db_path: str,
