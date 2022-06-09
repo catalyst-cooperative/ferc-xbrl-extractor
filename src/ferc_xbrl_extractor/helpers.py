@@ -32,3 +32,8 @@ def drop_tables(engine: sa.engine.Engine):
 
     with engine.begin() as conn:
         conn.exec_driver_sql("VACUUM")
+
+
+def get_logger(name: str):
+    """Helper function to append 'catalystcoop' to logger name and return logger."""
+    return logging.getLogger(f"catalystcoop.{name}")

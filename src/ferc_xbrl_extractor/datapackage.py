@@ -1,5 +1,4 @@
 """Define structures for creating a datapackage descriptor."""
-import logging
 import re
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -8,6 +7,7 @@ import pydantic
 import stringcase
 from pydantic import BaseModel
 
+from .helpers import get_logger
 from .instance import Context, Fact
 from .taxonomy import Concept, LinkRole, Taxonomy
 
@@ -358,7 +358,7 @@ class FactTable(object):
         }
         self.axes = [name for name in schema.primary_key if name.endswith("Axis")]
         self.instant = period_type == "instant"
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
     def construct_dataframe(
         self, facts: Dict[str, Fact], contexts: Dict[str, Context], filing_name: str

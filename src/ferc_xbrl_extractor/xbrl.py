@@ -1,5 +1,4 @@
 """XBRL extractor."""
-import logging
 import math
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import lru_cache, partial
@@ -10,6 +9,7 @@ import pandas as pd
 import sqlalchemy as sa
 
 from .datapackage import Datapackage
+from .helpers import get_logger
 from .instance import Instance
 from .taxonomy import Taxonomy
 
@@ -33,7 +33,7 @@ def extract(
         workers: Number of threads to create for parsing filings.
         save_metadata: Save XBRL references to JSON file.
     """
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
 
     num_instances = len(instances)
     if not batch_size:
@@ -118,7 +118,7 @@ def process_instance(
         taxonomy: Specify taxonomy used to create structure of output DB.
         save_metadata: Save XBRL references in JSON file.
     """
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
     contexts, facts, filing_name = instance.parse()
 
     tables = get_fact_tables(taxonomy, db_path, save_metadata)
@@ -151,7 +151,7 @@ def get_fact_tables(
     Returns:
         Dictionary mapping to table names to structure.
     """
-    logger = logging.getLogger(__name__)
+    logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path)
