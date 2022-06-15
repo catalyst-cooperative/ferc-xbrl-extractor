@@ -100,7 +100,7 @@ def test_context_dimensions(context, axes):
 def test_context_ids(context_dict, axes):
     """Test generation of context id dictionary."""
     context = Context(**context_dict)
-    context_ids = context.get_context_ids("filing_name")
+    context_ids = context.as_primary_key("filing_name")
 
     assert context_ids.get("entity_id") == "fake_id"
     assert context_ids.get("filing_name") == "filing_name"
@@ -111,7 +111,7 @@ def test_context_ids(context_dict, axes):
     context_dict["period"]["start_date"] = "2019-01-01"
 
     context = Context(**context_dict)
-    context_ids = context.get_context_ids("filing_name")
+    context_ids = context.as_primary_key("filing_name")
 
     assert context_ids.get("start_date") == "2019-01-01"
     assert context_ids.get("end_date") == "2020-01-01"

@@ -26,7 +26,7 @@ def extract(
     Extract data from all specified XBRL filings.
 
     Args:
-        instance_paths: List of all XBRL filings to extract.
+        instance_paths: List of all XBRL instances to extract.
         engine: SQLite connection.
         taxonomy: Specify taxonomy used to create structure of output DB.
         batch_size: Number of filings to process before writing to DB.

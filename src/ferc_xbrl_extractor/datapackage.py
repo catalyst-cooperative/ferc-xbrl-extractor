@@ -388,15 +388,20 @@ class FactTable(object):
         }
 
         # Loop through contexts and get facts in each context
+        # Each context corresponds to one unique row
         for i, (c_id, context) in enumerate(contexts.items()):
             if self.instant != context.period.instant:
                 continue
 
+            # Construct dictionary to represent row which corresponds to current context
             row = {fact.name: fact.value for fact in facts[c_id] if fact.name in df}
 
+            # If row is empty skip
             if row:
-                row.update(contexts[c_id].get_context_ids(filing_name))
+                # Use context to create primary key for row and add to dictionary
+                row.update(contexts[c_id].as_primary_key(filing_name))
 
+                # Loop through each field in row and add to appropriate column
                 for key, val in row.items():
                     # Try to parse value from XBRL if not possible it will remain NA
                     try:
@@ -406,4 +411,5 @@ class FactTable(object):
                             f"Could not parse {val} as {self.columns[key]} in column {key}"
                         )
 
+        # Create dataframe and drop empty rows
         return pd.DataFrame(df).dropna(how="all")

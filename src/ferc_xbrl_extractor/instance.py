@@ -210,8 +210,8 @@ class Context(BaseModel):
         """
         return self.entity.check_dimensions(axes)
 
-    def get_context_ids(self, filing_name: str) -> Dict:
-        """Return a dictionary that defines context."""
+    def as_primary_key(self, filing_name: str) -> Dict:
+        """Return a dictionary that represents the context as composite primary key."""
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
 
         # Get date based on period type
