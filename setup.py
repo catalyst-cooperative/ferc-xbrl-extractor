@@ -22,7 +22,7 @@ setup(
     maintainer_email="zach.schira@catalyst.coop",
     url="",  # Can be repo or docs URL if no separate web page exists.
     project_urls={
-        "Source": "https://github.com/catalyst-cooperative/xbrl-extract",
+        "Source": "https://github.com/catalyst-cooperative/ferc-xbrl-extract",
         "Documentation": "https://PACKAGE_NAME.readthedocs.io",
         "Issue Tracker": "https://github.com/catalyst-cooperative/xbrl-extract/issues",
     },
