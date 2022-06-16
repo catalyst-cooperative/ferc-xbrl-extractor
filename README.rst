@@ -20,6 +20,9 @@ Installation
 To install using conda, run the following command, and activate the environment.
 
 ``conda env create -f environment.yml``
+
+Activate:
+
 ``conda activate ferc-xbrl-extract``
 
 

@@ -1,5 +1,5 @@
 ===============================================================================
-The Catalyst Python Project Template
+FERC XBRL Extractor
 ===============================================================================
 
 .. include:: ../README.rst
@@ -9,6 +9,7 @@ The Catalyst Python Project Template
   :hidden:
   :maxdepth: 2
 
+  extract
   Licensing <LICENSE>
   Code of Conduct <code_of_conduct>
   Release Notes <release_notes>
