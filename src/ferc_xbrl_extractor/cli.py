@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 
 from ferc_xbrl_extractor import helpers, xbrl
 from ferc_xbrl_extractor.helpers import get_logger
-from ferc_xbrl_extractor.instance import Instance
+from ferc_xbrl_extractor.instance import InstanceBuilder
 
 DEFAULT_TAXONOMY = "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
 
@@ -93,7 +93,7 @@ def get_instances(instance_path: Path):
         instances = instance_path.iterdir()
 
     return [
-        Instance(str(instance), instance.name.rstrip(instance.suffix))
+        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
         for instance in sorted(instances)
         if instance.suffix in allowable_suffixes
     ]

@@ -10,12 +10,12 @@ import sqlalchemy as sa
 
 from .datapackage import Datapackage
 from .helpers import get_logger
-from .instance import Instance
+from .instance import InstanceBuilder
 from .taxonomy import Taxonomy
 
 
 def extract(
-    instances: List[Instance],
+    instances: List[InstanceBuilder],
     engine: sa.engine.Engine,
     taxonomy: str,
     batch_size: Optional[int] = None,
@@ -69,7 +69,7 @@ def extract(
 
 
 def process_batch(
-    instances: Iterable[Instance],
+    instances: Iterable[InstanceBuilder],
     db_path: str,
     taxonomy: str,
     save_metadata: bool = False,
@@ -104,7 +104,7 @@ def process_batch(
 
 
 def process_instance(
-    instance: Instance,
+    instance_parser: InstanceBuilder,
     db_path: str,
     taxonomy: str,
     save_metadata: bool = False,
@@ -119,15 +119,15 @@ def process_instance(
         save_metadata: Save XBRL references in JSON file.
     """
     logger = get_logger(__name__)
-    contexts, facts, filing_name = instance.parse()
+    instance = instance_parser.parse()
 
     tables = get_fact_tables(taxonomy, db_path, save_metadata)
 
-    logger.info(f"Extracting {filing_name}")
+    logger.info(f"Extracting {instance.filing_name}")
 
     dfs = {}
     for key, table in tables.items():
-        dfs[key] = table.construct_dataframe(facts, contexts, filing_name)
+        dfs[key] = table.construct_dataframe(instance)
 
     return dfs
 
