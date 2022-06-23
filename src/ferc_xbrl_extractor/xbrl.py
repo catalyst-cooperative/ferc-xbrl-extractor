@@ -1,14 +1,14 @@
 """XBRL extractor."""
 import math
 from concurrent.futures import ProcessPoolExecutor as Executor
-from functools import lru_cache, partial
-from typing import Iterable, List, Optional
+from functools import partial
+from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from .datapackage import Datapackage
+from .datapackage import Datapackage, FactTable
 from .helpers import get_logger
 from .instance import InstanceBuilder
 from .taxonomy import Taxonomy
@@ -41,12 +41,13 @@ def extract(
 
     num_batches = math.ceil(num_instances / batch_size)
 
+    tables = get_fact_tables(taxonomy, str(engine.url), save_metadata)
+
     with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings
         process_batches = partial(
             process_batch,
-            db_path=str(engine.url),
-            taxonomy=taxonomy,
+            tables=tables,
             save_metadata=save_metadata,
         )
 
@@ -70,8 +71,7 @@ def extract(
 
 def process_batch(
     instances: Iterable[InstanceBuilder],
-    db_path: str,
-    taxonomy: str,
+    tables: Dict[str, FactTable],
     save_metadata: bool = False,
 ):
     """
@@ -84,13 +84,12 @@ def process_batch(
 
     Args:
         instances: Iterator of instances.
-        db_path: Path to database used for constructing datapackage descriptor.
         taxonomy: Specify taxonomy used to create structure of output DB.
         save_metadata: Save XBRL references in JSON file.
     """
     dfs = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, db_path, taxonomy, save_metadata)
+        instance_dfs = process_instance(instance, tables, save_metadata)
 
         for key, df in instance_dfs.items():
             if key not in dfs:
@@ -105,8 +104,7 @@ def process_batch(
 
 def process_instance(
     instance_parser: InstanceBuilder,
-    db_path: str,
-    taxonomy: str,
+    tables: Dict[str, FactTable],
     save_metadata: bool = False,
 ):
     """
@@ -114,14 +112,11 @@ def process_instance(
 
     Args:
         instance: Tuple of path to instance and filing_name for instance.
-        db_path: Path to database used for constructing datapackage descriptor.
         taxonomy: Specify taxonomy used to create structure of output DB.
         save_metadata: Save XBRL references in JSON file.
     """
     logger = get_logger(__name__)
     instance = instance_parser.parse()
-
-    tables = get_fact_tables(taxonomy, db_path, save_metadata)
 
     logger.info(f"Extracting {instance.filing_name}")
 
@@ -132,7 +127,6 @@ def process_instance(
     return dfs
 
 
-@lru_cache
 def get_fact_tables(
     taxonomy_path: str,
     db_path: str,
