@@ -117,7 +117,7 @@ CONVERT_DTYPES: Dict[str, Callable] = {
 Map callables to schema field type to convert parsed values (Data Package `field.type`).
 """
 
-TABLE_NAME_PATTERN = re.compile("(\d{3}[a-z]?) - Schedule - (.*)")  # noqa: W605, FS003
+TABLE_NAME_PATTERN = re.compile("(.+) - Schedule - (.*)")  # noqa: W605, FS003
 """
 Simple regex pattern used to clean up table names.
 """
