@@ -11,7 +11,13 @@ from ferc_xbrl_extractor import helpers, xbrl
 from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import InstanceBuilder
 
-DEFAULT_TAXONOMY = "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
+TAXONOMY_MAP = {
+    1: "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd",
+    2: "https://eCollection.ferc.gov/taxonomy/form2/2022-01-01/form/form2/form-2_2022-01-01.xsd",
+    6: "https://eCollection.ferc.gov/taxonomy/form6/2022-01-01/form/form6/form-6_2022-01-01.xsd",
+    60: "https://eCollection.ferc.gov/taxonomy/form60/2022-01-01/form/form60/form-60_2022-01-01.xsd",
+    714: "https://eCollection.ferc.gov/taxonomy/form714/2022-01-01/form/form714/form-714_2022-01-01.xsd",
+}
 
 
 def parse_main():
@@ -54,8 +60,15 @@ def parse_main():
     parser.add_argument(
         "-t",
         "--taxonomy",
-        default=DEFAULT_TAXONOMY,
+        default=None,
         help="Specify taxonomy used create structure of final database",
+    )
+    parser.add_argument(
+        "-f",
+        "--form-number",
+        default=1,
+        type=int,
+        help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter)",
     )
     parser.add_argument(
         "--loglevel",
@@ -118,6 +131,18 @@ def main():
     if args.clobber:
         helpers.drop_tables(engine)
 
+    # Get taxonomy URL
+    if args.taxonomy:
+        taxonomy = args.taxonomy
+    else:
+        if args.form_number not in TAXONOMY_MAP:
+            raise ValueError(
+                f"Form number {args.form_number} is not valid. Supported form numbers include {list(TAXONOMY_MAP.keys())}"
+            )
+
+        # Get most recent taxonomy for specified form number
+        taxonomy = TAXONOMY_MAP[args.form_number]
+
     instances = get_instances(
         Path(args.instance_path),
     )
@@ -125,7 +150,7 @@ def main():
     xbrl.extract(
         instances,
         engine,
-        args.taxonomy,
+        taxonomy,
         batch_size=args.batch_size,
         workers=args.workers,
         save_metadata=args.save_metadata,
