@@ -10,63 +10,6 @@ from pydantic import BaseModel, validator
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
 
-class Instance:
-    """Class to manage parsing XBRL filings."""
-
-    def __init__(self, file_info: Union[str, BinaryIO], name: str):
-        """
-        Construct Instance class.
-
-        Args:
-            file_info: Either path to filing, or file data.
-            name: Name of filing.
-        """
-        self.name = name
-        self.file = file_info
-
-    def parse(self, fact_prefix: str = "ferc"):
-        """
-        Parse a single XBRL instance using XML library directly.
-
-        Args:
-            fact_prefix: Prefix to identify facts in filing (defaults to 'ferc').
-
-        Returns:
-            context_dict: Dictionary of contexts in filing.
-            fact_dict: Dictionary of facts in filing.
-            filing_name: Name of filing.
-        """
-        # Create parser to enable parsing 'huge' xml files
-        parser = etree.XMLParser(huge_tree=True)
-
-        # Check if instance contains path to file or file data and parse accordingly
-        if isinstance(self.file, str):
-            tree = etree.parse(self.file, parser=parser)  # nosec: B320
-            root = tree.getroot()
-        elif isinstance(self.file, io.BytesIO):
-            root = etree.fromstring(self.file.read(), parser=parser)  # nosec: B320
-        else:
-            raise TypeError("Can only parse XBRL from path to file or file like object")
-
-        context_dict = {}
-        fact_dict = {}
-
-        contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
-        facts = root.findall(f"{fact_prefix}:*", root.nsmap)
-
-        for context in contexts:
-            new_context = Context.from_xml(context)
-            context_dict[new_context.c_id] = new_context
-            fact_dict[new_context.c_id] = []
-
-        for fact in facts:
-            new_fact = Fact.from_xml(fact)
-            if new_fact.value is not None:
-                fact_dict[new_fact.c_id].append(new_fact)
-
-        return context_dict, fact_dict, self.name
-
-
 class Period(BaseModel):
     """
     Pydantic model that defines an XBRL period.
@@ -230,6 +173,10 @@ class Context(BaseModel):
             **axes_dict,
         }
 
+    def __hash__(self):
+        """Just hash Context ID as it uniquely identifies contexts for an instance."""
+        return hash(self.c_id)
+
 
 class Fact(BaseModel):
     """
@@ -253,3 +200,125 @@ class Fact(BaseModel):
             c_id=elem.attrib["contextRef"],
             value=elem.text,
         )
+
+
+class Instance:
+    """
+    Class to encapsulate a parsed instance.
+
+    This class should be constructed using the InstanceBuilder class. Instance wraps
+    the contexts and facts parsed by the InstanceBuilder, and is used to construct
+    dataframes from fact tables.
+    """
+
+    def __init__(
+        self,
+        contexts: Dict[str, Context],
+        facts: Dict[str, List[Fact]],
+        filing_name: str,
+    ):
+        """
+        Construct Instance from parsed contexts and facts.
+
+        This will use a dictionary to map contexts and facts to the Axes defined for
+        the relevant contexts. This makes it easy to identify which facts might belong
+        in a specific fact table.
+
+        Args:
+            contexts: Dictionary mapping context ID to contexts.
+            facts: Dictionary mapping context ID to facts.
+            filing_name: Name of parsed filing.
+        """
+        # This is a nested dictionary of dictionaries to locate facts by context
+        self.instant_facts = {}
+        self.duration_facts = {}
+
+        self.filing_name = filing_name
+
+        for c_id, context in contexts.items():
+            axes = tuple([dim.name for dim in context.entity.dimensions])
+            if context.period.instant:
+                if axes not in self.instant_facts:
+                    self.instant_facts[axes] = {}
+
+                self.instant_facts[axes][context] = facts[c_id]
+            else:
+                if axes not in self.duration_facts:
+                    self.duration_facts[axes] = {}
+
+                self.duration_facts[axes][context] = facts[c_id]
+
+    def get_facts(self, instant: bool, axes: List[str]) -> Dict[Context, List[Fact]]:
+        """
+        Return a dictionary that maps Contexts to a list of facts for each context.
+
+        Args:
+            instant: Get facts with instant or duration period.
+            axes: List of axis names defined for fact table.
+        """
+        if instant:
+            facts = self.instant_facts.get(tuple(axes), {})
+        else:
+            facts = self.duration_facts.get(tuple(axes), {})
+
+        return facts
+
+
+class InstanceBuilder:
+    """Class to manage parsing XBRL filings."""
+
+    def __init__(self, file_info: Union[str, BinaryIO], name: str):
+        """
+        Construct InstanceBuilder class.
+
+        Args:
+            file_info: Either path to filing, or file data.
+            name: Name of filing.
+        """
+        self.name = name
+        self.file = file_info
+
+    def parse(self, fact_prefix: str = "ferc") -> Instance:
+        """
+        Parse a single XBRL instance using XML library directly.
+
+        This will return an Instance class which wraps the data parsed from the
+        filing in question.
+
+        Args:
+            fact_prefix: Prefix to identify facts in filing (defaults to 'ferc').
+
+        Returns:
+            context_dict: Dictionary of contexts in filing.
+            fact_dict: Dictionary of facts in filing.
+            filing_name: Name of filing.
+        """
+        # Create parser to enable parsing 'huge' xml files
+        parser = etree.XMLParser(huge_tree=True)
+
+        # Check if instance contains path to file or file data and parse accordingly
+        if isinstance(self.file, str):
+            tree = etree.parse(self.file, parser=parser)  # nosec: B320
+            root = tree.getroot()
+        elif isinstance(self.file, io.BytesIO):
+            root = etree.fromstring(self.file.read(), parser=parser)  # nosec: B320
+        else:
+            raise TypeError("Can only parse XBRL from path to file or file like object")
+
+        context_dict = {}
+        fact_dict = {}
+
+        contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
+        facts = root.findall(f"{fact_prefix}:*", root.nsmap)
+
+        for context in contexts:
+            new_context = Context.from_xml(context)
+            context_dict[new_context.c_id] = new_context
+            fact_dict[new_context.c_id] = []
+
+        for fact in facts:
+            new_fact = Fact.from_xml(fact)
+            if new_fact.value is not None:
+                fact_dict[new_fact.c_id].append(new_fact)
+
+        return Instance(context_dict, fact_dict, self.name)

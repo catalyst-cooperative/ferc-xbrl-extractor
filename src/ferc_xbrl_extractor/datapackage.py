@@ -8,7 +8,7 @@ import stringcase
 from pydantic import BaseModel
 
 from .helpers import get_logger
-from .instance import Context, Fact
+from .instance import Instance
 from .taxonomy import Concept, LinkRole, Taxonomy
 
 
@@ -117,7 +117,7 @@ CONVERT_DTYPES: Dict[str, Callable] = {
 Map callables to schema field type to convert parsed values (Data Package `field.type`).
 """
 
-TABLE_NAME_PATTERN = re.compile("(\d{3}[a-z]?) - Schedule - (.*)")  # noqa: W605, FS003
+TABLE_NAME_PATTERN = re.compile("(.+) - Schedule - (.*)")  # noqa: W605, FS003
 """
 Simple regex pattern used to clean up table names.
 """
@@ -360,23 +360,15 @@ class FactTable(object):
         self.instant = period_type == "instant"
         self.logger = get_logger(__name__)
 
-    def construct_dataframe(
-        self, facts: Dict[str, Fact], contexts: Dict[str, Context], filing_name: str
-    ) -> pd.DataFrame:
+    def construct_dataframe(self, instance: Instance) -> pd.DataFrame:
         """
-        Construct dataframe from facts and contexts extracted from filing.
+        Construct dataframe from a parsed XBRL instance.
 
         Args:
-            facts: Dictionary mapping context id's to facts.
-            contexts: Dictionary mapping context id's to contexts.
-            filing_name: Name of current filing.
+            instance: Parsed XBRL instance used to construct dataframe.
         """
         # Filter contexts to only those relevant to table
-        contexts = {
-            c_id: context
-            for c_id, context in contexts.items()
-            if context.check_dimensions(self.axes)
-        }
+        contexts = instance.get_facts(self.instant, self.axes)
 
         # Get the maximum number of rows that could be in table and allocate space
         max_len = len(contexts)
@@ -389,17 +381,17 @@ class FactTable(object):
 
         # Loop through contexts and get facts in each context
         # Each context corresponds to one unique row
-        for i, (c_id, context) in enumerate(contexts.items()):
+        for i, (context, facts) in enumerate(contexts.items()):
             if self.instant != context.period.instant:
                 continue
 
             # Construct dictionary to represent row which corresponds to current context
-            row = {fact.name: fact.value for fact in facts[c_id] if fact.name in df}
+            row = {fact.name: fact.value for fact in facts if fact.name in df}
 
             # If row is empty skip
             if row:
                 # Use context to create primary key for row and add to dictionary
-                row.update(contexts[c_id].as_primary_key(filing_name))
+                row.update(context.as_primary_key(instance.filing_name))
 
                 # Loop through each field in row and add to appropriate column
                 for key, val in row.items():
