@@ -12,6 +12,7 @@ dependencies:
   - jupyterlab>=3.2,<4
   - nbconvert>=6,<7  # Used to clear notebook outputs in pre-commit hooks
   - scipy
+  - fuzzywuzzy
 
   # XBRL parsing library
   - pip:
