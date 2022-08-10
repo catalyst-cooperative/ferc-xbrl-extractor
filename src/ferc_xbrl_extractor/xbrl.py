@@ -20,7 +20,7 @@ def extract(
     taxonomy: str,
     batch_size: Optional[int] = None,
     workers: Optional[int] = None,
-    save_metadata: bool = False,
+    datapackage_path: Optional[str] = None,
 ):
     """
     Extract data from all specified XBRL filings.
@@ -28,10 +28,12 @@ def extract(
     Args:
         instance_paths: List of all XBRL instances to extract.
         engine: SQLite connection.
+        form_number: FERC form number used for selecting taxonomy. If taxonomy is explicitly defined that will override form_number.
         taxonomy: Specify taxonomy used to create structure of output DB.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
-        save_metadata: Save XBRL references to JSON file.
+        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
+                          If path is None no datapackage descriptor will be saved.
     """
     logger = get_logger(__name__)
 
@@ -41,14 +43,13 @@ def extract(
 
     num_batches = math.ceil(num_instances / batch_size)
 
-    tables = get_fact_tables(taxonomy, str(engine.url), save_metadata)
+    tables = get_fact_tables(taxonomy, str(engine.url), datapackage_path)
 
     with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings
         process_batches = partial(
             process_batch,
             tables=tables,
-            save_metadata=save_metadata,
         )
 
         batched_instances = np.array_split(
@@ -72,7 +73,6 @@ def extract(
 def process_batch(
     instances: Iterable[InstanceBuilder],
     tables: Dict[str, FactTable],
-    save_metadata: bool = False,
 ):
     """
     Extract data from one batch of instances.
@@ -85,11 +85,10 @@ def process_batch(
     Args:
         instances: Iterator of instances.
         taxonomy: Specify taxonomy used to create structure of output DB.
-        save_metadata: Save XBRL references in JSON file.
     """
     dfs = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, tables, save_metadata)
+        instance_dfs = process_instance(instance, tables)
 
         for key, df in instance_dfs.items():
             if key not in dfs:
@@ -105,7 +104,6 @@ def process_batch(
 def process_instance(
     instance_parser: InstanceBuilder,
     tables: Dict[str, FactTable],
-    save_metadata: bool = False,
 ):
     """
     Extract data from a single XBRL filing.
@@ -113,7 +111,6 @@ def process_instance(
     Args:
         instance: Tuple of path to instance and filing_name for instance.
         taxonomy: Specify taxonomy used to create structure of output DB.
-        save_metadata: Save XBRL references in JSON file.
     """
     logger = get_logger(__name__)
     instance = instance_parser.parse()
@@ -130,7 +127,7 @@ def process_instance(
 def get_fact_tables(
     taxonomy_path: str,
     db_path: str,
-    save_metadata: bool = False,
+    datapackage_path: str,
 ):
     """
     Parse taxonomy from URL.
@@ -140,19 +137,20 @@ def get_fact_tables(
     Args:
         taxonomy_path: URL of taxonomy.
         db_path: Path to database used for constructing datapackage descriptor.
-        save_metadata: Save XBRL references in JSON file.
+        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
+                          If path is None no datapackage descriptor will be saved.
 
     Returns:
         Dictionary mapping to table names to structure.
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
+    taxonomy = Taxonomy.from_path(taxonomy_path)
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path)
 
-    if save_metadata:
+    if datapackage_path:
         json = datapackage.json(by_alias=True)
-        with open("datapackage.json", "w") as f:
+        with open(datapackage_path, "w") as f:
             f.write(json)
 
     return datapackage.get_fact_tables()

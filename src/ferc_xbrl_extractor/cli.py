@@ -32,9 +32,9 @@ def parse_main():
     )
     parser.add_argument(
         "-s",
-        "--save-metadata",
+        "--save-datapackage",
         default=None,
-        help="Save metadata defined in XBRL references",
+        help="Generate frictionless datapackage descriptor, and write to JSON file at specified path.",
     )
     parser.add_argument(
         "-c",
@@ -153,7 +153,7 @@ def main():
         taxonomy,
         batch_size=args.batch_size,
         workers=args.workers,
-        save_metadata=args.save_metadata,
+        datapackage_path=args.save_datapackage,
     )
 
 
