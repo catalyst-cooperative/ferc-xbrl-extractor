@@ -303,43 +303,6 @@ class Resource(BaseModel):
         return period_type
 
 
-class Datapackage(BaseModel):
-    """
-    A generic Data Package, as per Frictionless Data specs.
-
-    See https://specs.frictionlessdata.io/data-package.
-    """
-
-    profile: str = "tabular-data-package"
-    name: str = "ferc1-extracted-xbrl"
-    title: str = "Ferc1 data extracted from XBRL filings"
-    resources: List[Resource]
-
-    @classmethod
-    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> "Datapackage":
-        """
-        Construct a Datapackage from an XBRL Taxonomy.
-
-        Args:
-            taxonomy: XBRL taxonomy which defines the structure of the database.
-        """
-        resources = []
-        for role in taxonomy.roles:
-            for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type, db_path)
-                if resource:
-                    resources.append(resource)
-
-        return cls(resources=resources)
-
-    def get_fact_tables(self):
-        """Get FactTables from datapackage."""
-        return {
-            resource.name: FactTable(resource.schema_, resource.get_period_type())
-            for resource in self.resources
-        }
-
-
 class FactTable(object):
     """
     Class to handle constructing a dataframe from an XBRL fact table.
@@ -405,3 +368,47 @@ class FactTable(object):
 
         # Create dataframe and drop empty rows
         return pd.DataFrame(df).dropna(how="all")
+
+
+class Datapackage(BaseModel):
+    """
+    A generic Data Package, as per Frictionless Data specs.
+
+    See https://specs.frictionlessdata.io/data-package.
+    """
+
+    profile: str = "tabular-data-package"
+    name: str = "ferc1-extracted-xbrl"
+    title: str = "Ferc1 data extracted from XBRL filings"
+    resources: List[Resource]
+
+    @classmethod
+    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> "Datapackage":
+        """
+        Construct a Datapackage from an XBRL Taxonomy.
+
+        Args:
+            taxonomy: XBRL taxonomy which defines the structure of the database.
+        """
+        resources = []
+        for role in taxonomy.roles:
+            for period_type in ["duration", "instant"]:
+                resource = Resource.from_link_role(role, period_type, db_path)
+                if resource:
+                    resources.append(resource)
+
+        return cls(resources=resources)
+
+    def get_fact_tables(self, tables: Optional[set[str]] = None) -> FactTable:
+        """Use schema's defined in datapackage resources to construct FactTables.
+
+        Args:
+            tables: Optionally specify the set of tables to extract.
+                    If None, all possible tables will be extracted.
+        """
+        return {
+            resource.name: FactTable(resource.schema_, resource.get_period_type())
+            for resource in self.resources
+            if not tables  # If no tables are provided extract all tables
+            or resource.name in tables  # Otherwise only add tables in requested set
+        }

@@ -18,6 +18,7 @@ def extract(
     instances: List[InstanceBuilder],
     engine: sa.engine.Engine,
     taxonomy: str,
+    tables: Optional[set[str]] = None,
     batch_size: Optional[int] = None,
     workers: Optional[int] = None,
     datapackage_path: Optional[str] = None,
@@ -28,8 +29,11 @@ def extract(
     Args:
         instance_paths: List of all XBRL instances to extract.
         engine: SQLite connection.
-        form_number: FERC form number used for selecting taxonomy. If taxonomy is explicitly defined that will override form_number.
+        form_number: FERC form number used for selecting taxonomy.
+                     If taxonomy is explicitly defined that will override form_number.
         taxonomy: Specify taxonomy used to create structure of output DB.
+        tables: Optionally specify the set of tables to extract.
+                If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
@@ -127,7 +131,8 @@ def process_instance(
 def get_fact_tables(
     taxonomy_path: str,
     db_path: str,
-    datapackage_path: str,
+    tables: Optional[set[str]] = None,
+    datapackage_path: Optional[str] = None,
 ):
     """
     Parse taxonomy from URL.
@@ -137,6 +142,8 @@ def get_fact_tables(
     Args:
         taxonomy_path: URL of taxonomy.
         db_path: Path to database used for constructing datapackage descriptor.
+        tables: Optionally specify the set of tables to extract.
+                If None, all possible tables will be extracted.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
                           If path is None no datapackage descriptor will be saved.
 
