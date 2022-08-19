@@ -1,5 +1,5 @@
 """XBRL prototype structures."""
-from typing import Dict, ForwardRef, List, Literal
+from typing import Dict, List, Literal
 
 from arelle import XbrlConst
 from arelle.ModelDtsObject import ModelConcept, ModelType
@@ -7,7 +7,6 @@ from pydantic import AnyHttpUrl, BaseModel
 
 from .arelle_interface import load_taxonomy, save_references
 
-Concept = ForwardRef("Concept")
 ConceptDict = Dict[str, ModelConcept]
 
 
@@ -74,7 +73,7 @@ class Concept(BaseModel):
     documentation: str
     type: XBRLType  # noqa: A003
     period_type: Literal["duration", "instant"]
-    child_concepts: List[Concept]
+    child_concepts: List["Concept"]
 
     @classmethod
     def from_list(cls, concept_list: List, concept_dict: ConceptDict):
