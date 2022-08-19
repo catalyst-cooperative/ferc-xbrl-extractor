@@ -29,7 +29,7 @@ class Field(BaseModel):
     def from_concept(cls, concept: Concept) -> "Field":
         """Construct a Field from an XBRL Concept."""
         return cls(
-            name=(concept.name),
+            name=stringcase.snakecase(concept.name),
             title=concept.standard_label,
             type=concept.type.get_schema_type(),
             description=concept.documentation,

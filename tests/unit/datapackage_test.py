@@ -94,18 +94,18 @@ logger = logging.getLogger(__name__)
                 "filing_name",
                 "start_date",
                 "end_date",
-                "TestAxis",
-                "DurationConcept",
-                "DurationConceptInt",
+                "test_axis",
+                "duration_concept",
+                "duration_concept_int",
             },
             {
                 "entity_id",
                 "filing_name",
                 "date",
-                "TestAxis",
-                "InstantConcept",
-                "ChildConcept",
-                "ConceptBool",
+                "test_axis",
+                "instant_concept",
+                "child_concept",
+                "concept_bool",
             },
         )
     ],
@@ -124,9 +124,9 @@ def test_columns_from_concepts(link_role, duration_column_names, instant_column_
     assert instant_column_names == set(instant_columns.keys())
 
     # Verify data types
-    assert duration_columns.get("DurationConcept").type_ == "string"
-    assert duration_columns.get("DurationConceptInt").type_ == "integer"
+    assert duration_columns.get("duration_concept").type_ == "string"
+    assert duration_columns.get("duration_concept_int").type_ == "integer"
 
-    assert instant_columns.get("InstantConcept").type_ == "string"
-    assert instant_columns.get("ChildConcept").type_ == "year"
-    assert instant_columns.get("ConceptBool").type_ == "boolean"
+    assert instant_columns.get("instant_concept").type_ == "string"
+    assert instant_columns.get("child_concept").type_ == "year"
+    assert instant_columns.get("concept_bool").type_ == "boolean"

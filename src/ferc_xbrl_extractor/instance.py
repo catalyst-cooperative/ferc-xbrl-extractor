@@ -3,6 +3,7 @@ import io
 from enum import Enum, auto
 from typing import BinaryIO, Dict, List, Optional, Union
 
+import stringcase
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
@@ -196,7 +197,7 @@ class Fact(BaseModel):
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
         return cls(
-            name=(elem.tag.replace(prefix, "")),  # Strip prefix
+            name=stringcase.snakecase(elem.tag.replace(prefix, "")),  # Strip prefix
             c_id=elem.attrib["contextRef"],
             value=elem.text,
         )
@@ -236,7 +237,9 @@ class Instance:
         self.filing_name = filing_name
 
         for c_id, context in contexts.items():
-            axes = tuple([dim.name for dim in context.entity.dimensions])
+            axes = tuple(
+                [stringcase.snakecase(dim.name) for dim in context.entity.dimensions]
+            )
             if context.period.instant:
                 if axes not in self.instant_facts:
                     self.instant_facts[axes] = {}

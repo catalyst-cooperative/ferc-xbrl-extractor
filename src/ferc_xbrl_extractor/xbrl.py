@@ -47,7 +47,9 @@ def extract(
 
     num_batches = math.ceil(num_instances / batch_size)
 
-    tables = get_fact_tables(taxonomy, str(engine.url), datapackage_path)
+    tables = get_fact_tables(
+        taxonomy, str(engine.url), tables=tables, datapackage_path=datapackage_path
+    )
 
     with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings
