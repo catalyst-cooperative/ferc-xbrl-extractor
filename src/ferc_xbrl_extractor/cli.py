@@ -102,7 +102,7 @@ def get_instances(instance_path: Path):
     # Directory of instances
     else:
         # Must be either a directory or file
-        assert instance_path.is_dir()
+        assert instance_path.is_dir()  # nosec: B101
         instances = instance_path.iterdir()
 
     return [

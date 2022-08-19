@@ -152,13 +152,21 @@ def _get_fields_from_concepts(
     """
     axes = []
     columns = []
+
+    # Loop through all child concepts of root concept
     for item in concept.child_concepts:
+        # If the concept ends with 'Axis' it represents an XBRL Axis
+        # Axes all become part of the table's primary key
         if item.name.endswith("Axis"):
             axes.append(Field.from_concept(item))
+
+        # If child concept has children of it's own recursively traverse subtree
         elif len(item.child_concepts) > 0:
             subtree_axes, subtree_columns = _get_fields_from_concepts(item, period_type)
             axes.extend(subtree_axes)
             columns.extend(subtree_columns)
+
+        # Add any columns with desired period_type
         else:
             if item.period_type == period_type:
                 columns.append(Field.from_concept(item))
