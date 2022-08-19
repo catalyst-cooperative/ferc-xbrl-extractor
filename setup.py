@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "pydantic>=1.7,<2",
         "coloredlogs~=15.0",
-        "catalystcoop.arelle-mirror~=1.2.1",
+        "catalystcoop-arelle-mirror @ git+https://github.com/catalyst-cooperative/Arelle.git@test_fix",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
         "stringcase~=1.2.0",
