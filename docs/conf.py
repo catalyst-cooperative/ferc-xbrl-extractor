@@ -23,7 +23,7 @@ DOCS_DIR = Path(__file__).parent.resolve()
 # importable path.
 
 # The full version, including alpha/beta/rc tags
-release = pkg_resources.get_distribution("catalystcoop.xbrl_extract").version
+release = pkg_resources.get_distribution("catalystcoop.ferc_xbrl_extractor").version
 
 # -- Project information -----------------------------------------------------
 
@@ -53,7 +53,7 @@ todo_include_todos = True
 # Automatically generate API documentation during the doc build:
 autoapi_type = "python"
 autoapi_dirs = [
-    "../src/xbrl_extract",
+    "../src/ferc_xbrl_extractor",
 ]
 autoapi_ignore = [
     "*_test.py",
