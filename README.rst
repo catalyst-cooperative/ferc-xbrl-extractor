@@ -38,7 +38,9 @@ or there is a CLI provided for interacting with XBRL data. The only required opt
 for the CLI are a path a single XBRL filing, or directory of XBRL filings, and a
 path to the SQLite database.
 
-``xbrl_extract {path_to_filings} {path_to_database}``
+.. code-block:: console
+
+    $ xbrl_extract {path_to_filings} {path_to_database}
 
 By default, the CLI will use the 2022 version of the FERC Form 1 Taxonomy to create
 the structure of the output database. To specify a different taxonomy use the
