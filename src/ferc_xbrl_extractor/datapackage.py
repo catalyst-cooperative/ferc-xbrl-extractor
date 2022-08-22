@@ -1,15 +1,18 @@
 """Define structures for creating a datapackage descriptor."""
+from __future__ import annotations
+
+from collections.abc import Callable
 import re
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Optional
 
 import pandas as pd
 import pydantic
 import stringcase
 from pydantic import BaseModel
 
-from .helpers import get_logger
-from .instance import Instance
-from .taxonomy import Concept, LinkRole, Taxonomy
+from ferc_xbrl_extractor.helpers import get_logger
+from ferc_xbrl_extractor.instance import Instance
+from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
 
 class Field(BaseModel):
@@ -26,7 +29,7 @@ class Field(BaseModel):
     description: str
 
     @classmethod
-    def from_concept(cls, concept: Concept) -> "Field":
+    def from_concept(cls, concept: Concept) -> Field:
         """Construct a Field from an XBRL Concept."""
         return cls(
             name=stringcase.snakecase(concept.name),
@@ -91,7 +94,7 @@ Fields common to all instant tables.
 """
 
 
-FIELD_TO_PANDAS: Dict[str, str] = {
+FIELD_TO_PANDAS: dict[str, str] = {
     "string": "string",
     "number": "Float64",
     "integer": "Int64",
@@ -104,7 +107,7 @@ FIELD_TO_PANDAS: Dict[str, str] = {
 Pandas data type by schema field type (Data Package `field.type`).
 """
 
-CONVERT_DTYPES: Dict[str, Callable] = {
+CONVERT_DTYPES: dict[str, Callable] = {
     "string": str,
     "integer": int,
     "year": int,
@@ -133,7 +136,7 @@ which make converting to snakecase difficult.
 
 def _get_fields_from_concepts(
     concept: Concept, period_type: str
-) -> Tuple[List[Field], List[Field]]:
+) -> tuple[list[Field], list[Field]]:
     """
     Traverse concept tree to get columns and axes that will be used in output table.
 
@@ -190,7 +193,7 @@ def _lowercase_words(name: str) -> str:
     return name
 
 
-def _clean_table_names(name: str) -> Optional[str]:
+def _clean_table_names(name: str) -> str | None:
     """
     Function to clean table names.
 
@@ -230,11 +233,11 @@ class Schema(BaseModel):
     See https://specs.frictionlessdata.io/table-schema/.
     """
 
-    fields: List[Field]
-    primary_key: List[str]
+    fields: list[Field]
+    primary_key: list[str]
 
     @classmethod
-    def from_concept_tree(cls, concept: Concept, period_type: str) -> "Schema":
+    def from_concept_tree(cls, concept: Concept, period_type: str) -> Schema:
         """
         Deduce schema from concept tree.
 
@@ -281,7 +284,7 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_path: str
-    ) -> "Resource":
+    ) -> Resource:
         """
         Generate a Resource from a fact table (defined by a LinkRole).
 
@@ -311,7 +314,7 @@ class Resource(BaseModel):
         return period_type
 
 
-class FactTable(object):
+class FactTable:
     """
     Class to handle constructing a dataframe from an XBRL fact table.
 
@@ -388,10 +391,10 @@ class Datapackage(BaseModel):
     profile: str = "tabular-data-package"
     name: str = "ferc1-extracted-xbrl"
     title: str = "Ferc1 data extracted from XBRL filings"
-    resources: List[Resource]
+    resources: list[Resource]
 
     @classmethod
-    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> "Datapackage":
+    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> Datapackage:
         """
         Construct a Datapackage from an XBRL Taxonomy.
 
@@ -407,7 +410,7 @@ class Datapackage(BaseModel):
 
         return cls(resources=resources)
 
-    def get_fact_tables(self, tables: Optional[set[str]] = None) -> FactTable:
+    def get_fact_tables(self, tables: set[str] | None = None) -> FactTable:
         """Use schema's defined in datapackage resources to construct FactTables.
 
         Args:

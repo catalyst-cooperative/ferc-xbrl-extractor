@@ -1,6 +1,7 @@
 """Abstract away interface to Arelle XBRL Library."""
+from __future__ import annotations
+
 import json
-from typing import Dict
 
 from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
 from arelle.ModelDtsObject import ModelConcept
@@ -36,7 +37,7 @@ def load_taxonomy(path: str):
     return taxonomy, view
 
 
-def save_references(filename: str, concepts: Dict[str, ModelConcept]):
+def save_references(filename: str, concepts: dict[str, ModelConcept]):
     """
     Save XBRL references to a JSON file.
 

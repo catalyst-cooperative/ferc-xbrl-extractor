@@ -10,9 +10,9 @@ dependencies:
 
   # Jupyter packages:
   - jupyterlab>=3.2,<4
-  - nbconvert>=6,<7  # Used to clear notebook outputs in pre-commit hooks
+  - nbconvert>=6,<7 # Used to clear notebook outputs in pre-commit hooks
   - scipy
 
   # XBRL parsing library
   - pip:
-    - --editable ./[docs,tests,dev]
+      - --editable ./[docs,tests,dev]

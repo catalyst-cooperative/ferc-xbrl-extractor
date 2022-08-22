@@ -1,11 +1,13 @@
 """XBRL prototype structures."""
-from typing import Dict, List, Literal
+from __future__ import annotations
+
+from typing import Dict, Literal
 
 from arelle import XbrlConst
 from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
-from .arelle_interface import load_taxonomy, save_references
+from ferc_xbrl_extractor.arelle_interface import load_taxonomy, save_references
 
 ConceptDict = Dict[str, ModelConcept]
 
@@ -73,10 +75,10 @@ class Concept(BaseModel):
     documentation: str
     type: XBRLType  # noqa: A003
     period_type: Literal["duration", "instant"]
-    child_concepts: List["Concept"]
+    child_concepts: list[Concept]
 
     @classmethod
-    def from_list(cls, concept_list: List, concept_dict: ConceptDict):
+    def from_list(cls, concept_list: list, concept_dict: ConceptDict):
         """
         Construct a Concept from a list.
 
@@ -125,7 +127,7 @@ class LinkRole(BaseModel):
     concepts: Concept
 
     @classmethod
-    def from_list(cls, linkrole_list: List, concept_dict: ConceptDict) -> "LinkRole":
+    def from_list(cls, linkrole_list: list, concept_dict: ConceptDict) -> LinkRole:
         """
         Construct from list.
 
@@ -155,7 +157,7 @@ class Taxonomy(BaseModel):
     individual filings.
     """
 
-    roles: List["LinkRole"]
+    roles: list[LinkRole]
 
     @classmethod
     def from_path(cls, path: str, metadata_fname: str = ""):

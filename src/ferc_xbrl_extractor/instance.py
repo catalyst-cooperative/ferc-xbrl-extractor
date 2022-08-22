@@ -1,7 +1,9 @@
 """Parse a single instance."""
+from __future__ import annotations
+
 import io
 from enum import Enum, auto
-from typing import BinaryIO, Dict, List, Optional, Union
+from typing import BinaryIO, Optional, Union
 
 import stringcase
 from lxml import etree  # nosec: B410
@@ -19,11 +21,11 @@ class Period(BaseModel):
     """
 
     instant: bool
-    start_date: Optional[str]
+    start_date: str | None
     end_date: str
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Period":
+    def from_xml(cls, elem: Element) -> Period:
         """Construct Period from XML element."""
         instant = elem.find(f"{{{XBRL_INSTANCE}}}instant")
         if instant is not None:
@@ -68,7 +70,7 @@ class Axis(BaseModel):
         return name.split(":")[1] if ":" in name else name
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Axis":
+    def from_xml(cls, elem: Element) -> Axis:
         """Construct Axis from XML element."""
         if elem.tag.endswith("explicitMember"):
             return cls(
@@ -96,10 +98,10 @@ class Entity(BaseModel):
     """
 
     identifier: str
-    dimensions: List[Axis]
+    dimensions: list[Axis]
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Entity":
+    def from_xml(cls, elem: Element) -> Entity:
         """Construct Entity from XML element."""
         # Segment node contains dimensions prefixed with xbrldi
         segment = elem.find(f"{{{XBRL_INSTANCE}}}segment")
@@ -110,7 +112,7 @@ class Entity(BaseModel):
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
-    def check_dimensions(self, axes: List[str]) -> bool:
+    def check_dimensions(self, axes: list[str]) -> bool:
         """Verify that fact and Entity have equivalent dimensions."""
         if len(self.dimensions) != len(axes):
             return False
@@ -135,7 +137,7 @@ class Context(BaseModel):
     period: Period
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Context":
+    def from_xml(cls, elem: Element) -> Context:
         """Construct Context from XML element."""
         return cls(
             **{
@@ -145,7 +147,7 @@ class Context(BaseModel):
             }
         )
 
-    def check_dimensions(self, axes: List[str]) -> bool:
+    def check_dimensions(self, axes: list[str]) -> bool:
         """
         Helper function to check if a context falls within axes.
 
@@ -154,7 +156,7 @@ class Context(BaseModel):
         """
         return self.entity.check_dimensions(axes)
 
-    def as_primary_key(self, filing_name: str) -> Dict:
+    def as_primary_key(self, filing_name: str) -> dict:
         """Return a dictionary that represents the context as composite primary key."""
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
 
@@ -189,10 +191,10 @@ class Fact(BaseModel):
 
     name: str
     c_id: str
-    value: Optional[str]
+    value: str | None
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Fact":
+    def from_xml(cls, elem: Element) -> Fact:
         """Construct Fact from XML element."""
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
@@ -214,8 +216,8 @@ class Instance:
 
     def __init__(
         self,
-        contexts: Dict[str, Context],
-        facts: Dict[str, List[Fact]],
+        contexts: dict[str, Context],
+        facts: dict[str, list[Fact]],
         filing_name: str,
     ):
         """
@@ -238,7 +240,7 @@ class Instance:
 
         for c_id, context in contexts.items():
             axes = tuple(
-                [stringcase.snakecase(dim.name) for dim in context.entity.dimensions]
+                stringcase.snakecase(dim.name) for dim in context.entity.dimensions
             )
             if context.period.instant:
                 if axes not in self.instant_facts:
@@ -251,7 +253,7 @@ class Instance:
 
                 self.duration_facts[axes][context] = facts[c_id]
 
-    def get_facts(self, instant: bool, axes: List[str]) -> Dict[Context, List[Fact]]:
+    def get_facts(self, instant: bool, axes: list[str]) -> dict[Context, list[Fact]]:
         """
         Return a dictionary that maps Contexts to a list of facts for each context.
 
@@ -270,7 +272,7 @@ class Instance:
 class InstanceBuilder:
     """Class to manage parsing XBRL filings."""
 
-    def __init__(self, file_info: Union[str, BinaryIO], name: str):
+    def __init__(self, file_info: str | BinaryIO, name: str):
         """
         Construct InstanceBuilder class.
 

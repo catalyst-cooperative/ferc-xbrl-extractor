@@ -1,27 +1,30 @@
 """XBRL extractor."""
+from __future__ import annotations
+
+from collections.abc import Iterable
 import math
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
-from typing import Dict, Iterable, List, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 
-from .datapackage import Datapackage, FactTable
-from .helpers import get_logger
-from .instance import InstanceBuilder
-from .taxonomy import Taxonomy
+from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
+from ferc_xbrl_extractor.helpers import get_logger
+from ferc_xbrl_extractor.instance import InstanceBuilder
+from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 
 def extract(
-    instances: List[InstanceBuilder],
+    instances: list[InstanceBuilder],
     engine: sa.engine.Engine,
     taxonomy: str,
-    tables: Optional[set[str]] = None,
-    batch_size: Optional[int] = None,
-    workers: Optional[int] = None,
-    datapackage_path: Optional[str] = None,
+    tables: set[str] | None = None,
+    batch_size: int | None = None,
+    workers: int | None = None,
+    datapackage_path: str | None = None,
 ):
     """
     Extract data from all specified XBRL filings.
@@ -78,7 +81,7 @@ def extract(
 
 def process_batch(
     instances: Iterable[InstanceBuilder],
-    tables: Dict[str, FactTable],
+    tables: dict[str, FactTable],
 ):
     """
     Extract data from one batch of instances.
@@ -109,7 +112,7 @@ def process_batch(
 
 def process_instance(
     instance_parser: InstanceBuilder,
-    tables: Dict[str, FactTable],
+    tables: dict[str, FactTable],
 ):
     """
     Extract data from a single XBRL filing.
@@ -133,8 +136,8 @@ def process_instance(
 def get_fact_tables(
     taxonomy_path: str,
     db_path: str,
-    tables: Optional[set[str]] = None,
-    datapackage_path: Optional[str] = None,
+    tables: set[str] | None = None,
+    datapackage_path: str | None = None,
 ):
     """
     Parse taxonomy from URL.
