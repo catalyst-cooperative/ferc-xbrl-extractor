@@ -19,11 +19,15 @@ Installation
 
 To install using conda, run the following command, and activate the environment.
 
-``conda env create -f environment.yml``
+.. code-block:: console
+
+    $ conda env create -f environment.yml
 
 Activate:
 
-``conda activate ferc-xbrl-extract``
+.. code-block:: console
+
+    $ conda activate ferc-xbrl-extract
 
 
 CLI
@@ -38,18 +42,21 @@ path to the SQLite database.
 
 By default, the CLI will use the 2022 version of the FERC Form 1 Taxonomy to create
 the structure of the output database. To specify a different taxonomy use the
-`--taxonomy` option.
+``--taxonomy`` option.
 
-``xbrl_extract {path_to_filings} {path_to_database} --taxonomy {url_of_taxonomy}``
+.. code-block:: console
+
+    $ xbrl_extract {path_to_filings} {path_to_database} --taxonomy {url_of_taxonomy}
 
 Parsing XBRL filings can be a time consuming and CPU heavy task, so this tool
 implements some basic multiprocessing to speed this up. It uses a
 `process pool <https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ProcessPoolExecutor>`__
-to do this. There are two options for configuring the process pool, `--batch-size`
-and `--workers`. The batch size configures how many filings will be processed by
+to do this. There are two options for configuring the process pool, ``--batch-size``
+and ``--workers``. The batch size configures how many filings will be processed by
 each child process at a time, and workers specifies how many child processes to
 create in the pool. It may take some experimentation to get these options
 optimally configured.
 
-``xbrl_extract {path_to_filings} {path_to_database} --workers {number_of_processes}
---batch-size {filings_per_batch}``
+.. code-block:: console
+
+    $ xbrl_extract {path_to_filings} {path_to_database} --workers {number_of_processes} --batch-size {filings_per_batch}
