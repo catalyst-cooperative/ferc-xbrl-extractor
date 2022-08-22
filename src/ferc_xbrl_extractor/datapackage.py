@@ -1,9 +1,8 @@
 """Define structures for creating a datapackage descriptor."""
 from __future__ import annotations
 
-from collections.abc import Callable
 import re
-from typing import Optional
+from collections.abc import Callable
 
 import pandas as pd
 import pydantic

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import io
 from enum import Enum, auto
-from typing import BinaryIO, Optional, Union
+from typing import BinaryIO
 
 import stringcase
 from lxml import etree  # nosec: B410

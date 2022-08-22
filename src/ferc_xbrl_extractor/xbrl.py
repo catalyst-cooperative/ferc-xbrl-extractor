@@ -1,11 +1,10 @@
 """XBRL extractor."""
 from __future__ import annotations
 
-from collections.abc import Iterable
 import math
+from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
-from typing import Optional
 
 import numpy as np
 import pandas as pd
