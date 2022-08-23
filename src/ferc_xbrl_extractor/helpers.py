@@ -5,8 +5,7 @@ import sqlalchemy as sa
 
 
 def drop_tables(engine: sa.engine.Engine):
-    """
-    Drops all tables from a SQLite database.
+    """Drops all tables from a SQLite database.
 
     Creates an sa.schema.MetaData object reflecting the structure of the
     database that the passed in ``engine`` refers to, and uses that schema to
@@ -31,6 +30,6 @@ def drop_tables(engine: sa.engine.Engine):
         conn.exec_driver_sql("VACUUM")
 
 
-def get_logger(name: str):
+def get_logger(name: str) -> logging.Logger:
     """Helper function to append 'catalystcoop' to logger name and return logger."""
     return logging.getLogger(f"catalystcoop.{name}")

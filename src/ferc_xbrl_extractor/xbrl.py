@@ -20,21 +20,18 @@ def extract(
     instances: list[InstanceBuilder],
     engine: sa.engine.Engine,
     taxonomy: str,
-    tables: set[str] | None = None,
+    requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
     datapackage_path: str | None = None,
-):
-    """
-    Extract data from all specified XBRL filings.
+) -> None:
+    """Extract data from all specified XBRL filings.
 
     Args:
-        instance_paths: List of all XBRL instances to extract.
-        engine: SQLite connection.
-        form_number: FERC form number used for selecting taxonomy.
-                     If taxonomy is explicitly defined that will override form_number.
+        instances: A list of InstanceBuilder objects used for parsing XBRL filings.
+        engine: SQLite connection to output database.
         taxonomy: Specify taxonomy used to create structure of output DB.
-        tables: Optionally specify the set of tables to extract.
+        requested_tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
@@ -50,7 +47,10 @@ def extract(
     num_batches = math.ceil(num_instances / batch_size)
 
     tables = get_fact_tables(
-        taxonomy, str(engine.url), tables=tables, datapackage_path=datapackage_path
+        taxonomy,
+        str(engine.url),
+        tables=requested_tables,
+        datapackage_path=datapackage_path,
     )
 
     with Executor(max_workers=workers) as executor:
@@ -81,9 +81,8 @@ def extract(
 def process_batch(
     instances: Iterable[InstanceBuilder],
     tables: dict[str, FactTable],
-):
-    """
-    Extract data from one batch of instances.
+) -> dict[str, pd.DataFrame]:
+    """Extract data from one batch of instances.
 
     Splitting instances into batches significantly improves multiprocessing
     performance. This is done explicitly rather than using ProcessPoolExecutor's
@@ -92,9 +91,9 @@ def process_batch(
 
     Args:
         instances: Iterator of instances.
-        taxonomy: Specify taxonomy used to create structure of output DB.
+        tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
-    dfs = {}
+    dfs: dict[str, pd.DataFrame] = {}
     for instance in instances:
         instance_dfs = process_instance(instance, tables)
 
@@ -112,13 +111,16 @@ def process_batch(
 def process_instance(
     instance_parser: InstanceBuilder,
     tables: dict[str, FactTable],
-):
-    """
-    Extract data from a single XBRL filing.
+) -> dict[str, pd.DataFrame]:
+    """Extract data from a single XBRL filing.
+
+    This function will use the InstanceBuilder object to parse
+    a single XBRL filing. It then iterates through requested tables
+    and populates them with data extracted from the filing.
 
     Args:
-        instance: Tuple of path to instance and filing_name for instance.
-        taxonomy: Specify taxonomy used to create structure of output DB.
+        instance_parser: A single InstanceBuilder object used to parse an XBRL filing.
+        tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
     logger = get_logger(__name__)
     instance = instance_parser.parse()
@@ -137,11 +139,17 @@ def get_fact_tables(
     db_path: str,
     tables: set[str] | None = None,
     datapackage_path: str | None = None,
-):
-    """
-    Parse taxonomy from URL.
+) -> dict[str, FactTable]:
+    """Parse taxonomy from URL.
 
-    Caches results so each taxonomy is only retrieved and parsed once.
+    XBRL defines 'fact tables' that groups related facts. These fact
+    tables are used directly to create the tables that will make up the
+    output SQLite database, and their structure. The output of this function
+    is a dictionary that maps table names to 'FactTable' objects that specify
+    their structure.
+
+    This function will also output a json file containing a Frictionless
+    Data-Package descriptor describing the output database if requested.
 
     Args:
         taxonomy_path: URL of taxonomy.

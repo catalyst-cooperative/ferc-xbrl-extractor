@@ -81,11 +81,11 @@ def parse_main():
 
 
 def get_instances(instance_path: Path):
-    """
-    Get list of instances from specified path.
+    """Get list of instances from specified path.
 
     Args:
         instance_path: Path to one or more XBRL filings.
+
     Returns:
         List of tuples containing the path to an instance and the name of the filing.
     """
@@ -103,7 +103,7 @@ def get_instances(instance_path: Path):
     else:
         # Must be either a directory or file
         assert instance_path.is_dir()  # nosec: B101
-        instances = instance_path.iterdir()
+        instances = list(instance_path.iterdir())
 
     return [
         InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))

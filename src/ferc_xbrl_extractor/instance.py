@@ -14,10 +14,11 @@ XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
 
 class Period(BaseModel):
-    """
-    Pydantic model that defines an XBRL period.
+    """Pydantic model that defines an XBRL period.
 
-    A period can be instantaneous or a duration of time.
+    A period can be instantaneous or a duration of time. Instantaneous periods will
+    only have the end_date field, while duration periods will have start_date, and
+    end_date.
     """
 
     instant: bool
@@ -39,11 +40,10 @@ class Period(BaseModel):
 
 
 class DimensionType(Enum):
-    """
-    Indicate dimension type.
+    """Indicate dimension type.
 
     XBRL contains explicit (all allowable values defined in taxonomy) and typed
-    (value defined in filing) dimensions.
+    (dimension with dynamic values) dimensions.
     """
 
     EXPLICIT = auto()
@@ -51,8 +51,7 @@ class DimensionType(Enum):
 
 
 class Axis(BaseModel):
-    """
-    Pydantic model that defines an XBRL Axis.
+    """Pydantic model that defines an XBRL Axis.
 
     Axes (or dimensions, terms are interchangeable in XBRL) are used for identifying
     individual facts when the entity id, and period are insufficient. All axes will
@@ -64,8 +63,8 @@ class Axis(BaseModel):
     value: str
     dimension_type: DimensionType
 
-    @validator("name", pre=True)
-    def strip_prefix(cls, name):  # noqa: N805
+    @validator("name", pre=True)  # type: ignore
+    def strip_prefix(cls, name: str):  # noqa: N805
         """Strip XML prefix from name."""
         return name.split(":")[1] if ":" in name else name
 
@@ -87,10 +86,12 @@ class Axis(BaseModel):
                 dimension_type=DimensionType.TYPED,
             )
 
+        # If dimension is not typed or explicit raise exception
+        raise ValueError("XBRL dimension not formatted correctly")
+
 
 class Entity(BaseModel):
-    """
-    Pydantic model that defines an XBRL Entity.
+    """Pydantic model that defines an XBRL Entity.
 
     Entities are used to identify individual XBRL facts. An Entity should
     contain a unique identifier, as well as any dimensions defined for a
@@ -124,8 +125,7 @@ class Entity(BaseModel):
 
 
 class Context(BaseModel):
-    """
-    Pydantic model that defines an XBRL Context.
+    """Pydantic model that defines an XBRL Context.
 
     Contexts are used to provide useful background information for facts. The
     context indicates the entity, time period, and any other dimensions which apply
@@ -148,15 +148,14 @@ class Context(BaseModel):
         )
 
     def check_dimensions(self, axes: list[str]) -> bool:
-        """
-        Helper function to check if a context falls within axes.
+        """Helper function to check if a context falls within axes.
 
         Args:
             axes: List of axes to verify against.
         """
         return self.entity.check_dimensions(axes)
 
-    def as_primary_key(self, filing_name: str) -> dict:
+    def as_primary_key(self, filing_name: str) -> dict[str, str]:
         """Return a dictionary that represents the context as composite primary key."""
         axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
 
@@ -165,7 +164,8 @@ class Context(BaseModel):
             date_dict = {"date": self.period.end_date}
         else:
             date_dict = {
-                "start_date": self.period.start_date,
+                # Ignore type because start_date will always be str if duration period
+                "start_date": self.period.start_date,  # type: ignore
                 "end_date": self.period.end_date,
             }
 
@@ -182,8 +182,7 @@ class Context(BaseModel):
 
 
 class Fact(BaseModel):
-    """
-    Pydantic model that defines an XBRL Fact.
+    """Pydantic model that defines an XBRL Fact.
 
     A fact is a single "data point", which contains a name, value, and a Context to
     give background information.
@@ -206,8 +205,7 @@ class Fact(BaseModel):
 
 
 class Instance:
-    """
-    Class to encapsulate a parsed instance.
+    """Class to encapsulate a parsed instance.
 
     This class should be constructed using the InstanceBuilder class. Instance wraps
     the contexts and facts parsed by the InstanceBuilder, and is used to construct
@@ -220,8 +218,7 @@ class Instance:
         facts: dict[str, list[Fact]],
         filing_name: str,
     ):
-        """
-        Construct Instance from parsed contexts and facts.
+        """Construct Instance from parsed contexts and facts.
 
         This will use a dictionary to map contexts and facts to the Axes defined for
         the relevant contexts. This makes it easy to identify which facts might belong
@@ -233,8 +230,8 @@ class Instance:
             filing_name: Name of parsed filing.
         """
         # This is a nested dictionary of dictionaries to locate facts by context
-        self.instant_facts = {}
-        self.duration_facts = {}
+        self.instant_facts: dict[tuple, dict[Context, list[Fact]]] = {}
+        self.duration_facts: dict[tuple, dict[Context, list[Fact]]] = {}
 
         self.filing_name = filing_name
 
@@ -254,8 +251,7 @@ class Instance:
                 self.duration_facts[axes][context] = facts[c_id]
 
     def get_facts(self, instant: bool, axes: list[str]) -> dict[Context, list[Fact]]:
-        """
-        Return a dictionary that maps Contexts to a list of facts for each context.
+        """Return a dictionary that maps Contexts to a list of facts for each context.
 
         Args:
             instant: Get facts with instant or duration period.
@@ -273,8 +269,7 @@ class InstanceBuilder:
     """Class to manage parsing XBRL filings."""
 
     def __init__(self, file_info: str | BinaryIO, name: str):
-        """
-        Construct InstanceBuilder class.
+        """Construct InstanceBuilder class.
 
         Args:
             file_info: Either path to filing, or file data.
@@ -284,8 +279,7 @@ class InstanceBuilder:
         self.file = file_info
 
     def parse(self, fact_prefix: str = "ferc") -> Instance:
-        """
-        Parse a single XBRL instance using XML library directly.
+        """Parse a single XBRL instance using XML library directly.
 
         This will return an Instance class which wraps the data parsed from the
         filing in question.
@@ -310,17 +304,26 @@ class InstanceBuilder:
         else:
             raise TypeError("Can only parse XBRL from path to file or file like object")
 
+        # Dictionary mapping context ID's to context structures
         context_dict = {}
-        fact_dict = {}
 
+        # Dictionary mapping context ID's to fact structures
+        # Allows looking up all facts with a specific context ID
+        fact_dict: dict[str, list[Fact]] = {}
+
+        # Find all contexts in XML file
         contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
+
+        # Find all facts in XML file
         facts = root.findall(f"{fact_prefix}:*", root.nsmap)
 
+        # Loop through contexts and parse into pydantic structures
         for context in contexts:
             new_context = Context.from_xml(context)
             context_dict[new_context.c_id] = new_context
             fact_dict[new_context.c_id] = []
 
+        # Loop through facts and parse into pydantic structures
         for fact in facts:
             new_fact = Fact.from_xml(fact)
             if new_fact.value is not None:

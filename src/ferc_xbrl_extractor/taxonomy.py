@@ -3,18 +3,18 @@ from __future__ import annotations
 
 from typing import Dict, Literal
 
+import pydantic
 from arelle import XbrlConst
 from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
-from ferc_xbrl_extractor.arelle_interface import load_taxonomy, save_references
+from ferc_xbrl_extractor.arelle_interface import load_taxonomy
 
 ConceptDict = Dict[str, ModelConcept]
 
 
 class XBRLType(BaseModel):
-    """
-    Pydantic model that defines the type of a Concept.
+    """Pydantic model that defines the type of a Concept.
 
     XBRL provides an inheritance model for defining types. There are a number of
     standardized types, as well as support for user defined types. For simplicity,
@@ -31,13 +31,12 @@ class XBRLType(BaseModel):
     ] = "string"
 
     @classmethod
-    def from_arelle_type(cls, arelle_type: ModelType):
+    def from_arelle_type(cls, arelle_type: ModelType) -> XBRLType:
         """Construct XBRLType class from arelle ModelType."""
         return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
 
-    def get_pandas_type(self):
-        """
-        Return corresponding pandas type.
+    def get_pandas_type(self) -> str:
+        """Return corresponding pandas type.
 
         Gets a string representation of the pandas type best suited to represent the
         base type.
@@ -51,8 +50,8 @@ class XBRLType(BaseModel):
         elif self.base == "boolean":
             return "boolean"
 
-    def get_schema_type(self):
-        """Return string specifying type for schema."""
+    def get_schema_type(self) -> str:
+        """Return string specifying type for a frictionless table schema."""
         if self.base == "gyear":
             return "year"
         elif self.base == "decimal":
@@ -62,8 +61,7 @@ class XBRLType(BaseModel):
 
 
 class Concept(BaseModel):
-    """
-    Pydantic model that defines an XBRL taxonomy Concept.
+    """Pydantic model that defines an XBRL taxonomy Concept.
 
     A Concept in the XBRL context can represent either a single fact or a
     'container' for multiple facts. If child_concepts is empty, that indicates
@@ -73,19 +71,27 @@ class Concept(BaseModel):
     name: str
     standard_label: str
     documentation: str
-    type: XBRLType  # noqa: A003
+    type_: XBRLType = pydantic.Field(alias="type")
     period_type: Literal["duration", "instant"]
     child_concepts: list[Concept]
 
     @classmethod
     def from_list(cls, concept_list: list, concept_dict: ConceptDict):
-        """
-        Construct a Concept from a list.
+        """Construct a Concept from a list.
 
-        The way Arelle depicts the structure of the
-        of a taxonomy is a bit unintuitive, but a concept will be represented as a
-        list with the first element being the string 'concept', and the second two
-        being dictionaries containing relevant information.
+        The way Arelle represents the structure of the of a taxonomy is a
+        bit unintuitive. Each concept is represented as a list with
+        the first element being the string 'concept', the next two are
+        dictionaries containing metadata (the first of these two dictionaries
+        has a 'name' field that is used to look up concepts in the ConceptDict.
+        The remaining elements in the list are child concepts of the current
+        concept. These child concepts are represented using the same list structure.
+        These nested lists Directed Acyclic Graph (DAG) of concepts that defines a
+        fact table.
+
+        Args:
+            concept_list: List containing the Arelle representation of a concept.
+            concept_dict: Dictionary mapping concept names to ModelConcept structures.
         """
         if concept_list[0] != "concept":
             raise ValueError("First element should be 'concept'")
@@ -113,13 +119,13 @@ Concept.update_forward_refs()
 
 
 class LinkRole(BaseModel):
-    """
-    Pydantic model that defines an XBRL taxonomy linkrole.
+    """Pydantic model that defines an XBRL taxonomy linkrole.
 
     In XBRL taxonomies, Link Roles are used to group Concepts together in a
-    meaningful way. These groups are often referred to as "Fact Tables". A
-    Link Role contains a Directed Acyclic Graph (DAG) of concepts, which defines
-    relationships.
+    meaningful way. These groups are often referred to as "Fact Tables". Link roles
+    accomplish this by grouping Concepts into a Directed Acyclic Graph (DAG). In
+    this graph, the leaf nodes in this graph represent individual facts, while other
+    nodes represent containers of facts.
     """
 
     role: AnyHttpUrl
@@ -128,20 +134,25 @@ class LinkRole(BaseModel):
 
     @classmethod
     def from_list(cls, linkrole_list: list, concept_dict: ConceptDict) -> LinkRole:
-        """
-        Construct from list.
+        """Construct from list.
 
-        The way Arelle depicts the structure of the
-        of a taxonomy is a bit unintuitive, but a Link Role will be represented as a
-        list with the first element being the string 'linkRole', the second being
-        dictionaries containing relevant information, then a list which defines
-        the root concept in the DAG.
+        Arelle represents link roles in a similar structure to concepts.
+        It uses a list where the first element is the string 'linkRole', and the
+        second is a dictionary of metadata. This dictionary contains a field
+        'role' which is a URL pointing to where the link role is defined in the
+        taxonomy. The second field in the dictionary is the 'definition', which
+        is a string describing the linkrole. The final element in the list is a
+        list which defines the root concept in the DAG.
+
+        Args:
+            linkrole_list: List containing Arelle representation of linkrole.
+            concept_dict: Dictionary mapping concept names to ModelConcept objects.
         """
         if linkrole_list[0] != "linkRole":
             raise ValueError("First element should be 'linkRole'")
 
         if not isinstance(linkrole_list[1], dict):
-            raise TypeError("Second element should be dicts")
+            raise TypeError("Second element should be a dict")
 
         return cls(
             **linkrole_list[1],
@@ -150,28 +161,34 @@ class LinkRole(BaseModel):
 
 
 class Taxonomy(BaseModel):
-    """
-    Pydantic model that defines an XBRL taxonomy.
+    """Pydantic model that defines an XBRL taxonomy.
 
-    A Taxonomy is an XBRL document, which is used to interpret/validate the facts in
-    individual filings.
+    XBRL Taxonomies are documents which are used to interpret facts reported in a
+    filing. Taxonomies are composed of linkroles that group concepts into fact
+    tables. This provides the structure and metadata that is used for extracting
+    XBRL data into a SQLite database.
     """
 
     roles: list[LinkRole]
 
     @classmethod
-    def from_path(cls, path: str, metadata_fname: str = ""):
-        """Construct taxonomy from taxonomy URL."""
+    def from_path(cls, path: str):
+        """Construct taxonomy from taxonomy URL.
+
+        Use Arelle to parse a taxonomy from a URL or local file path. The
+        structures Arelle uses to represent a taxonomy and its components are not
+        well documented and unintuitive, so the structures defined here are
+        instantiated and used instead.
+
+        Args:
+            path: URL or local path to taxonomy.
+        """
         taxonomy, view = load_taxonomy(path)
 
-        # Create dictionary mapping concept names to concepts (also strips prefix from name)
+        # Create dictionary mapping concept names to concepts
         concept_dict = {
             str(name): concept for name, concept in taxonomy.qnameConcepts.items()
         }
-
-        # References provide sometimes useful metadata that can be saved in JSON
-        if metadata_fname:
-            save_references(metadata_fname, concept_dict)
 
         roles = [
             LinkRole.from_list(role, concept_dict) for role in view.jsonObject["roles"]

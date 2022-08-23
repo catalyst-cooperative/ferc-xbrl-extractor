@@ -15,8 +15,7 @@ from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
 
 class Field(BaseModel):
-    """
-    A generic field descriptor, as per Frictionless Data specs.
+    """A generic field descriptor, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/table-schema/#field-descriptors.
     """
@@ -29,11 +28,15 @@ class Field(BaseModel):
 
     @classmethod
     def from_concept(cls, concept: Concept) -> Field:
-        """Construct a Field from an XBRL Concept."""
+        """Construct a Field from an XBRL Concept.
+
+        Args:
+            concept: XBRL Concept used to create a Field.
+        """
         return cls(
             name=stringcase.snakecase(concept.name),
             title=concept.standard_label,
-            type=concept.type.get_schema_type(),
+            type=concept.type_.get_schema_type(),
             description=concept.documentation,
         )
 
@@ -136,8 +139,7 @@ which make converting to snakecase difficult.
 def _get_fields_from_concepts(
     concept: Concept, period_type: str
 ) -> tuple[list[Field], list[Field]]:
-    """
-    Traverse concept tree to get columns and axes that will be used in output table.
+    """Traverse concept tree to get columns and axes that will be used in output table.
 
     A 'fact table' in XBRL arranges Concepts into a a tree where the leaf nodes are
     individual facts that will become columns in the output tables. Axes are used to
@@ -148,6 +150,7 @@ def _get_fields_from_concepts(
         concept: The root concept of the tree.
         period_type: Period type of current table (only return columns with corresponding
                      period type).
+
     Returns:
         axes: Axes in table (become part of primary key).
         columns: List of fields in table.
@@ -177,8 +180,7 @@ def _get_fields_from_concepts(
 
 
 def _lowercase_words(name: str) -> str:
-    """
-    Convert fully uppercase words so only first letter is uppercase.
+    """Convert fully uppercase words so only first letter is uppercase.
 
     Pattern finds uppercase characters that are immediately preceded by
     an uppercase character. Later when the name is converted to snakecase,
@@ -193,8 +195,7 @@ def _lowercase_words(name: str) -> str:
 
 
 def _clean_table_names(name: str) -> str | None:
-    """
-    Function to clean table names.
+    """Function to clean table names.
 
     Args:
         name: Unprocessed table name.
@@ -226,8 +227,7 @@ def _clean_table_names(name: str) -> str | None:
 
 
 class Schema(BaseModel):
-    """
-    A generic table schema, as per Frictionless Data specs.
+    """A generic table schema, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/table-schema/.
     """
@@ -237,8 +237,15 @@ class Schema(BaseModel):
 
     @classmethod
     def from_concept_tree(cls, concept: Concept, period_type: str) -> Schema:
-        """
-        Deduce schema from concept tree.
+        """Deduce schema from concept tree.
+
+        Traverse Concept tree to get columns that should comprise output table.
+        Concepts with names ending in 'Axis' will become a part of the composite
+        primary key for each table. Tables with a duration period type will also
+        have the columns 'entity_id', 'filing_name', 'start_date', and 'end_date' in
+        their primary key, while tables with 'instant' period type will include
+        'entity_id', 'filing_name', and 'date'. The remaining columns will come from
+        leaf nodes in the concept graph.
 
         Args:
             concept: Root concept of concept tree.
@@ -263,8 +270,7 @@ class Dialect(BaseModel):
 
 
 class Resource(BaseModel):
-    """
-    A generic data resource, as per Frictionless Data specs.
+    """A generic tabular data resource, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/data-resource.
     """
@@ -283,13 +289,13 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_path: str
-    ) -> Resource:
-        """
-        Generate a Resource from a fact table (defined by a LinkRole).
+    ) -> Resource | None:
+        """Generate a Resource from a fact table (defined by a LinkRole).
 
         Args:
             fact_table: Link role which defines a fact table.
             period_type: Period type of table.
+            db_path: Path to database required for a Frictionless resource.
         """
         cleaned_name = _clean_table_names(fact_table.definition)
 
@@ -314,8 +320,7 @@ class Resource(BaseModel):
 
 
 class FactTable:
-    """
-    Class to handle constructing a dataframe from an XBRL fact table.
+    """Class to handle constructing a dataframe from an XBRL fact table.
 
     Structure of the dataframe is defined by the XBRL taxonomy. Facts and contexts
     parsed from an individual XBRL filing are then used to populate the dataframe
@@ -334,8 +339,7 @@ class FactTable:
         self.logger = get_logger(__name__)
 
     def construct_dataframe(self, instance: Instance) -> pd.DataFrame:
-        """
-        Construct dataframe from a parsed XBRL instance.
+        """Construct dataframe from a parsed XBRL instance.
 
         Args:
             instance: Parsed XBRL instance used to construct dataframe.
@@ -381,8 +385,7 @@ class FactTable:
 
 
 class Datapackage(BaseModel):
-    """
-    A generic Data Package, as per Frictionless Data specs.
+    """A generic Data Package, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/data-package.
     """
@@ -394,11 +397,11 @@ class Datapackage(BaseModel):
 
     @classmethod
     def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> Datapackage:
-        """
-        Construct a Datapackage from an XBRL Taxonomy.
+        """Construct a Datapackage from an XBRL Taxonomy.
 
         Args:
             taxonomy: XBRL taxonomy which defines the structure of the database.
+            db_path: Path to database required for a Frictionless resource.
         """
         resources = []
         for role in taxonomy.roles:
@@ -409,7 +412,7 @@ class Datapackage(BaseModel):
 
         return cls(resources=resources)
 
-    def get_fact_tables(self, tables: set[str] | None = None) -> FactTable:
+    def get_fact_tables(self, tables: set[str] | None = None) -> dict[str, FactTable]:
         """Use schema's defined in datapackage resources to construct FactTables.
 
         Args:
