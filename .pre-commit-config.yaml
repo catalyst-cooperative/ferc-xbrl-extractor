@@ -104,7 +104,7 @@ repos:
     hooks:
       - id: bandit
     # Currently no configuration...
-    # args: ['--configfile', '.bandit.yml']
+    args: ["--configfile", ".bandit.yml"]
 
   # Check for errors in restructuredtext (.rst) files under the doc hierarchy
   - repo: https://github.com/PyCQA/doc8

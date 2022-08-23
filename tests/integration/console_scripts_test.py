@@ -14,8 +14,7 @@ ENTRY_POINTS = [
 @pytest.mark.parametrize("ep", ENTRY_POINTS)
 @pytest.mark.script_launch_mode("inprocess")
 def test_pudl_scripts(script_runner, ep):
-    """
-    Run each deployed console script with --help for testing.
+    """Run each deployed console script with --help for testing.
 
     The script_runner fixture is provided by the pytest-console-scripts plugin.
     """
