@@ -2,25 +2,27 @@
 PACKAGE_NAME Release Notes
 =======================================================================================
 
+.. _release-v0-2-0:
+
+---------------------------------------------------------------------------------------
+0.2.0 (2022-07-28)
+---------------------------------------------------------------------------------------
+
+Support All Forms
+^^^^^^^^^^^^^^^^^
+* Tested with FERC forms 1, 2, 6, 60, 714
+* Adds options for selecting taxonomies from CLI
+
 .. _release-v0-1-0:
 
 ---------------------------------------------------------------------------------------
-0.1.0 (2022-XX-XX)
+0.1.0 (2022-06-28)
 ---------------------------------------------------------------------------------------
 
-This is a Header
+Initial Release
 ^^^^^^^^^^^^^^^^
-* Briefly describe the substantial changes to the code in here when you make a PR.
-* That way and users we have documentation as to what's going on.
-* You can refer to the relevant pull request using the ``pr`` role: :pr:`1`
-* Don't hesitate to give shoutouts to folks who contributed like :user:`cmgosnell`
-* You can link to issues that were closed like this: :issue:`2,3,4`
-
-Bug Fixes
-^^^^^^^^^
-* It's good to make a note of any known bugs that are fixed by the release, and refer
-  to the relevant issues.
-
-Known Issues
-^^^^^^^^^^^^
-* It's also good to list any remaining known problems, and link to their issues too.
+* The FERC XBRL extractor supports extracting data from XBRL filings to
+  produce a SQLite database
+* It provides a CLI that takes a link to a taxonomy and a set of filings
+  and can produce a database containing the extracted data.
+* FERC form 1 is the only form that is officially tested and supported
