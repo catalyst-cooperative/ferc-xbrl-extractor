@@ -204,6 +204,28 @@ class Fact(BaseModel):
         )
 
 
+FactDict = dict[tuple, dict[Context, list[Fact]]]
+"""Dictionary to manage lookup of facts.
+
+Contexts provide background information necessary to interpret/identify XBRL
+facts. All contexts contain the time period, and entity that the fact pertains
+to. Contexts can also contain any number of other axes to further identify facts,
+which are defined in the taxonomy. All facts in a single fact table will contain
+the same set of axes, which is very useful when parsing an XBRL filing and
+converting fact tables into SQL tables.
+
+This class implements a mapping of Axes -> Contexts -> Facts. When constructing
+a table, first we will filter to only the set of facts that have the proper set
+of axes for that table. This does not necessarily mean that each fact in that
+set belongs in the table, but we can check that the name of the fact matches one
+of the column names in the table. By returning this set of facts as a map
+between facts and their contexts, it becomes much easier to construct rows in
+the table. This is because the primary key for each table is made up from the
+fields in the context, so every fact that is identified by the same context, will
+be in the same row in the table.
+"""
+
+
 class Instance:
     """Class to encapsulate a parsed instance.
 
@@ -230,8 +252,8 @@ class Instance:
             filing_name: Name of parsed filing.
         """
         # This is a nested dictionary of dictionaries to locate facts by context
-        self.instant_facts: dict[tuple, dict[Context, list[Fact]]] = {}
-        self.duration_facts: dict[tuple, dict[Context, list[Fact]]] = {}
+        self.instant_facts: FactDict = {}
+        self.duration_facts: FactDict = {}
 
         self.filing_name = filing_name
 
