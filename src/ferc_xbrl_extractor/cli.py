@@ -103,7 +103,7 @@ def get_instances(instance_path: Path):
     else:
         # Must be either a directory or file
         assert instance_path.is_dir()  # nosec: B101
-        instances = list(instance_path.iterdir())
+        instances = sorted(instance_path.iterdir())
 
     return [
         InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
