@@ -40,6 +40,11 @@ class Field(BaseModel):
             description=concept.documentation,
         )
 
+    def __hash__(self):
+        """Implement hash method to allow creating sets of Fields."""
+        # Names should be unique, so that's all that is needed for a hash
+        return hash(self.name)
+
 
 ENTITY_ID = Field(
     name="entity_id",
@@ -155,28 +160,30 @@ def _get_fields_from_concepts(
         axes: Axes in table (become part of primary key).
         columns: List of fields in table.
     """
-    axes = []
-    columns = []
+    # These are sets to gurantee no duplicates
+    # There are occasionaly duplicate concepts in a tree, which are only used for rendering a form
+    axes = set()
+    columns = set()
 
     # Loop through all child concepts of root concept
     for item in concept.child_concepts:
         # If the concept ends with 'Axis' it represents an XBRL Axis
         # Axes all become part of the table's primary key
         if item.name.endswith("Axis"):
-            axes.append(Field.from_concept(item))
+            axes.add(Field.from_concept(item))
 
         # If child concept has children of it's own recursively traverse subtree
         elif len(item.child_concepts) > 0:
             subtree_axes, subtree_columns = _get_fields_from_concepts(item, period_type)
-            axes.extend(subtree_axes)
-            columns.extend(subtree_columns)
+            axes.update(subtree_axes)
+            columns.update(subtree_columns)
 
         # Add any columns with desired period_type
         else:
             if item.period_type == period_type:
-                columns.append(Field.from_concept(item))
+                columns.add(Field.from_concept(item))
 
-    return axes, columns
+    return list(axes), list(columns)
 
 
 def _lowercase_words(name: str) -> str:
