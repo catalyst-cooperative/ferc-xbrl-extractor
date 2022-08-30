@@ -396,12 +396,15 @@ class Datapackage(BaseModel):
     resources: list[Resource]
 
     @classmethod
-    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> Datapackage:
+    def from_taxonomy(
+        cls, taxonomy: Taxonomy, db_path: str, form_number: int = 1
+    ) -> Datapackage:
         """Construct a Datapackage from an XBRL Taxonomy.
 
         Args:
             taxonomy: XBRL taxonomy which defines the structure of the database.
             db_path: Path to database required for a Frictionless resource.
+            form_number: FERC form number used for datapackage name.
         """
         resources = []
         for role in taxonomy.roles:
@@ -410,7 +413,7 @@ class Datapackage(BaseModel):
                 if resource:
                     resources.append(resource)
 
-        return cls(resources=resources)
+        return cls(resources=resources, name=f"ferc{form_number}-extracted-xbrl")
 
     def get_fact_tables(self, tables: set[str] | None = None) -> dict[str, FactTable]:
         """Use schema's defined in datapackage resources to construct FactTables.

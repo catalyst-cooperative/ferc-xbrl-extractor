@@ -68,7 +68,7 @@ def parse_main():
         "--form-number",
         default=1,
         type=int,
-        help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter)",
+        help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
     )
     parser.add_argument(
         "--loglevel",
@@ -151,6 +151,7 @@ def main():
         instances,
         engine,
         taxonomy,
+        args.form_number,
         batch_size=args.batch_size,
         workers=args.workers,
         datapackage_path=args.save_datapackage,

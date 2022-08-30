@@ -20,6 +20,7 @@ def extract(
     instances: list[InstanceBuilder],
     engine: sa.engine.Engine,
     taxonomy: str,
+    form_number: int,
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
@@ -30,6 +31,7 @@ def extract(
     Args:
         instances: A list of InstanceBuilder objects used for parsing XBRL filings.
         engine: SQLite connection to output database.
+        form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         taxonomy: Specify taxonomy used to create structure of output DB.
         requested_tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
@@ -48,6 +50,7 @@ def extract(
 
     tables = get_fact_tables(
         taxonomy,
+        form_number,
         str(engine.url),
         tables=requested_tables,
         datapackage_path=datapackage_path,
@@ -136,6 +139,7 @@ def process_instance(
 
 def get_fact_tables(
     taxonomy_path: str,
+    form_number: int,
     db_path: str,
     tables: set[str] | None = None,
     datapackage_path: str | None = None,
@@ -153,6 +157,7 @@ def get_fact_tables(
 
     Args:
         taxonomy_path: URL of taxonomy.
+        form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_path: Path to database used for constructing datapackage descriptor.
         tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
@@ -165,11 +170,11 @@ def get_fact_tables(
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
     taxonomy = Taxonomy.from_path(taxonomy_path)
-    datapackage = Datapackage.from_taxonomy(taxonomy, db_path)
+    datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
     if datapackage_path:
         json = datapackage.json(by_alias=True)
         with open(datapackage_path, "w") as f:
             f.write(json)
 
-    return datapackage.get_fact_tables()
+    return datapackage.get_fact_tables(tables=tables)
