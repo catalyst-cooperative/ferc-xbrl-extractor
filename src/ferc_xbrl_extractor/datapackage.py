@@ -216,16 +216,14 @@ def _clean_table_names(name: str) -> str | None:
     if not m:
         return None
 
+    # Rearrange name to be {table_name}_{page_number}
     table_name = f"{m.group(2)}_{m.group(1)}"
-    table_name = (
-        table_name.replace("-", "")
-        .replace("(", "")
-        .replace(")", "")
-        .replace(".", "")
-        .replace(",", "")
-        .replace("/", "")
-    )
+
+    # Convert to snakecase
     table_name = stringcase.snakecase(table_name)
+
+    # Remove all special characters
+    table_name = re.sub(r"\W", "", table_name)
 
     # The conversion to snakecase leaves some names with multiple underscores in a row
     table_name = table_name.replace("___", "_").replace("__", "_")
