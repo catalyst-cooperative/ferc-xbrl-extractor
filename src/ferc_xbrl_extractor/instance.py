@@ -157,7 +157,11 @@ class Context(BaseModel):
 
     def as_primary_key(self, filing_name: str) -> dict[str, str]:
         """Return a dictionary that represents the context as composite primary key."""
-        axes_dict = {axis.name: axis.value for axis in self.entity.dimensions}
+        # Create dictionary mapping axis (column) name to value
+        axes_dict = {
+            stringcase.snakecase(axis.name): axis.value
+            for axis in self.entity.dimensions
+        }
 
         # Get date based on period type
         if self.period.instant:

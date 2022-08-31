@@ -341,7 +341,7 @@ class FactTable:
         self.columns = {
             field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
         }
-        self.axes = [name for name in schema.primary_key if name.endswith("Axis")]
+        self.axes = [name for name in schema.primary_key if name.endswith("axis")]
         self.instant = period_type == "instant"
         self.logger = get_logger(__name__)
 
