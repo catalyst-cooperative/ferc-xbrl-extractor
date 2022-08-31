@@ -1,6 +1,4 @@
 """Define structures for creating a datapackage descriptor."""
-from __future__ import annotations
-
 import re
 from collections.abc import Callable
 
@@ -27,7 +25,7 @@ class Field(BaseModel):
     description: str
 
     @classmethod
-    def from_concept(cls, concept: Concept) -> Field:
+    def from_concept(cls, concept: Concept) -> "Field":
         """Construct a Field from an XBRL Concept.
 
         Args:
@@ -241,7 +239,7 @@ class Schema(BaseModel):
     primary_key: list[str]
 
     @classmethod
-    def from_concept_tree(cls, concept: Concept, period_type: str) -> Schema:
+    def from_concept_tree(cls, concept: Concept, period_type: str) -> "Schema":
         """Deduce schema from concept tree.
 
         Traverse Concept tree to get columns that should comprise output table.
@@ -294,7 +292,7 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_path: str
-    ) -> Resource | None:
+    ) -> "Resource":
         """Generate a Resource from a fact table (defined by a LinkRole).
 
         Args:
@@ -403,7 +401,7 @@ class Datapackage(BaseModel):
     @classmethod
     def from_taxonomy(
         cls, taxonomy: Taxonomy, db_path: str, form_number: int = 1
-    ) -> Datapackage:
+    ) -> "Datapackage":
         """Construct a Datapackage from an XBRL Taxonomy.
 
         Args:

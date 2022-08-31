@@ -1,6 +1,4 @@
 """XBRL extractor."""
-from __future__ import annotations
-
 import math
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor

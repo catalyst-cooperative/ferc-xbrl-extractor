@@ -1,6 +1,4 @@
 """Abstract away interface to Arelle XBRL Library."""
-from __future__ import annotations
-
 from arelle import Cntlr, ModelManager, ModelXbrl, XbrlConst
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 

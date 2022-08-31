@@ -1,6 +1,4 @@
 """XBRL prototype structures."""
-from __future__ import annotations
-
 from typing import Dict, Literal
 
 import pydantic
@@ -31,7 +29,7 @@ class XBRLType(BaseModel):
     ] = "string"
 
     @classmethod
-    def from_arelle_type(cls, arelle_type: ModelType) -> XBRLType:
+    def from_arelle_type(cls, arelle_type: ModelType) -> "XBRLType":
         """Construct XBRLType class from arelle ModelType."""
         return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
 
@@ -73,10 +71,10 @@ class Concept(BaseModel):
     documentation: str
     type_: XBRLType = pydantic.Field(alias="type")
     period_type: Literal["duration", "instant"]
-    child_concepts: list[Concept]
+    child_concepts: list["Concept"]
 
     @classmethod
-    def from_list(cls, concept_list: list, concept_dict: ConceptDict):
+    def from_list(cls, concept_list: list, concept_dict: ConceptDict) -> "Concept":
         """Construct a Concept from a list.
 
         The way Arelle represents the structure of the of a taxonomy is a
@@ -133,7 +131,7 @@ class LinkRole(BaseModel):
     concepts: Concept
 
     @classmethod
-    def from_list(cls, linkrole_list: list, concept_dict: ConceptDict) -> LinkRole:
+    def from_list(cls, linkrole_list: list, concept_dict: ConceptDict) -> "LinkRole":
         """Construct from list.
 
         Arelle represents link roles in a similar structure to concepts.

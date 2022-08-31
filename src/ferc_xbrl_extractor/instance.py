@@ -1,6 +1,4 @@
 """Parse a single instance."""
-from __future__ import annotations
-
 import io
 from enum import Enum, auto
 from typing import BinaryIO
@@ -26,7 +24,7 @@ class Period(BaseModel):
     end_date: str
 
     @classmethod
-    def from_xml(cls, elem: Element) -> Period:
+    def from_xml(cls, elem: Element) -> "Period":
         """Construct Period from XML element."""
         instant = elem.find(f"{{{XBRL_INSTANCE}}}instant")
         if instant is not None:
@@ -69,7 +67,7 @@ class Axis(BaseModel):
         return name.split(":")[1] if ":" in name else name
 
     @classmethod
-    def from_xml(cls, elem: Element) -> Axis:
+    def from_xml(cls, elem: Element) -> "Axis":
         """Construct Axis from XML element."""
         if elem.tag.endswith("explicitMember"):
             return cls(
@@ -102,7 +100,7 @@ class Entity(BaseModel):
     dimensions: list[Axis]
 
     @classmethod
-    def from_xml(cls, elem: Element) -> Entity:
+    def from_xml(cls, elem: Element) -> "Entity":
         """Construct Entity from XML element."""
         # Segment node contains dimensions prefixed with xbrldi
         segment = elem.find(f"{{{XBRL_INSTANCE}}}segment")
@@ -137,7 +135,7 @@ class Context(BaseModel):
     period: Period
 
     @classmethod
-    def from_xml(cls, elem: Element) -> Context:
+    def from_xml(cls, elem: Element) -> "Context":
         """Construct Context from XML element."""
         return cls(
             **{
@@ -197,7 +195,7 @@ class Fact(BaseModel):
     value: str | None
 
     @classmethod
-    def from_xml(cls, elem: Element) -> Fact:
+    def from_xml(cls, elem: Element) -> "Fact":
         """Construct Fact from XML element."""
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
