@@ -394,7 +394,7 @@ class Datapackage(BaseModel):
     """
 
     profile: str = "tabular-data-package"
-    name: str = "ferc1-extracted-xbrl"
+    name: str
     title: str = "Ferc1 data extracted from XBRL filings"
     resources: list[Resource]
 
