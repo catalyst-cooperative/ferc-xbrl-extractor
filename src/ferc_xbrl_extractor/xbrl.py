@@ -9,6 +9,7 @@ from functools import partial
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from frictionless import Package
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
@@ -173,8 +174,13 @@ def get_fact_tables(
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
     if datapackage_path:
-        json = datapackage.json(by_alias=True)
+        # Verify that datapackage descriptor is valid before outputting
+        frictionless_package = Package(descriptor=datapackage.dict(by_alias=True))
+        if not frictionless_package.metadata_valid:
+            raise RuntimeError("Generated datapackage is invalid")
+
+        # Write to JSON file
         with open(datapackage_path, "w") as f:
-            f.write(json)
+            f.write(datapackage.json(by_alias=True))
 
     return datapackage.get_fact_tables(tables=tables)

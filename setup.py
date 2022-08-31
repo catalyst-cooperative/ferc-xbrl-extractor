@@ -33,6 +33,7 @@ setup(
         "pydantic>=1.7,<2",
         "coloredlogs~=15.0",
         "catalystcoop.arelle-mirror==1.3.0",
+        "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
         "stringcase~=1.2.0",
