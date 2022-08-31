@@ -226,7 +226,7 @@ def _clean_table_names(name: str) -> str | None:
     table_name = re.sub(r"\W", "", table_name)
 
     # The conversion to snakecase leaves some names with multiple underscores in a row
-    table_name = table_name.replace("___", "_").replace("__", "_")
+    table_name = re.sub(r"_(_+)", "_", table_name)
 
     return table_name
 
