@@ -35,7 +35,7 @@ class Field(BaseModel):
             name=stringcase.snakecase(concept.name),
             title=concept.standard_label,
             type=concept.type_.get_schema_type(),
-            description=concept.documentation,
+            description=concept.documentation.strip(),
         )
 
     def __hash__(self):
