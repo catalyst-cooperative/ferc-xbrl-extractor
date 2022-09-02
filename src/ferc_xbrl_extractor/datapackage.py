@@ -284,9 +284,8 @@ class Resource(BaseModel):
     dialect: Dialect
     title: str
     description: str
-    format_: str = pydantic.Field(alias="sqlite", default="sqlite")
+    format_: str = pydantic.Field(alias="format", default="sqlite")
     mediatype: str = "application/vnd.sqlite3"
-    encoding: str = "binary"
     schema_: Schema = pydantic.Field(alias="schema")
 
     @classmethod
