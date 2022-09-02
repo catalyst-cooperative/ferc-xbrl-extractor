@@ -1,37 +1,43 @@
 """XBRL extractor."""
 import math
+from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
-from typing import Dict, Iterable, List, Optional
 
 import numpy as np
 import pandas as pd
 import sqlalchemy as sa
+from frictionless import Package
 
-from .datapackage import Datapackage, FactTable
-from .helpers import get_logger
-from .instance import InstanceBuilder
-from .taxonomy import Taxonomy
+from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
+from ferc_xbrl_extractor.helpers import get_logger
+from ferc_xbrl_extractor.instance import InstanceBuilder
+from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 
 def extract(
-    instances: List[InstanceBuilder],
+    instances: list[InstanceBuilder],
     engine: sa.engine.Engine,
     taxonomy: str,
-    batch_size: Optional[int] = None,
-    workers: Optional[int] = None,
-    save_metadata: bool = False,
-):
-    """
-    Extract data from all specified XBRL filings.
+    form_number: int,
+    requested_tables: set[str] | None = None,
+    batch_size: int | None = None,
+    workers: int | None = None,
+    datapackage_path: str | None = None,
+) -> None:
+    """Extract data from all specified XBRL filings.
 
     Args:
-        instance_paths: List of all XBRL instances to extract.
-        engine: SQLite connection.
+        instances: A list of InstanceBuilder objects used for parsing XBRL filings.
+        engine: SQLite connection to output database.
+        form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         taxonomy: Specify taxonomy used to create structure of output DB.
+        requested_tables: Optionally specify the set of tables to extract.
+                If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
-        save_metadata: Save XBRL references to JSON file.
+        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
+                          If path is None no datapackage descriptor will be saved.
     """
     logger = get_logger(__name__)
 
@@ -41,14 +47,19 @@ def extract(
 
     num_batches = math.ceil(num_instances / batch_size)
 
-    tables = get_fact_tables(taxonomy, str(engine.url), save_metadata)
+    tables = get_fact_tables(
+        taxonomy,
+        form_number,
+        str(engine.url),
+        tables=requested_tables,
+        datapackage_path=datapackage_path,
+    )
 
     with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings
         process_batches = partial(
             process_batch,
             tables=tables,
-            save_metadata=save_metadata,
         )
 
         batched_instances = np.array_split(
@@ -71,11 +82,9 @@ def extract(
 
 def process_batch(
     instances: Iterable[InstanceBuilder],
-    tables: Dict[str, FactTable],
-    save_metadata: bool = False,
-):
-    """
-    Extract data from one batch of instances.
+    tables: dict[str, FactTable],
+) -> dict[str, pd.DataFrame]:
+    """Extract data from one batch of instances.
 
     Splitting instances into batches significantly improves multiprocessing
     performance. This is done explicitly rather than using ProcessPoolExecutor's
@@ -84,12 +93,11 @@ def process_batch(
 
     Args:
         instances: Iterator of instances.
-        taxonomy: Specify taxonomy used to create structure of output DB.
-        save_metadata: Save XBRL references in JSON file.
+        tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
-    dfs = {}
+    dfs: dict[str, pd.DataFrame] = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, tables, save_metadata)
+        instance_dfs = process_instance(instance, tables)
 
         for key, df in instance_dfs.items():
             if key not in dfs:
@@ -104,16 +112,17 @@ def process_batch(
 
 def process_instance(
     instance_parser: InstanceBuilder,
-    tables: Dict[str, FactTable],
-    save_metadata: bool = False,
-):
-    """
-    Extract data from a single XBRL filing.
+    tables: dict[str, FactTable],
+) -> dict[str, pd.DataFrame]:
+    """Extract data from a single XBRL filing.
+
+    This function will use the InstanceBuilder object to parse
+    a single XBRL filing. It then iterates through requested tables
+    and populates them with data extracted from the filing.
 
     Args:
-        instance: Tuple of path to instance and filing_name for instance.
-        taxonomy: Specify taxonomy used to create structure of output DB.
-        save_metadata: Save XBRL references in JSON file.
+        instance_parser: A single InstanceBuilder object used to parse an XBRL filing.
+        tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
     logger = get_logger(__name__)
     instance = instance_parser.parse()
@@ -129,30 +138,47 @@ def process_instance(
 
 def get_fact_tables(
     taxonomy_path: str,
+    form_number: int,
     db_path: str,
-    save_metadata: bool = False,
-):
-    """
-    Parse taxonomy from URL.
+    tables: set[str] | None = None,
+    datapackage_path: str | None = None,
+) -> dict[str, FactTable]:
+    """Parse taxonomy from URL.
 
-    Caches results so each taxonomy is only retrieved and parsed once.
+    XBRL defines 'fact tables' that groups related facts. These fact
+    tables are used directly to create the tables that will make up the
+    output SQLite database, and their structure. The output of this function
+    is a dictionary that maps table names to 'FactTable' objects that specify
+    their structure.
+
+    This function will also output a json file containing a Frictionless
+    Data-Package descriptor describing the output database if requested.
 
     Args:
         taxonomy_path: URL of taxonomy.
+        form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_path: Path to database used for constructing datapackage descriptor.
-        save_metadata: Save XBRL references in JSON file.
+        tables: Optionally specify the set of tables to extract.
+                If None, all possible tables will be extracted.
+        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
+                          If path is None no datapackage descriptor will be saved.
 
     Returns:
         Dictionary mapping to table names to structure.
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, save_metadata)
-    datapackage = Datapackage.from_taxonomy(taxonomy, db_path)
+    taxonomy = Taxonomy.from_path(taxonomy_path)
+    datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
-    if save_metadata:
-        json = datapackage.json(by_alias=True)
-        with open("datapackage.json", "w") as f:
-            f.write(json)
+    if datapackage_path:
+        # Verify that datapackage descriptor is valid before outputting
+        frictionless_package = Package(descriptor=datapackage.dict(by_alias=True))
+        if not frictionless_package.metadata_valid:
+            raise RuntimeError("Generated datapackage is invalid")
 
-    return datapackage.get_fact_tables()
+        # Write to JSON file
+        with open(datapackage_path, "w") as f:
+            f.write(datapackage.json(by_alias=True))
+
+    return datapackage.get_fact_tables(tables=tables)

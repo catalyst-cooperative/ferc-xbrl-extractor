@@ -8,8 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def pytest_addoption(parser):
-    """
-    Add package-specific command line options to pytest.
+    """Add package-specific command line options to pytest.
 
     This is slightly magical -- pytest has a hook that will run this function
     automatically, adding any options defined here to the internal pytest options that
@@ -25,8 +24,7 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope="session")
 def test_dir():
-    """
-    Return the path to the top-level directory containing the tests.
+    """Return the path to the top-level directory containing the tests.
 
     This might be useful if there's test data stored under the tests directory that
     you need to be able to access from elsewhere within the tests.

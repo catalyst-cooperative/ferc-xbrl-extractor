@@ -16,4 +16,4 @@ def test_datapackage_generation(taxonomy_url):
     """Test that datapackage descriptor is valid."""
     taxonomy = Taxonomy.from_path(taxonomy_url)
     datapackage = Datapackage.from_taxonomy(taxonomy, "sqlite:///test_db.sqlite")
-    assert Package(descriptor=datapackage.dict()).metadata_valid
+    assert Package(descriptor=datapackage.dict(by_alias=True)).metadata_valid

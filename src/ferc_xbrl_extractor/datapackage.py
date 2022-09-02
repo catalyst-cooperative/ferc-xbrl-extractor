@@ -1,20 +1,19 @@
 """Define structures for creating a datapackage descriptor."""
 import re
-from typing import Callable, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 import pandas as pd
 import pydantic
 import stringcase
 from pydantic import BaseModel
 
-from .helpers import get_logger
-from .instance import Instance
-from .taxonomy import Concept, LinkRole, Taxonomy
+from ferc_xbrl_extractor.helpers import get_logger
+from ferc_xbrl_extractor.instance import Instance
+from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
 
 class Field(BaseModel):
-    """
-    A generic field descriptor, as per Frictionless Data specs.
+    """A generic field descriptor, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/table-schema/#field-descriptors.
     """
@@ -27,13 +26,22 @@ class Field(BaseModel):
 
     @classmethod
     def from_concept(cls, concept: Concept) -> "Field":
-        """Construct a Field from an XBRL Concept."""
+        """Construct a Field from an XBRL Concept.
+
+        Args:
+            concept: XBRL Concept used to create a Field.
+        """
         return cls(
-            name=(concept.name),
+            name=stringcase.snakecase(concept.name),
             title=concept.standard_label,
-            type=concept.type.get_schema_type(),
+            type=concept.type_.get_schema_type(),
             description=concept.documentation,
         )
+
+    def __hash__(self):
+        """Implement hash method to allow creating sets of Fields."""
+        # Names should be unique, so that's all that is needed for a hash
+        return hash(self.name)
 
 
 ENTITY_ID = Field(
@@ -91,7 +99,7 @@ Fields common to all instant tables.
 """
 
 
-FIELD_TO_PANDAS: Dict[str, str] = {
+FIELD_TO_PANDAS: dict[str, str] = {
     "string": "string",
     "number": "Float64",
     "integer": "Int64",
@@ -104,7 +112,7 @@ FIELD_TO_PANDAS: Dict[str, str] = {
 Pandas data type by schema field type (Data Package `field.type`).
 """
 
-CONVERT_DTYPES: Dict[str, Callable] = {
+CONVERT_DTYPES: dict[str, Callable] = {
     "string": str,
     "integer": int,
     "year": int,
@@ -133,9 +141,8 @@ which make converting to snakecase difficult.
 
 def _get_fields_from_concepts(
     concept: Concept, period_type: str
-) -> Tuple[List[Field], List[Field]]:
-    """
-    Traverse concept tree to get columns and axes that will be used in output table.
+) -> tuple[list[Field], list[Field]]:
+    """Traverse concept tree to get columns and axes that will be used in output table.
 
     A 'fact table' in XBRL arranges Concepts into a a tree where the leaf nodes are
     individual facts that will become columns in the output tables. Axes are used to
@@ -146,29 +153,39 @@ def _get_fields_from_concepts(
         concept: The root concept of the tree.
         period_type: Period type of current table (only return columns with corresponding
                      period type).
+
     Returns:
         axes: Axes in table (become part of primary key).
         columns: List of fields in table.
     """
-    axes = []
-    columns = []
+    # These are sets to gurantee no duplicates
+    # There are occasionaly duplicate concepts in a tree, which are only used for rendering a form
+    axes = set()
+    columns = set()
+
+    # Loop through all child concepts of root concept
     for item in concept.child_concepts:
+        # If the concept ends with 'Axis' it represents an XBRL Axis
+        # Axes all become part of the table's primary key
         if item.name.endswith("Axis"):
-            axes.append(Field.from_concept(item))
+            axes.add(Field.from_concept(item))
+
+        # If child concept has children of it's own recursively traverse subtree
         elif len(item.child_concepts) > 0:
             subtree_axes, subtree_columns = _get_fields_from_concepts(item, period_type)
-            axes.extend(subtree_axes)
-            columns.extend(subtree_columns)
+            axes.update(subtree_axes)
+            columns.update(subtree_columns)
+
+        # Add any columns with desired period_type
         else:
             if item.period_type == period_type:
-                columns.append(Field.from_concept(item))
+                columns.add(Field.from_concept(item))
 
-    return axes, columns
+    return list(axes), list(columns)
 
 
 def _lowercase_words(name: str) -> str:
-    """
-    Convert fully uppercase words so only first letter is uppercase.
+    """Convert fully uppercase words so only first letter is uppercase.
 
     Pattern finds uppercase characters that are immediately preceded by
     an uppercase character. Later when the name is converted to snakecase,
@@ -182,9 +199,8 @@ def _lowercase_words(name: str) -> str:
     return name
 
 
-def _clean_table_names(name: str) -> Optional[str]:
-    """
-    Function to clean table names.
+def _clean_table_names(name: str) -> str | None:
+    """Function to clean table names.
 
     Args:
         name: Unprocessed table name.
@@ -198,37 +214,41 @@ def _clean_table_names(name: str) -> Optional[str]:
     if not m:
         return None
 
+    # Rearrange name to be {table_name}_{page_number}
     table_name = f"{m.group(2)}_{m.group(1)}"
-    table_name = (
-        table_name.replace("-", "")
-        .replace("(", "")
-        .replace(")", "")
-        .replace(".", "")
-        .replace(",", "")
-        .replace("/", "")
-    )
+
+    # Convert to snakecase
     table_name = stringcase.snakecase(table_name)
 
+    # Remove all special characters
+    table_name = re.sub(r"\W", "", table_name)
+
     # The conversion to snakecase leaves some names with multiple underscores in a row
-    table_name = table_name.replace("___", "_").replace("__", "_")
+    table_name = re.sub(r"_(_+)", "_", table_name)
 
     return table_name
 
 
 class Schema(BaseModel):
-    """
-    A generic table schema, as per Frictionless Data specs.
+    """A generic table schema, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/table-schema/.
     """
 
-    fields: List[Field]
-    primary_key: List[str]
+    fields: list[Field]
+    primary_key: list[str]
 
     @classmethod
     def from_concept_tree(cls, concept: Concept, period_type: str) -> "Schema":
-        """
-        Deduce schema from concept tree.
+        """Deduce schema from concept tree.
+
+        Traverse Concept tree to get columns that should comprise output table.
+        Concepts with names ending in 'Axis' will become a part of the composite
+        primary key for each table. Tables with a duration period type will also
+        have the columns 'entity_id', 'filing_name', 'start_date', and 'end_date' in
+        their primary key, while tables with 'instant' period type will include
+        'entity_id', 'filing_name', and 'date'. The remaining columns will come from
+        leaf nodes in the concept graph.
 
         Args:
             concept: Root concept of concept tree.
@@ -253,8 +273,7 @@ class Dialect(BaseModel):
 
 
 class Resource(BaseModel):
-    """
-    A generic data resource, as per Frictionless Data specs.
+    """A generic tabular data resource, as per Frictionless Data specs.
 
     See https://specs.frictionlessdata.io/data-resource.
     """
@@ -274,12 +293,12 @@ class Resource(BaseModel):
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_path: str
     ) -> "Resource":
-        """
-        Generate a Resource from a fact table (defined by a LinkRole).
+        """Generate a Resource from a fact table (defined by a LinkRole).
 
         Args:
             fact_table: Link role which defines a fact table.
             period_type: Period type of table.
+            db_path: Path to database required for a Frictionless resource.
         """
         cleaned_name = _clean_table_names(fact_table.definition)
 
@@ -303,46 +322,8 @@ class Resource(BaseModel):
         return period_type
 
 
-class Datapackage(BaseModel):
-    """
-    A generic Data Package, as per Frictionless Data specs.
-
-    See https://specs.frictionlessdata.io/data-package.
-    """
-
-    profile: str = "tabular-data-package"
-    name: str = "ferc1-extracted-xbrl"
-    title: str = "Ferc1 data extracted from XBRL filings"
-    resources: List[Resource]
-
-    @classmethod
-    def from_taxonomy(cls, taxonomy: Taxonomy, db_path: str) -> "Datapackage":
-        """
-        Construct a Datapackage from an XBRL Taxonomy.
-
-        Args:
-            taxonomy: XBRL taxonomy which defines the structure of the database.
-        """
-        resources = []
-        for role in taxonomy.roles:
-            for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type, db_path)
-                if resource:
-                    resources.append(resource)
-
-        return cls(resources=resources)
-
-    def get_fact_tables(self):
-        """Get FactTables from datapackage."""
-        return {
-            resource.name: FactTable(resource.schema_, resource.get_period_type())
-            for resource in self.resources
-        }
-
-
-class FactTable(object):
-    """
-    Class to handle constructing a dataframe from an XBRL fact table.
+class FactTable:
+    """Class to handle constructing a dataframe from an XBRL fact table.
 
     Structure of the dataframe is defined by the XBRL taxonomy. Facts and contexts
     parsed from an individual XBRL filing are then used to populate the dataframe
@@ -356,13 +337,12 @@ class FactTable(object):
         self.columns = {
             field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
         }
-        self.axes = [name for name in schema.primary_key if name.endswith("Axis")]
+        self.axes = [name for name in schema.primary_key if name.endswith("axis")]
         self.instant = period_type == "instant"
         self.logger = get_logger(__name__)
 
     def construct_dataframe(self, instance: Instance) -> pd.DataFrame:
-        """
-        Construct dataframe from a parsed XBRL instance.
+        """Construct dataframe from a parsed XBRL instance.
 
         Args:
             instance: Parsed XBRL instance used to construct dataframe.
@@ -405,3 +385,49 @@ class FactTable(object):
 
         # Create dataframe and drop empty rows
         return pd.DataFrame(df).dropna(how="all")
+
+
+class Datapackage(BaseModel):
+    """A generic Data Package, as per Frictionless Data specs.
+
+    See https://specs.frictionlessdata.io/data-package.
+    """
+
+    profile: str = "tabular-data-package"
+    name: str
+    title: str = "Ferc1 data extracted from XBRL filings"
+    resources: list[Resource]
+
+    @classmethod
+    def from_taxonomy(
+        cls, taxonomy: Taxonomy, db_path: str, form_number: int = 1
+    ) -> "Datapackage":
+        """Construct a Datapackage from an XBRL Taxonomy.
+
+        Args:
+            taxonomy: XBRL taxonomy which defines the structure of the database.
+            db_path: Path to database required for a Frictionless resource.
+            form_number: FERC form number used for datapackage name.
+        """
+        resources = []
+        for role in taxonomy.roles:
+            for period_type in ["duration", "instant"]:
+                resource = Resource.from_link_role(role, period_type, db_path)
+                if resource:
+                    resources.append(resource)
+
+        return cls(resources=resources, name=f"ferc{form_number}-extracted-xbrl")
+
+    def get_fact_tables(self, tables: set[str] | None = None) -> dict[str, FactTable]:
+        """Use schema's defined in datapackage resources to construct FactTables.
+
+        Args:
+            tables: Optionally specify the set of tables to extract.
+                    If None, all possible tables will be extracted.
+        """
+        return {
+            resource.name: FactTable(resource.schema_, resource.get_period_type())
+            for resource in self.resources
+            if not tables  # If no tables are provided extract all tables
+            or resource.name in tables  # Otherwise only add tables in requested set
+        }

@@ -32,9 +32,9 @@ def parse_main():
     )
     parser.add_argument(
         "-s",
-        "--save-metadata",
+        "--save-datapackage",
         default=None,
-        help="Save metadata defined in XBRL references",
+        help="Generate frictionless datapackage descriptor, and write to JSON file at specified path.",
     )
     parser.add_argument(
         "-c",
@@ -68,7 +68,7 @@ def parse_main():
         "--form-number",
         default=1,
         type=int,
-        help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter)",
+        help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
     )
     parser.add_argument(
         "--loglevel",
@@ -81,11 +81,11 @@ def parse_main():
 
 
 def get_instances(instance_path: Path):
-    """
-    Get list of instances from specified path.
+    """Get list of instances from specified path.
 
     Args:
         instance_path: Path to one or more XBRL filings.
+
     Returns:
         List of tuples containing the path to an instance and the name of the filing.
     """
@@ -102,8 +102,8 @@ def get_instances(instance_path: Path):
     # Directory of instances
     else:
         # Must be either a directory or file
-        assert instance_path.is_dir()
-        instances = instance_path.iterdir()
+        assert instance_path.is_dir()  # nosec: B101
+        instances = sorted(instance_path.iterdir())
 
     return [
         InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
@@ -151,9 +151,10 @@ def main():
         instances,
         engine,
         taxonomy,
+        args.form_number,
         batch_size=args.batch_size,
         workers=args.workers,
-        save_metadata=args.save_metadata,
+        datapackage_path=args.save_datapackage,
     )
 
 
