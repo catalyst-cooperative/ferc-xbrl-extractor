@@ -2,6 +2,18 @@
 PACKAGE_NAME Release Notes
 =======================================================================================
 
+.. _release-v0-3-0:
+
+---------------------------------------------------------------------------------------
+0.3.0 (2022-07-28)
+---------------------------------------------------------------------------------------
+
+Enable publication of raw SQLite databases to Datasette
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Add support for specifying a subset of tables for extraction
+* Add options for specifying output path for datapackage descriptors
+* Fix docs generation, as well as various other CI improvements
+
 .. _release-v0-2-0:
 
 ---------------------------------------------------------------------------------------
