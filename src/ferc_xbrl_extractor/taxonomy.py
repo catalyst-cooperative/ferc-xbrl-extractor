@@ -71,7 +71,7 @@ class Concept(BaseModel):
     documentation: str
     type_: XBRLType = pydantic.Field(alias="type")
     period_type: Literal["duration", "instant"]
-    child_concepts: list["Concept"]
+    child_concepts: "list[Concept]"
 
     @classmethod
     def from_list(cls, concept_list: list, concept_dict: ConceptDict) -> "Concept":
