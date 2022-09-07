@@ -35,7 +35,7 @@ class Field(BaseModel):
             name=stringcase.snakecase(concept.name),
             title=concept.standard_label,
             type=concept.type_.get_schema_type(),
-            description=concept.documentation,
+            description=concept.documentation.strip(),
         )
 
     def __hash__(self):
@@ -284,9 +284,8 @@ class Resource(BaseModel):
     dialect: Dialect
     title: str
     description: str
-    format_: str = pydantic.Field(alias="sqlite", default="sqlite")
+    format_: str = pydantic.Field(alias="format", default="sqlite")
     mediatype: str = "application/vnd.sqlite3"
-    encoding: str = "binary"
     schema_: Schema = pydantic.Field(alias="schema")
 
     @classmethod

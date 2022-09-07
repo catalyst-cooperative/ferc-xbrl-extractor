@@ -54,6 +54,8 @@ class XBRLType(BaseModel):
             return "year"
         elif self.base == "decimal":
             return "number"
+        elif self.base == "duration":
+            return "string"
         else:
             return self.base
 
