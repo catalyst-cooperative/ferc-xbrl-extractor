@@ -20,6 +20,7 @@ def extract(
     engine: sa.engine.Engine,
     taxonomy: str,
     form_number: int,
+    archive_file_path: str | None = None,
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
@@ -32,6 +33,8 @@ def extract(
         engine: SQLite connection to output database.
         form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         taxonomy: Specify taxonomy used to create structure of output DB.
+        archive_file_path: Path to taxonomy entry point within archive. If not None,
+                then `taxonomy` should be a path to zipfile, not a URL.
         requested_tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
@@ -51,6 +54,7 @@ def extract(
         taxonomy,
         form_number,
         str(engine.url),
+        archive_file_path=archive_file_path,
         tables=requested_tables,
         datapackage_path=datapackage_path,
     )
@@ -140,6 +144,7 @@ def get_fact_tables(
     taxonomy_path: str,
     form_number: int,
     db_path: str,
+    archive_file_path: str | None = None,
     tables: set[str] | None = None,
     datapackage_path: str | None = None,
 ) -> dict[str, FactTable]:
@@ -158,6 +163,8 @@ def get_fact_tables(
         taxonomy_path: URL of taxonomy.
         form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_path: Path to database used for constructing datapackage descriptor.
+        archive_file_path: Path to taxonomy entry point within archive. If not None,
+                then `taxonomy` should be a path to zipfile, not a URL.
         tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
@@ -168,7 +175,7 @@ def get_fact_tables(
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path)
+    taxonomy = Taxonomy.from_path(taxonomy_path, archive_file_path=archive_file_path)
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
     if datapackage_path:

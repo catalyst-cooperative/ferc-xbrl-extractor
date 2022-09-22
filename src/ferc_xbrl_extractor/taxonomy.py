@@ -6,7 +6,10 @@ from arelle import XbrlConst
 from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
-from ferc_xbrl_extractor.arelle_interface import load_taxonomy
+from ferc_xbrl_extractor.arelle_interface import (
+    load_taxonomy,
+    load_taxonomy_from_archive,
+)
 
 ConceptDict = Dict[str, ModelConcept]
 
@@ -172,7 +175,7 @@ class Taxonomy(BaseModel):
     roles: list[LinkRole]
 
     @classmethod
-    def from_path(cls, path: str):
+    def from_path(cls, path: str, archive_file_path: str | None = None):
         """Construct taxonomy from taxonomy URL.
 
         Use Arelle to parse a taxonomy from a URL or local file path. The
@@ -182,8 +185,13 @@ class Taxonomy(BaseModel):
 
         Args:
             path: URL or local path to taxonomy.
+            archive_file_path: Path to taxonomy entry point within archive. If not None,
+                then `taxonomy` should be a path to zipfile, not a URL.
         """
-        taxonomy, view = load_taxonomy(path)
+        if not archive_file_path:
+            taxonomy, view = load_taxonomy(path)
+        else:
+            taxonomy, view = load_taxonomy_from_archive(path, archive_file_path)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {
