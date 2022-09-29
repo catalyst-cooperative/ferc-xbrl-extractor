@@ -38,7 +38,6 @@ def load_taxonomy_from_archive(filepath: str, archive_path: str):
         archive_path: Relative path to taxonomy entry point within archive.
     """
     # Create arelle FileSource object
-    print(f"archive_path={archive_path}")
     f = FileSource.openFileSource(archive_path, sourceZipStream=filepath)
 
     return load_taxonomy(f)
