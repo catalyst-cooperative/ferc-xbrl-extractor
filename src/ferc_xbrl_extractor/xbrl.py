@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from frictionless import Package
+from lxml.etree import XMLSyntaxError  # nosec: B410
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
@@ -99,9 +100,16 @@ def process_batch(
         instances: Iterator of instances.
         tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
+    logger = get_logger(__name__)
+
     dfs: dict[str, pd.DataFrame] = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, tables)
+        # Parse XBRL instance. Log/skip if file is empty
+        try:
+            instance_dfs = process_instance(instance, tables)
+        except XMLSyntaxError:
+            logger.info(f"XBRL filing {instance.name} is empty. Skipping.")
+            continue
 
         for key, df in instance_dfs.items():
             if key not in dfs:
