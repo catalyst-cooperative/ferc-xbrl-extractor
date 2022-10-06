@@ -80,7 +80,7 @@ class Axis(BaseModel):
             dim = elem.getchildren()[0]
             return cls(
                 name=elem.attrib["dimension"],
-                value=dim.text,
+                value=dim.text if dim.text else "",
                 dimension_type=DimensionType.TYPED,
             )
 
