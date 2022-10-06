@@ -71,6 +71,13 @@ def parse_main():
         help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
     )
     parser.add_argument(
+        "-a",
+        "--archive-path",
+        default=None,
+        type=str,
+        help="Specify path to taxonomy entry point within a zipfile archive. This is a relative path within the taxonomy. If specified, `taxonomy` must be set to point to the zipfile location on the local file system.",
+    )
+    parser.add_argument(
         "--loglevel",
         help="Set log level (valid arguments include DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         default="INFO",
@@ -131,6 +138,10 @@ def main():
     if args.clobber:
         helpers.drop_tables(engine)
 
+    # Verify taxonomy is set if archive_path is set
+    if args.archive_path and not args.taxonomy:
+        raise ValueError("taxonomy must be set if archive_path is given.")
+
     # Get taxonomy URL
     if args.taxonomy:
         taxonomy = args.taxonomy
@@ -152,6 +163,7 @@ def main():
         engine,
         taxonomy,
         args.form_number,
+        archive_file_path=args.archive_path,
         batch_size=args.batch_size,
         workers=args.workers,
         datapackage_path=args.save_datapackage,

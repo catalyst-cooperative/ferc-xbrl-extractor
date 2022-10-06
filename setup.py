@@ -30,7 +30,7 @@ setup(
     python_requires=">=3.8,<3.11",
     license="MIT",
     install_requires=[
-        "pydantic>=1.7,<2",
+        "pydantic>=1.9,<2",
         "coloredlogs~=15.0",
         "catalystcoop.arelle-mirror==1.3.0",
         "frictionless>=4.4,<5",
