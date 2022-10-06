@@ -58,7 +58,7 @@ class Axis(BaseModel):
     """
 
     name: str
-    value: str
+    value: str = ""
     dimension_type: DimensionType
 
     @validator("name", pre=True)  # type: ignore
