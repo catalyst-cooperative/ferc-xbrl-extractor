@@ -58,7 +58,7 @@ repos:
   # Update a bunch of Python syntax, using __futures__ for Python 3.8/3.9
   # Note that this sometimes conflicts with Pydantic on Python 3.8/3.9
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.1.0
+    rev: v3.2.0
     hooks:
       - id: pyupgrade
         args: ["--py38-plus"]
@@ -71,7 +71,7 @@ repos:
         language_version: python3.10
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0-alpha.3
+    rev: v3.0.0-alpha.4
     hooks:
       - id: prettier
         types_or: [yaml]
