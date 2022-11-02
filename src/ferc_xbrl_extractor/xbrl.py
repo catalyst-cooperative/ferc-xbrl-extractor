@@ -26,6 +26,7 @@ def extract(
     batch_size: int | None = None,
     workers: int | None = None,
     datapackage_path: str | None = None,
+    metadata_path: str | None = None,
 ) -> None:
     """Extract data from all specified XBRL filings.
 
@@ -42,6 +43,7 @@ def extract(
         workers: Number of threads to create for parsing filings.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
                           If path is None no datapackage descriptor will be saved.
+        metadata_path: Path to metadata json file to output taxonomy metadata.
     """
     logger = get_logger(__name__)
 
@@ -155,6 +157,7 @@ def get_fact_tables(
     archive_file_path: str | None = None,
     tables: set[str] | None = None,
     datapackage_path: str | None = None,
+    metadata_path: str | None = None,
 ) -> dict[str, FactTable]:
     """Parse taxonomy from URL.
 
@@ -177,6 +180,7 @@ def get_fact_tables(
                 If None, all possible tables will be extracted.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
                           If path is None no datapackage descriptor will be saved.
+        metadata_path: Path to metadata json file to output taxonomy metadata.
 
     Returns:
         Dictionary mapping to table names to structure.
