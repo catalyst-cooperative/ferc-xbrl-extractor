@@ -131,4 +131,4 @@ def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
             metadata.pop(name)
 
     with open(filename, "w") as f:
-        json.dump(metadata, f)
+        json.dump(metadata, f, indent=4)

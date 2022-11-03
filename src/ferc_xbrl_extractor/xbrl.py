@@ -60,6 +60,7 @@ def extract(
         archive_file_path=archive_file_path,
         tables=requested_tables,
         datapackage_path=datapackage_path,
+        metadata_path=metadata_path,
     )
 
     with Executor(max_workers=workers) as executor:
@@ -187,7 +188,9 @@ def get_fact_tables(
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, archive_file_path=archive_file_path)
+    taxonomy = Taxonomy.from_path(
+        taxonomy_path, archive_file_path=archive_file_path, metadata_path=metadata_path
+    )
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
     if datapackage_path:
