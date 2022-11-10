@@ -7,6 +7,7 @@ from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
 from ferc_xbrl_extractor.arelle_interface import (
+    extract_metadata,
     load_taxonomy,
     load_taxonomy_from_archive,
 )
@@ -175,7 +176,12 @@ class Taxonomy(BaseModel):
     roles: list[LinkRole]
 
     @classmethod
-    def from_path(cls, path: str, archive_file_path: str | None = None):
+    def from_path(
+        cls,
+        path: str,
+        archive_file_path: str | None = None,
+        metadata_path: str | None = None,
+    ):
         """Construct taxonomy from taxonomy URL.
 
         Use Arelle to parse a taxonomy from a URL or local file path. The
@@ -187,6 +193,7 @@ class Taxonomy(BaseModel):
             path: URL or local path to taxonomy.
             archive_file_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
+            metadata_path: Path to metadata json file to output taxonomy metadata.
         """
         if not archive_file_path:
             taxonomy, view = load_taxonomy(path)
@@ -197,6 +204,10 @@ class Taxonomy(BaseModel):
         concept_dict = {
             str(name): concept for name, concept in taxonomy.qnameConcepts.items()
         }
+
+        # Extract metadata to json file if requested
+        if metadata_path:
+            extract_metadata(metadata_path, concept_dict)
 
         roles = [
             LinkRole.from_list(role, concept_dict) for role in view.jsonObject["roles"]

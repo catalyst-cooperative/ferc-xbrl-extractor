@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import sqlalchemy as sa
 from frictionless import Package
+from lxml.etree import XMLSyntaxError  # nosec: B410
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
@@ -25,6 +26,7 @@ def extract(
     batch_size: int | None = None,
     workers: int | None = None,
     datapackage_path: str | None = None,
+    metadata_path: str | None = None,
 ) -> None:
     """Extract data from all specified XBRL filings.
 
@@ -41,6 +43,7 @@ def extract(
         workers: Number of threads to create for parsing filings.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
                           If path is None no datapackage descriptor will be saved.
+        metadata_path: Path to metadata json file to output taxonomy metadata.
     """
     logger = get_logger(__name__)
 
@@ -57,6 +60,7 @@ def extract(
         archive_file_path=archive_file_path,
         tables=requested_tables,
         datapackage_path=datapackage_path,
+        metadata_path=metadata_path,
     )
 
     with Executor(max_workers=workers) as executor:
@@ -99,9 +103,16 @@ def process_batch(
         instances: Iterator of instances.
         tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
+    logger = get_logger(__name__)
+
     dfs: dict[str, pd.DataFrame] = {}
     for instance in instances:
-        instance_dfs = process_instance(instance, tables)
+        # Parse XBRL instance. Log/skip if file is empty
+        try:
+            instance_dfs = process_instance(instance, tables)
+        except XMLSyntaxError:
+            logger.info(f"XBRL filing {instance.name} is empty. Skipping.")
+            continue
 
         for key, df in instance_dfs.items():
             if key not in dfs:
@@ -147,6 +158,7 @@ def get_fact_tables(
     archive_file_path: str | None = None,
     tables: set[str] | None = None,
     datapackage_path: str | None = None,
+    metadata_path: str | None = None,
 ) -> dict[str, FactTable]:
     """Parse taxonomy from URL.
 
@@ -169,13 +181,16 @@ def get_fact_tables(
                 If None, all possible tables will be extracted.
         datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
                           If path is None no datapackage descriptor will be saved.
+        metadata_path: Path to metadata json file to output taxonomy metadata.
 
     Returns:
         Dictionary mapping to table names to structure.
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, archive_file_path=archive_file_path)
+    taxonomy = Taxonomy.from_path(
+        taxonomy_path, archive_file_path=archive_file_path, metadata_path=metadata_path
+    )
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
     if datapackage_path:

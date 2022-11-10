@@ -78,6 +78,13 @@ def parse_main():
         help="Specify path to taxonomy entry point within a zipfile archive. This is a relative path within the taxonomy. If specified, `taxonomy` must be set to point to the zipfile location on the local file system.",
     )
     parser.add_argument(
+        "-m",
+        "--metadata-path",
+        default=None,
+        type=str,
+        help="Specify path to output metadata extracted taxonomy. Metadata will not be extracted if no path is specified.",
+    )
+    parser.add_argument(
         "--loglevel",
         help="Set log level (valid arguments include DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         default="INFO",
@@ -167,6 +174,7 @@ def main():
         batch_size=args.batch_size,
         workers=args.workers,
         datapackage_path=args.save_datapackage,
+        metadata_path=args.metadata_path,
     )
 
 
