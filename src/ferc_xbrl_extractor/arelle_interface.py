@@ -81,11 +81,11 @@ def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
         concepts: Dictionary mapping concept names to concepts
     """
     # Loop through all concepts in the taxonomy and extract metadata for each
-    metadata = {}
+    metadata = []
     for concept in concepts.values():
         # Get name and convert to snakecase to match output DB
         name = stringcase.snakecase(concept.name)
-        metadata[name] = {}
+        concept_metadata = {"name": name}
 
         references = concept.modelXbrl.relationshipSet(
             XbrlConst.conceptReference
@@ -107,8 +107,13 @@ def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
             else:
                 reference_dict[reference_name] = [part_dict]
 
+            # Flatten out references where applicable
+            if len(reference_dict[reference_name]) == 1 and len(part_dict) == 1:
+                if reference_name in part_dict:
+                    reference_dict[reference_name] = part_dict[reference_name]
+
         # Add references to metadata
-        metadata[name]["references"] = reference_dict
+        concept_metadata["references"] = reference_dict
 
         # Get calculations
         calculations = concept.modelXbrl.relationshipSet(
@@ -124,11 +129,11 @@ def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
                 )
             )
 
-        metadata[name]["calculations"] = calculation_list
-        metadata[name]["balance"] = concept.balance
+        concept_metadata["calculations"] = calculation_list
+        concept_metadata["balance"] = concept.balance
 
-        if not metadata[name]["references"] and not metadata[name]["calculations"]:
-            metadata.pop(name)
+        if concept_metadata["references"] or concept_metadata["calculations"]:
+            metadata.append(concept_metadata)
 
     with open(filename, "w") as f:
         json.dump(metadata, f, indent=4)
