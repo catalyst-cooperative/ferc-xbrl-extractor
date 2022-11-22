@@ -58,7 +58,7 @@ repos:
   # Update a bunch of Python syntax, using __futures__ for Python 3.8/3.9
   # Note that this sometimes conflicts with Pydantic on Python 3.8/3.9
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.2.0
+    rev: v3.2.2
     hooks:
       - id: pyupgrade
         args: ["--py38-plus"]
@@ -114,7 +114,7 @@ repos:
 
   # Lint any RST files and embedded code blocks for syntax / formatting errors
   - repo: https://github.com/rstcheck/rstcheck
-    rev: v6.1.0
+    rev: v6.1.1
     hooks:
       - id: rstcheck
         additional_dependencies: [sphinx]
