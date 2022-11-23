@@ -261,7 +261,9 @@ class Instance:
 
         for c_id, context in contexts.items():
             axes = tuple(
-                stringcase.snakecase(dim.name) for dim in context.entity.dimensions
+                sorted(
+                    stringcase.snakecase(dim.name) for dim in context.entity.dimensions
+                )
             )
             if context.period.instant:
                 if axes not in self.instant_facts:
@@ -282,9 +284,9 @@ class Instance:
             axes: List of axis names defined for fact table.
         """
         if instant:
-            facts = self.instant_facts.get(tuple(axes), {})
+            facts = self.instant_facts.get(tuple(sorted(axes)), {})
         else:
-            facts = self.duration_facts.get(tuple(axes), {})
+            facts = self.duration_facts.get(tuple(sorted(axes)), {})
 
         return facts
 
