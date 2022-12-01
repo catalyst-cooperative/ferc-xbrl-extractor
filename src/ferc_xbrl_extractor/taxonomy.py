@@ -316,12 +316,15 @@ class Taxonomy(BaseModel):
         """
         from ferc_xbrl_extractor.datapackage import clean_table_names
 
+        # Get metadata for duration tables
         duration_metadata = {
             f"{clean_table_names(role.definition)}_duration": role.get_metadata(
                 "duration"
             )
             for role in self.roles
         }
+
+        # Get metadata for instant tables
         instant_metadata = {
             f"{clean_table_names(role.definition)}_instant": role.get_metadata(
                 "instant"
@@ -331,5 +334,6 @@ class Taxonomy(BaseModel):
 
         metadata = {**duration_metadata, **instant_metadata}
 
+        # Write to JSON file
         with open(filename, "w") as f:
             json.dump(metadata, f, indent=4)
