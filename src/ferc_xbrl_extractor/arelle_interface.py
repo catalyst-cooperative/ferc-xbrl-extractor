@@ -1,6 +1,5 @@
 """Abstract away interface to Arelle XBRL Library."""
-import json
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import stringcase
 from arelle import Cntlr, FileSource, ModelManager, ModelXbrl, XbrlConst
@@ -63,7 +62,7 @@ class CalculationParameter(TypedDict):
     weight: int
 
 
-def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
+def get_concept_metadata(concept: ModelConcept) -> dict[str, Any]:
     """Extract metadata from XBRL taxonomies and write to JSON file.
 
     FERC uses XBRL references to link Concepts defined in its taxonomy to the physical
@@ -77,63 +76,55 @@ def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
     filing.
 
     Args:
-        filename: File name to write references
-        concepts: Dictionary mapping concept names to concepts
+        concept: Concept to extract metadata from.
     """
-    # Loop through all concepts in the taxonomy and extract metadata for each
-    metadata = []
-    for concept in concepts.values():
-        # Get name and convert to snakecase to match output DB
-        name = stringcase.snakecase(concept.name)
-        concept_metadata = {"name": name}
+    # Get name and convert to snakecase to match output DB
+    name = stringcase.snakecase(concept.name)
+    concept_metadata = {"name": name}
 
-        references = concept.modelXbrl.relationshipSet(
-            XbrlConst.conceptReference
-        ).fromModelObject(concept)
+    references = concept.modelXbrl.relationshipSet(
+        XbrlConst.conceptReference
+    ).fromModelObject(concept)
 
-        # Loop through all references and add to metadata
-        reference_dict = {}
-        for reference in references:
-            reference = reference.toModelObject
-            reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)
-            # Several values can make up a single reference. Create a dictionary with these
-            part_dict = {
-                part.localName: part.stringValue for part in reference.iterchildren()
-            }
+    # Loop through all references and add to metadata
+    reference_dict = {}
+    for reference in references:
+        reference = reference.toModelObject
+        reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)
+        # Several values can make up a single reference. Create a dictionary with these
+        part_dict = {
+            part.localName: part.stringValue for part in reference.iterchildren()
+        }
 
-            # There can also be several references with the same name, so store in list
-            if reference_name in reference_dict:
-                reference_dict[reference_name].append(part_dict)
-            else:
-                reference_dict[reference_name] = [part_dict]
+        # There can also be several references with the same name, so store in list
+        if reference_name in reference_dict:
+            reference_dict[reference_name].append(part_dict)
+        else:
+            reference_dict[reference_name] = [part_dict]
 
-            # Flatten out references where applicable
-            if len(reference_dict[reference_name]) == 1 and len(part_dict) == 1:
-                if reference_name in part_dict:
-                    reference_dict[reference_name] = part_dict[reference_name]
+        # Flatten out references where applicable
+        if len(reference_dict[reference_name]) == 1 and len(part_dict) == 1:
+            if reference_name in part_dict:
+                reference_dict[reference_name] = part_dict[reference_name]
 
-        # Add references to metadata
-        concept_metadata["references"] = reference_dict
+    # Add references to metadata
+    concept_metadata["references"] = reference_dict
 
-        # Get calculations
-        calculations = concept.modelXbrl.relationshipSet(
-            XbrlConst.summationItem
-        ).fromModelObject(concept)
+    # Get calculations
+    calculations = concept.modelXbrl.relationshipSet(
+        XbrlConst.summationItem
+    ).fromModelObject(concept)
 
-        calculation_list = []
-        for calculation in calculations:
-            calculation_list.append(
-                CalculationParameter(
-                    name=stringcase.snakecase(calculation.toModelObject.name),
-                    weight=calculation.weight,
-                )
+    calculation_list = []
+    for calculation in calculations:
+        calculation_list.append(
+            CalculationParameter(
+                name=stringcase.snakecase(calculation.toModelObject.name),
+                weight=calculation.weight,
             )
+        )
 
-        concept_metadata["calculations"] = calculation_list
-        concept_metadata["balance"] = concept.balance
+    concept_metadata["calculations"] = calculation_list
+    concept_metadata["balance"] = concept.balance
 
-        if concept_metadata["references"] or concept_metadata["calculations"]:
-            metadata.append(concept_metadata)
-
-    with open(filename, "w") as f:
-        json.dump(metadata, f, indent=4)
+    return concept_metadata

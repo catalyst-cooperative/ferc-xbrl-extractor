@@ -188,9 +188,11 @@ def get_fact_tables(
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(
-        taxonomy_path, archive_file_path=archive_file_path, metadata_path=metadata_path
-    )
+    taxonomy = Taxonomy.from_path(taxonomy_path, archive_file_path=archive_file_path)
+
+    # Save taxonomy metadata
+    taxonomy.save_metadata(metadata_path)
+
     datapackage = Datapackage.from_taxonomy(taxonomy, db_path, form_number=form_number)
 
     if datapackage_path:

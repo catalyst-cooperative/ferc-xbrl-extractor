@@ -199,7 +199,7 @@ def _lowercase_words(name: str) -> str:
     return name
 
 
-def _clean_table_names(name: str) -> str | None:
+def clean_table_names(name: str) -> str | None:
     """Function to clean table names.
 
     Args:
@@ -299,7 +299,7 @@ class Resource(BaseModel):
             period_type: Period type of table.
             db_path: Path to database required for a Frictionless resource.
         """
-        cleaned_name = _clean_table_names(fact_table.definition)
+        cleaned_name = clean_table_names(fact_table.definition)
 
         if not cleaned_name:
             return None
