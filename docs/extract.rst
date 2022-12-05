@@ -1,32 +1,4 @@
 ===============================================================================
-Background
-===============================================================================
-
-Filing
-^^^^^^
-
-A single XBRL filing or instance contains a list of facts and a list of contexts.
-A fact is considered to be an atomic unit of data. It contains a single value, a
-name, data type, and a reference to a context. The context provides information relevant
-to interpret the fact. A context always contains a time period and entity that the
-pertains to, as well as any other "dimensions" that can be defined to further
-identify the fact in question.
-
-Taxonomy
-^^^^^^^^
-
-An XBRL taxonomy provides important metadata and structure for interpreting
-facts reported in a filing. All facts that can be reported for a given taxonomy have
-a Concept defined in the taxonomy. Concepts contain metadata that provide a description,
-units, and other helpful information. Not all concepts are facts, however, they can also
-represent a group of facts and provide information about that group.
-
-To group facts into "fact tables", a taxonomy defines relationships between concepts.
-These relationships are defined in a Link Role. Each link role contains a Directed
-Acyclic Graph (DAG) of concepts. Concepts that correspond to individual facts will
-be the "leaf nodes" in this graph.
-
-===============================================================================
 Parsing
 ===============================================================================
 

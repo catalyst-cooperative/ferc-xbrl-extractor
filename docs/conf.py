@@ -27,7 +27,7 @@ release = pkg_resources.get_distribution("catalystcoop.ferc_xbrl_extractor").ver
 
 # -- Project information -----------------------------------------------------
 
-project = "New Catalyst Python Project"
+project = "FERC XBRL Extractor"
 copyright = (  # noqa: A001
     f"202X-{datetime.date.today().year}, Catalyst Cooperative, CC-BY-4.0"
 )
@@ -46,7 +46,6 @@ extensions = [
     "sphinx.ext.viewcode",
     "autoapi.extension",
     "sphinx_issues",
-    "sphinx_rtd_dark_mode",
 ]
 todo_include_todos = True
 
@@ -61,7 +60,7 @@ autoapi_ignore = [
 ]
 
 # GitHub repo
-issues_github_path = "catalyst-cooperative/repo_name"
+issues_github_path = "catalyst-cooperative/ferc-xbrl-extractor"
 
 # In order to be able to link directly to documentation for other projects,
 # we need to define these package to URL mappings:
@@ -86,22 +85,10 @@ exclude_patterns = ["_build"]
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.
-
-# user starts in dark mode
-default_dark_mode = False
-
 master_doc = "index"
-html_theme = "sphinx_rtd_theme"
+html_theme = "furo"
 html_logo = "_static/catalyst_logo-200x200.png"
 html_icon = "_static/favicon.ico"
-
-html_context = {
-    "display_github": True,  # Integrate GitHub
-    "github_user": "catalyst-cooperative",  # Username
-    "github_repo": "repo_name",  # Repo name
-    "github_version": "main",  # Version
-    "conf_py_path": "/docs/",  # Path in the checkout to the docs root
-}
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -110,10 +97,12 @@ html_theme_options = {
     "collapse_navigation": True,
 }
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+html_theme_options = {
+    "navigation_with_keys": True,
+}
 
 
 # -- Custom build operations -------------------------------------------------

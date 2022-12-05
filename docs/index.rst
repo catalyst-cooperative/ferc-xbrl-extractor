@@ -9,6 +9,7 @@ FERC XBRL Extractor
   :hidden:
   :maxdepth: 2
 
+  glossary
   extract
   Licensing <LICENSE>
   Code of Conduct <code_of_conduct>
