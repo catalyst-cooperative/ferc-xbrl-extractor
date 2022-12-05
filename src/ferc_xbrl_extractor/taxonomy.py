@@ -9,7 +9,7 @@ from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
 from ferc_xbrl_extractor.arelle_interface import (
-    get_concept_metadata,
+    Metadata,
     load_taxonomy,
     load_taxonomy_from_archive,
 )
@@ -66,48 +66,6 @@ class XBRLType(BaseModel):
             return self.base
 
 
-class References(BaseModel):
-    """Pydantic model that defines XBRL references.
-
-    FERC uses XBRL references to link Concepts defined in its taxonomy to the physical
-    paper form. These are included in the output metadata and can be useful for linking
-    between XBRL and DBF data.
-
-    This model is not a generic representation of XBRL references, but specific to those
-    used by FERC.
-    """
-
-    account: str = pydantic.Field(None, alias="Account")
-    form_location: list[dict[str, str]] = pydantic.Field([], alias="Form Location")
-
-
-class Calculation(BaseModel):
-    """Pydantic model that defines XBRL calculations.
-
-    XBRL calculation relationships are also included in the metadata. Calculations are a
-    validation tool used to define relationships between facts using some mathematical
-    formula. For example, a calculation relationship might denote that one fact is equal
-    to the sum of 2 or more other facts, and this relationship can be used to validate a
-    filing.
-    """
-
-    name: str
-    weight: float
-
-
-class Metadata(BaseModel):
-    """Pydantic model that defines metadata extracted from XBRL taxonomies.
-
-    Taxonomies contain various metedata which are useful for interpreting XBRL filings.
-    The metadata fields being extracted here include references, calculations, and balances.
-    """
-
-    name: str
-    references: References
-    calculations: list[Calculation]
-    balance: Literal["credit", "debit"] | None
-
-
 class Concept(BaseModel):
     """Pydantic model that defines an XBRL taxonomy Concept.
 
@@ -161,7 +119,7 @@ class Concept(BaseModel):
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],
-            metadata=Metadata(**get_concept_metadata(concept)),
+            metadata=Metadata.from_concept(concept),
         )
 
     def get_metadata(
@@ -308,8 +266,7 @@ class Taxonomy(BaseModel):
 
         XBRL taxonomies contain metadata that can be useful for interpreting reported
         data. This method will write some of this metadata to a json file for later
-        use. For more information on the metadata being extracted, see the `get_concept_metadata`
-        function.
+        use. For more information on the metadata being extracted, see :class:`Metadata`.
 
         Args:
             filename: Path to output JSON file.
