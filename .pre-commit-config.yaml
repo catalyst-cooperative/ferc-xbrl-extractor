@@ -58,7 +58,7 @@ repos:
   # Update a bunch of Python syntax, using __futures__ for Python 3.8/3.9
   # Note that this sometimes conflicts with Pydantic on Python 3.8/3.9
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.2.2
+    rev: v3.3.0
     hooks:
       - id: pyupgrade
         args: ["--py38-plus"]
