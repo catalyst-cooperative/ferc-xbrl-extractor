@@ -42,13 +42,31 @@ path to the SQLite database.
 
     $ xbrl_extract {path_to_filings} {path_to_database}
 
+This repo contains a small selection of FERC Form 1 filings from 2021 in the
+``examples`` directory. To test the tool on these filings, use the command
+
+.. code-block:: console
+
+    $ xbrl_extract examples/ferc1-2021-sample.zip {path_to_database}
+
 By default, the CLI will use the 2022 version of the FERC Form 1 Taxonomy to create
 the structure of the output database. To specify a different taxonomy use the
-``--taxonomy`` option.
+``--taxonomy`` option. This can be either a URL pointing to a taxonomy entry point,
+or a path to a local zipfile.
 
 .. code-block:: console
 
     $ xbrl_extract {path_to_filings} {path_to_database} --taxonomy {url_of_taxonomy}
+
+If using a zipfile, you must also specify the path to the taxonomy entry point within
+the zipfile. This is done using the ``--archive-path`` option. NOTE: This will likely
+change in the future to automatically detect the entry point as this interface is
+clunky. To demonstrate, the FERC Form 1 2021 taxonomy is included in the examples
+directory. This can be used with the following command.
+
+.. code-block:: console
+
+    $ xbrl_extract examples/ferc1-2021-sample.zip {path_to_database} --taxonomy examples/taxonomy.zip --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd
 
 Parsing XBRL filings can be a time consuming and CPU heavy task, so this tool
 implements some basic multiprocessing to speed this up. It uses a
@@ -62,3 +80,15 @@ optimally configured.
 .. code-block:: console
 
     $ xbrl_extract {path_to_filings} {path_to_database} --workers {number_of_processes} --batch-size {filings_per_batch}
+
+There are also several options included for extracting metadata from the taxonomy.
+First is the ``--save-datapackage`` command to save a
+`frictionless datapackage <https://specs.frictionlessdata.io/data-package/>`__ as a
+json file. There is also the ``--metadata-path``, which writes taxonomy metadata to
+a json file that groups metadata by table name. See the ``arelle_interface`` module
+for more info on the extracted metadata. To create both of these files using the
+example filings and taxonomy, run the following command.
+
+.. code-block:: console
+
+    $ xbrl_extract examples/ferc1-2021-sample.zip {path_to_database} --taxonomy examples/taxonomy.zip --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd --metadata-path metadata.json --save-datapackage datapackage.json
