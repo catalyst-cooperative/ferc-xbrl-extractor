@@ -47,7 +47,7 @@ This repo contains a small selection of FERC Form 1 filings from 2021 in the
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip {path_to_database}
+    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite
 
 By default, the CLI will use the 2022 version of the FERC Form 1 Taxonomy to create
 the structure of the output database. To specify a different taxonomy use the
@@ -56,17 +56,21 @@ or a path to a local zipfile.
 
 .. code-block:: console
 
-    $ xbrl_extract {path_to_filings} {path_to_database} --taxonomy {url_of_taxonomy}
+    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+        --taxonomy https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd
 
-If using a zipfile, you must also specify the path to the taxonomy entry point within
-the zipfile. This is done using the ``--archive-path`` option. NOTE: This will likely
-change in the future to automatically detect the entry point as this interface is
-clunky. To demonstrate, the FERC Form 1 2021 taxonomy is included in the examples
-directory. This can be used with the following command.
+When using the ``--taxonomy`` option with a zipfile, the ``--archive-path`` option
+is also required. This option is used to indicate the path to the taxonomy entry
+point within the zipfile. NOTE: This will likely change in the future to
+automatically detect the entry point as this interface is clunky. To demonstrate,
+the FERC Form 1 2021 taxonomy is included in the examples directory. This can be
+used with the following command.
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip {path_to_database} --taxonomy examples/taxonomy.zip --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd
+    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+        --taxonomy examples/taxonomy.zip \
+        --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd
 
 Parsing XBRL filings can be a time consuming and CPU heavy task, so this tool
 implements some basic multiprocessing to speed this up. It uses a
@@ -75,11 +79,14 @@ to do this. There are two options for configuring the process pool, ``--batch-si
 and ``--workers``. The batch size configures how many filings will be processed by
 each child process at a time, and workers specifies how many child processes to
 create in the pool. It may take some experimentation to get these options
-optimally configured.
+optimally configured. The following command will use 5 worker processes to process
+batches of 50 filings at a time.
 
 .. code-block:: console
 
-    $ xbrl_extract {path_to_filings} {path_to_database} --workers {number_of_processes} --batch-size {filings_per_batch}
+    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+        --workers 5 \
+        --batch-size 50
 
 There are also several options included for extracting metadata from the taxonomy.
 First is the ``--save-datapackage`` command to save a
@@ -91,4 +98,8 @@ example filings and taxonomy, run the following command.
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip {path_to_database} --taxonomy examples/taxonomy.zip --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd --metadata-path metadata.json --save-datapackage datapackage.json
+    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+        --taxonomy examples/taxonomy.zip \
+        --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd \
+        --metadata-path metadata.json \
+        --save-datapackage datapackage.json
