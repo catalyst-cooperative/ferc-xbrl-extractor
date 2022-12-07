@@ -35,8 +35,11 @@ CLI
 
 This tool can be used as a library, as it is in `PUDL <https://github.com/catalyst-cooperative/pudl>`__,
 or there is a CLI provided for interacting with XBRL data. The only required options
-for the CLI are a path a single XBRL filing, or directory of XBRL filings, and a
-path to the SQLite database.
+for the CLI are a path to the filings to be extracted, and a path to the output
+SQLite database. The path to the filings can point to a directory full of XBRL
+:term:`Filings <Filing>`, a single XBRL filing, or a zipfile with XBRL filings. If
+the path to the database points to an existing database, the ``--clobber`` option
+can be used to drop all existing data before performing the extraction.
 
 .. code-block:: console
 
@@ -52,7 +55,8 @@ This repo contains a small selection of FERC Form 1 filings from 2021 in the
 By default, the CLI will use the 2022 version of the FERC Form 1 Taxonomy to create
 the structure of the output database. To specify a different taxonomy use the
 ``--taxonomy`` option. This can be either a URL pointing to a taxonomy entry point,
-or a path to a local zipfile.
+or a path to a local zipfile. The following command demonstrates this option using
+the same URL that would be used by default.
 
 .. code-block:: console
 
