@@ -69,7 +69,7 @@ class XBRLType(BaseModel):
 class Concept(BaseModel):
     """Pydantic model that defines an XBRL taxonomy Concept.
 
-    A Concept in the XBRL context can represent either a single fact or a
+    A :term:`Concept` in the XBRL context can represent either a single fact or a
     'container' for multiple facts. If child_concepts is empty, that indicates
     that the Concept is a single fact.
     """
@@ -156,7 +156,7 @@ Concept.update_forward_refs()
 class LinkRole(BaseModel):
     """Pydantic model that defines an XBRL taxonomy linkrole.
 
-    In XBRL taxonomies, Link Roles are used to group Concepts together in a
+    In XBRL taxonomies, Link Roles are used to group :term:`Concept` together in a
     meaningful way. These groups are often referred to as "Fact Tables". Link roles
     accomplish this by grouping Concepts into a Directed Acyclic Graph (DAG). In
     this graph, the leaf nodes in this graph represent individual facts, while other
@@ -219,10 +219,11 @@ class LinkRole(BaseModel):
 class Taxonomy(BaseModel):
     """Pydantic model that defines an XBRL taxonomy.
 
-    XBRL Taxonomies are documents which are used to interpret facts reported in a
-    filing. Taxonomies are composed of linkroles that group concepts into fact
-    tables. This provides the structure and metadata that is used for extracting
-    XBRL data into a SQLite database.
+    XBRL :term:`Taxonomies <Taxonomy>` are documents which are used to
+    interpret facts reported in a filing. Taxonomies are composed of
+    linkroles that group concepts into fact tables. This provides the
+    structure and metadata that is used for extracting XBRL data into
+    a SQLite database.
     """
 
     roles: list[LinkRole]
