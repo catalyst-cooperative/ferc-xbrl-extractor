@@ -64,13 +64,14 @@ XBRL Glossary
     set of years where filings are available).
 
   Link Role
-    Link Roles are defined in the :term:`Taxonomy`, and create relationships between
-    :term:`Concepts <Concept>`. These relationships are often referred to as "Fact
-    Tables", and each one will be turned into a table in the SQLite database produced
-    by the extractor. This is done by creating a Directed Acyclic Graph (DAG) of
-    Concepts, with the Link Role as the root. The only Concepts that will have
-    :term:`Facts <Fact>` associated with them are those at the bottom of the tree
-    without any child Concepts.
+    Link Roles are defined in the :term:`Taxonomy`, serve as the root for a
+    :term:`Concept` tree. These trees are often referred to as "Fact Tables", and
+    each one will be turned into two tables in the SQLite database (one duration
+    and one instant table) produced by the extractor. Each concept tree is a
+    Directed Acyclic Graph (DAG) of Concepts, with the Link Role as the root. The
+    only Concepts that will have :term:`Facts <Fact>` associated with them are those at
+    the bottom of the tree without any child Concepts. The names of Link Roles are used
+    to create table names.
 
   Taxonomy
     An XBRL taxonomy provides important metadata and structure for interpreting
