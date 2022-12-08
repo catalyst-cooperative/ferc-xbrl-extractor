@@ -20,10 +20,10 @@ setup(
     author_email="pudl@catalyst.coop",
     maintainer="Zach Schira",
     maintainer_email="zach.schira@catalyst.coop",
-    url="",  # Can be repo or docs URL if no separate web page exists.
+    url="https://github.com/catalyst-cooperative/ferc-xbrl-extract",  # Can be repo or docs URL if no separate web page exists.
     project_urls={
         "Source": "https://github.com/catalyst-cooperative/ferc-xbrl-extract",
-        "Documentation": "https://PACKAGE_NAME.readthedocs.io",
+        "Documentation": "https://catalystcoop-ferc-xbrl-extractor.readthedocs.io",
         "Issue Tracker": "https://github.com/catalyst-cooperative/ferc-xbrl-extract/issues",
     },
     keywords=["xbrl", "ferc", "financial"],
@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "pydantic>=1.9,<2",
         "coloredlogs>=14.0,<15.1",  # Dagster requires 14.0
-        "catalystcoop.arelle-mirror==1.3.0",
+        "arelle-release>=2.2",
         "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
