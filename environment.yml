@@ -1,17 +1,12 @@
-name: xbrl-extract
+name: ferc-xbrl-extractor
 channels:
   - conda-forge
   - defaults
 dependencies:
   # Packages required for setting up the environment
-  - pip>=21.0,<22
+  - pip>=21.0,<23
   - python>=3.10,<3.11
-  - setuptools<62
-
-  # Jupyter packages:
-  - jupyterlab>=3.2,<4
-  - nbconvert>=6,<7 # Used to clear notebook outputs in pre-commit hooks
-  - scipy
+  - setuptools<66
 
   # XBRL parsing library
   - pip:

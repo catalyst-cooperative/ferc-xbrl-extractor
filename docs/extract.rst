@@ -10,7 +10,7 @@ from either a URL to the taxonomy entry point, or a local path to a zipfile cont
 the entire taxonomy.
 
 The extractor will first take a parsed :term:`Taxonomy` and construct a taxonomy
-object defined in ``ferc_xbrl_extractor/taxonomy.py``. This is done because the
+object defined in :mod:`ferc_xbrl_extractor.taxonomy`. This is done because the
 data structures used by Arelle are not well documented, so they are immediately
 translated into custom data structures. After creating these structures, the extractor
 will generate a `frictionless tabular datapackage <https://specs.frictionlessdata.io/tabular-data-package/>`__,
