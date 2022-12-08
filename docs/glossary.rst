@@ -21,7 +21,11 @@ XBRL Glossary
     Not all Concepts will have Facts they are directly associated with. This is
     because Concepts can also be used as a part of a Concept tree to define
     relationships with other Concepts. See :numref:`concept-tree` for an example
-    Concept tree. The root of such a tree is a :term:`Link Role`.
+    Concept tree. The root of such a tree is a :term:`Link Role`. Only the leaf nodes
+    in such a Concept tree will have Facts reported against them, and will end up as
+    columns in the output database. Concepts also have a data type associated with
+    them, and these are used to attempt to deduce appropriate datatypes in the output
+    database.
 
     Concepts are unique, however they can be present in multiple Link Roles in a
     taxonomy. A good example of this from the FERC Form 1 taxonomy is the Concept
@@ -34,9 +38,10 @@ XBRL Glossary
     :term:`Fact`. Every context contains both an entity identifier, and a
     Period. A context can also contain user defined :term:`Axes <Axis>`.
 
-    The Context is used as the primary key in output tables. An example primary key
-    might include the columns ``entity_id``, ``start_date``, ``end_date``, and
-    ``plant_name_axis``.
+    The Context is used as the primary key in output tables. Each element of
+    a Context is turned into a column, and will make up a compound primary key.
+    An example primary key might include the columns ``entity_id``,
+    ``start_date``, ``end_date``, and ``plant_name_axis``.
 
   Fact
     An XBRL fact is considered to be an atomic unit of data. It contains a single value,
