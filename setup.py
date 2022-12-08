@@ -20,10 +20,10 @@ setup(
     author_email="pudl@catalyst.coop",
     maintainer="Zach Schira",
     maintainer_email="zach.schira@catalyst.coop",
-    url="",  # Can be repo or docs URL if no separate web page exists.
+    url="https://github.com/catalyst-cooperative/ferc-xbrl-extract",  # Can be repo or docs URL if no separate web page exists.
     project_urls={
         "Source": "https://github.com/catalyst-cooperative/ferc-xbrl-extract",
-        "Documentation": "https://PACKAGE_NAME.readthedocs.io",
+        "Documentation": "https://catalystcoop-ferc-xbrl-extractor.readthedocs.io",
         "Issue Tracker": "https://github.com/catalyst-cooperative/ferc-xbrl-extract/issues",
     },
     keywords=["xbrl", "ferc", "financial"],
