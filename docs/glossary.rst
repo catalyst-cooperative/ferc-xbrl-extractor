@@ -57,7 +57,11 @@ XBRL Glossary
     An XBRL filing is how data is actually reported. It contains a list of
     Facts, and a list of :term:`Contexts <Context>`. A filing is associated with a
     :term:`Taxonomy` that is used to interpret :term:`Facts <Fact>` and their
-    relationships to one another.
+    relationships to one another. A single filing contains all data reported by
+    a single entity during a single filing period. The extractor is capable of
+    creating one database containing data from many filers and many filing periods
+    (i.e. it can produce a database containing data from all utilities over any
+    set of years where filings are available).
 
   Link Role
     Link Roles are defined in the :term:`Taxonomy`, and create relationships between
