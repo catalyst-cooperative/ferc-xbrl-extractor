@@ -196,14 +196,13 @@ class LinkRole(BaseModel):
 
     def get_metadata(
         self, period_type: Literal["duration", "instant"]
-    ) -> dict[str, dict[str, Any]]:
-        """Get metadata from all leaf nodes in Concept tree.
+    ) -> list[dict[str, Any]]:
+        """Get metadata from all leaf nodes in :term:`Concept` tree.
 
-         The actual output file will contain a list of metadata objects.
-         However, `get_metadata` implemented for the Concept class returns
-         a dictionary to allow easily removing duplicate Concepts. This method
-         will simply convert this dictionary to the list expected in the JSON
-         file.
+        The actual output file will contain a list of metadata objects. However,
+        `get_metadata` implemented for the Concept class returns a dictionary to
+        allow easily removing duplicate Concepts. This method will simply convert
+        this dictionary to the list expected in the JSON file.
 
 
         Args:
