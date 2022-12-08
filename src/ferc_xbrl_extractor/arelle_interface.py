@@ -1,5 +1,6 @@
 """Abstract away interface to Arelle XBRL Library."""
 import json
+import locale
 from typing import TypedDict
 
 import stringcase
@@ -8,16 +9,35 @@ from arelle.ModelDtsObject import ModelConcept
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 
 
+class ArelleInterface:
+    """Clear LC_ALL after Arelle has set it internally.
+
+    Arelle sets LC_ALL by default, which can cause some
+    downstream encoding issues. This context manager will
+    make sure it is cleared before this becomes a problem.
+    """
+
+    def __enter__(self):
+        """Do nothing."""
+        return self
+
+    def __exit__(self, *exc):
+        """Unset LC_ALL and return."""
+        locale.setlocale(locale.LC_ALL, "")
+        return False
+
+
 def load_xbrl(path: str | FileSource.FileSource):
     """Load XBRL (either taxonomy or individual filing).
 
     Args:
         path: URL or local path pointing to an XBRL taxonomy or instance.
     """
-    cntlr = Cntlr.Cntlr()
-    cntlr.startLogging(logFileName="logToPrint")
-    model_manager = ModelManager.initialize(cntlr)
-    return ModelXbrl.load(model_manager, path)
+    with ArelleInterface():
+        cntlr = Cntlr.Cntlr()
+        cntlr.startLogging(logFileName="logToPrint")
+        model_manager = ModelManager.initialize(cntlr)
+        return ModelXbrl.load(model_manager, path)
 
 
 def load_taxonomy(path: str | FileSource.FileSource):
