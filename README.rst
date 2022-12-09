@@ -12,7 +12,7 @@ individual filings in a human readable way, but there is very little targeted to
 accessing and analyzing large collections of filings. This tool is designed to provide
 that functionality for FERC XBRL data. Specifically, it can extract data from a set of
 XBRL filings, and write that data to a SQLite database whose structure is generated from
-an XBRL :term:`Taxonomy`. While each XBRL instance contains a reference to a taxonomy,
+an XBRL Taxonomy. While each XBRL instance contains a reference to a taxonomy,
 this tool requires a path to a single taxonomy that will be used to interpret all
 instances being processed. This means even if instances were created from different
 versions of a Taxonomy, the provided taxonomy will be used when processing all of these
@@ -50,7 +50,7 @@ This tool can be used as a library, as it is in `PUDL <https://github.com/cataly
 or there is a CLI provided for interacting with XBRL data. The only required options
 for the CLI are a path to the filings to be extracted, and a path to the output
 SQLite database. The path to the filings can point to a directory full of XBRL
-:term:`Filings <Filing>`, a single XBRL filing, or a zipfile with XBRL filings. If
+Filings, a single XBRL filing, or a zipfile with XBRL filings. If
 the path to the database points to an existing database, the ``--clobber`` option
 can be used to drop all existing data before performing the extraction.
 
