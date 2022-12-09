@@ -1,5 +1,7 @@
 """XBRL prototype structures."""
-from typing import Dict, Literal
+import json
+from pathlib import Path
+from typing import Any, Dict, Literal
 
 import pydantic
 from arelle import XbrlConst
@@ -7,7 +9,7 @@ from arelle.ModelDtsObject import ModelConcept, ModelType
 from pydantic import AnyHttpUrl, BaseModel
 
 from ferc_xbrl_extractor.arelle_interface import (
-    extract_metadata,
+    Metadata,
     load_taxonomy,
     load_taxonomy_from_archive,
 )
@@ -67,7 +69,7 @@ class XBRLType(BaseModel):
 class Concept(BaseModel):
     """Pydantic model that defines an XBRL taxonomy Concept.
 
-    A Concept in the XBRL context can represent either a single fact or a
+    A :term:`Concept` in the XBRL context can represent either a single fact or a
     'container' for multiple facts. If child_concepts is empty, that indicates
     that the Concept is a single fact.
     """
@@ -78,6 +80,7 @@ class Concept(BaseModel):
     type_: XBRLType = pydantic.Field(alias="type")
     period_type: Literal["duration", "instant"]
     child_concepts: "list[Concept]"
+    metadata: Metadata | None
 
     @classmethod
     def from_list(cls, concept_list: list, concept_dict: ConceptDict) -> "Concept":
@@ -116,7 +119,35 @@ class Concept(BaseModel):
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],
+            metadata=Metadata.from_concept(concept),
         )
+
+    def get_metadata(
+        self, period_type: Literal["duration", "instant"]
+    ) -> dict[str, dict[str, Any]]:
+        """Get metadata from all leaf nodes in Concept tree.
+
+        Leaf nodes in the Concept tree will become columns in output tables. This method
+        will return the metadata only pertaining to these Concepts.
+
+        Args:
+            period_type: Return instant or duration concepts.
+
+        Returns:
+            A dictionary that maps Concept names to dictionaries of metadata.
+        """
+        metadata = {}
+        # If Concept contains child Concepts, traverse down tree and add metadata from leaf nodes
+        if len(self.child_concepts) > 0:
+            for concept in self.child_concepts:
+                metadata.update(concept.get_metadata(period_type))
+
+        # If concept is leaf node return metadata
+        else:
+            if period_type == self.period_type:
+                metadata[self.name] = self.metadata.dict()
+
+        return metadata
 
 
 Concept.update_forward_refs()
@@ -125,7 +156,7 @@ Concept.update_forward_refs()
 class LinkRole(BaseModel):
     """Pydantic model that defines an XBRL taxonomy linkrole.
 
-    In XBRL taxonomies, Link Roles are used to group Concepts together in a
+    In XBRL taxonomies, Link Roles are used to group :term:`Concept` together in a
     meaningful way. These groups are often referred to as "Fact Tables". Link roles
     accomplish this by grouping Concepts into a Directed Acyclic Graph (DAG). In
     this graph, the leaf nodes in this graph represent individual facts, while other
@@ -163,14 +194,35 @@ class LinkRole(BaseModel):
             concepts=Concept.from_list(linkrole_list[3], concept_dict),
         )
 
+    def get_metadata(
+        self, period_type: Literal["duration", "instant"]
+    ) -> list[dict[str, Any]]:
+        """Get metadata from all leaf nodes in :term:`Concept` tree.
+
+        The actual output file will contain a list of metadata objects. However,
+        `get_metadata` implemented for the Concept class returns a dictionary to
+        allow easily removing duplicate Concepts. This method will simply convert
+        this dictionary to the list expected in the JSON file.
+
+
+        Args:
+            period_type: Return instant or duration concepts.
+
+        Returns:
+            A list of metadata objects.
+        """
+        # Convert dict to list and return
+        return list(self.concepts.get_metadata(period_type).values())
+
 
 class Taxonomy(BaseModel):
     """Pydantic model that defines an XBRL taxonomy.
 
-    XBRL Taxonomies are documents which are used to interpret facts reported in a
-    filing. Taxonomies are composed of linkroles that group concepts into fact
-    tables. This provides the structure and metadata that is used for extracting
-    XBRL data into a SQLite database.
+    XBRL :term:`Taxonomies <Taxonomy>` are documents which are used to
+    interpret facts reported in a filing. Taxonomies are composed of
+    linkroles that group concepts into fact tables. This provides the
+    structure and metadata that is used for extracting XBRL data into
+    a SQLite database.
     """
 
     roles: list[LinkRole]
@@ -180,7 +232,6 @@ class Taxonomy(BaseModel):
         cls,
         path: str,
         archive_file_path: str | None = None,
-        metadata_path: str | None = None,
     ):
         """Construct taxonomy from taxonomy URL.
 
@@ -193,7 +244,6 @@ class Taxonomy(BaseModel):
             path: URL or local path to taxonomy.
             archive_file_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
-            metadata_path: Path to metadata json file to output taxonomy metadata.
         """
         if not archive_file_path:
             taxonomy, view = load_taxonomy(path)
@@ -205,12 +255,42 @@ class Taxonomy(BaseModel):
             str(name): concept for name, concept in taxonomy.qnameConcepts.items()
         }
 
-        # Extract metadata to json file if requested
-        if metadata_path:
-            extract_metadata(metadata_path, concept_dict)
-
         roles = [
             LinkRole.from_list(role, concept_dict) for role in view.jsonObject["roles"]
         ]
 
         return cls(roles=roles)
+
+    def save_metadata(self, filename: Path):
+        """Write taxonomy metadata to file.
+
+        XBRL taxonomies contain metadata that can be useful for interpreting reported
+        data. This method will write some of this metadata to a json file for later
+        use. For more information on the metadata being extracted, see :class:`Metadata`.
+
+        Args:
+            filename: Path to output JSON file.
+        """
+        from ferc_xbrl_extractor.datapackage import clean_table_names
+
+        # Get metadata for duration tables
+        duration_metadata = {
+            f"{clean_table_names(role.definition)}_duration": role.get_metadata(
+                "duration"
+            )
+            for role in self.roles
+        }
+
+        # Get metadata for instant tables
+        instant_metadata = {
+            f"{clean_table_names(role.definition)}_instant": role.get_metadata(
+                "instant"
+            )
+            for role in self.roles
+        }
+
+        metadata = {**duration_metadata, **instant_metadata}
+
+        # Write to JSON file
+        with open(filename, "w") as f:
+            json.dump(metadata, f, indent=4)

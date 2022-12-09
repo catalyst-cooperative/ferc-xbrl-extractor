@@ -11,8 +11,6 @@ sphinx:
 
 build:
   image: testing
-  apt_packages:
-    - libsnappy-dev
 
 # Set the version of Python and requirements required to build your docs
 python:

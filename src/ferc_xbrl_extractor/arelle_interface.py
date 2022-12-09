@@ -1,12 +1,13 @@
 """Abstract away interface to Arelle XBRL Library."""
-import json
 import locale
-from typing import TypedDict
+from typing import Literal
 
+import pydantic
 import stringcase
 from arelle import Cntlr, FileSource, ModelManager, ModelXbrl, XbrlConst
 from arelle.ModelDtsObject import ModelConcept
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
+from pydantic import BaseModel
 
 
 class ArelleInterface:
@@ -68,41 +69,57 @@ def load_taxonomy_from_archive(filepath: str, archive_path: str):
     return load_taxonomy(f)
 
 
-class CalculationParameter(TypedDict):
-    """Simple typed dictionary to wrap an XBRL calculation parameter.
-
-    Calculations define mathematical relationships between facts. If a calculation
-    relationship exists for a fact, it will provide a list of other facts that should
-    equal the original fact when summed with optional scaling factors for each fact.
-    For example, a calculation would look something like:
-
-        fact1 = weight2*fact2 + weight3*fact3 + ....
-    """
-
-    name: str
-    weight: int
-
-
-def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
-    """Extract metadata from XBRL taxonomies and write to JSON file.
+class References(BaseModel):
+    """Pydantic model that defines XBRL references.
 
     FERC uses XBRL references to link Concepts defined in its taxonomy to the physical
     paper form. These are included in the output metadata and can be useful for linking
     between XBRL and DBF data.
+
+    This model is not a generic representation of XBRL references, but specific to those
+    used by FERC.
+    """
+
+    account: str = pydantic.Field(None, alias="Account")
+    form_location: list[dict[str, str]] = pydantic.Field([], alias="Form Location")
+
+
+class Calculation(BaseModel):
+    """Pydantic model that defines XBRL calculations.
 
     XBRL calculation relationships are also included in the metadata. Calculations are a
     validation tool used to define relationships between facts using some mathematical
     formula. For example, a calculation relationship might denote that one fact is equal
     to the sum of 2 or more other facts, and this relationship can be used to validate a
     filing.
-
-    Args:
-        filename: File name to write references
-        concepts: Dictionary mapping concept names to concepts
     """
-    # Loop through all concepts in the taxonomy and extract metadata for each
-    metadata = []
-    for concept in concepts.values():
+
+    name: str
+    weight: float
+
+
+class Metadata(BaseModel):
+    """Pydantic model that defines metadata extracted from XBRL taxonomies.
+
+    Taxonomies contain various metedata which are useful for interpreting XBRL filings.
+    The metadata fields being extracted here include references, calculations, and balances.
+    """
+
+    name: str
+    references: References
+    calculations: list[Calculation]
+    balance: Literal["credit", "debit"] | None
+
+    @classmethod
+    def from_concept(cls, concept: ModelConcept) -> "Metadata":
+        """Get metadata for a single XBRL Concept.
+
+        This function will create a Metadata object with metadata extracted for
+        a single Concept.
+
+        Args:
+            concept: Concept to extract metadata from.
+        """
         # Get name and convert to snakecase to match output DB
         name = stringcase.snakecase(concept.name)
         concept_metadata = {"name": name}
@@ -143,17 +160,13 @@ def extract_metadata(filename: str, concepts: dict[str, ModelConcept]):
         calculation_list = []
         for calculation in calculations:
             calculation_list.append(
-                CalculationParameter(
-                    name=stringcase.snakecase(calculation.toModelObject.name),
-                    weight=calculation.weight,
-                )
+                {
+                    "name": stringcase.snakecase(calculation.toModelObject.name),
+                    "weight": calculation.weight,
+                }
             )
 
         concept_metadata["calculations"] = calculation_list
         concept_metadata["balance"] = concept.balance
 
-        if concept_metadata["references"] or concept_metadata["calculations"]:
-            metadata.append(concept_metadata)
-
-    with open(filename, "w") as f:
-        json.dump(metadata, f, indent=4)
+        return cls(**concept_metadata)

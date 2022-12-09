@@ -1,7 +1,9 @@
 """A command line interface (CLI) to the xbrl extractor."""
 import argparse
+import io
 import logging
 import sys
+import zipfile
 from pathlib import Path
 
 import coloredlogs
@@ -94,14 +96,31 @@ def parse_main():
     return parser.parse_args()
 
 
-def get_instances(instance_path: Path):
+def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
+    """Get list of instances from specified path to zipfile.
+
+    Args:
+        instance_path: Path to zipfile containing XBRL filings.
+    """
+    allowable_suffixes = ["xbrl", "xml"]
+
+    archive = zipfile.ZipFile(instance_path)
+
+    # Read files into in memory buffers to parse
+    return [
+        InstanceBuilder(
+            io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
+        )
+        for filename in archive.namelist()
+        if filename.split(".")[1] in allowable_suffixes
+    ]
+
+
+def get_instances(instance_path: Path) -> list[InstanceBuilder]:
     """Get list of instances from specified path.
 
     Args:
         instance_path: Path to one or more XBRL filings.
-
-    Returns:
-        List of tuples containing the path to an instance and the name of the filing.
     """
     allowable_suffixes = [".xbrl", ".xml"]
 
@@ -109,6 +128,9 @@ def get_instances(instance_path: Path):
         raise ValueError(
             "Must provide valid path to XBRL instance or directory" "of XBRL instances."
         )
+
+    if instance_path.suffix == ".zip":
+        return instances_from_zip(instance_path)
 
     # Single instance
     if instance_path.is_file():
