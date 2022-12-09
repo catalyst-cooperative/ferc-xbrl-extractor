@@ -111,7 +111,7 @@ First is the ``--save-datapackage`` command to save a
 `frictionless datapackage <https://specs.frictionlessdata.io/data-package/>`__
 descriptor as JSON, which annotates the generated SQLite database. There is also the
 ``--metadata-path`` option, which writes more extensive taxonomy metadata to a json
-file, grouped by table name. See the :mod:`ferc_xbrl_extractor.arelle_interface` module
+file, grouped by table name. See the ``ferc_xbrl_extractor.arelle_interface`` module
 for more info on the extracted metadata. To create both of these files using the example
 filings and taxonomy, run the following command.
 
