@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "pydantic>=1.9,<2",
         "coloredlogs>=14.0,<15.1",  # Dagster requires 14.0
-        "arelle-release>=2.2",
+        "arelle-release>=2.2,<2.3",
         "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.5",
