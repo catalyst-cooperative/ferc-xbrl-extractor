@@ -26,8 +26,9 @@ def test_extractor_scripts(script_runner, ep):
 def test_extract_example_filings(script_runner):
     """Test the XBRL extraction on the example filings.
 
-    Run the example CLI commands from the readme, and verify that they all return
-    successfully.
+    Run the example CLI command from the readme, that will perform an extraction
+    with the example filings and taxonomy in the ``examples/`` directory, and verify
+    that it returns successfully.
     """
     ret = script_runner.run(
         "xbrl_extract",
