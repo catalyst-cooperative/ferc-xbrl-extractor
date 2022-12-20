@@ -27,12 +27,12 @@ setup(
         "Issue Tracker": "https://github.com/catalyst-cooperative/ferc-xbrl-extract/issues",
     },
     keywords=["xbrl", "ferc", "financial"],
-    python_requires=">=3.8,<3.11",
+    python_requires=">=3.10,<3.12",
     license="MIT",
     install_requires=[
         "pydantic>=1.9,<2",
         "coloredlogs>=14.0,<15.1",  # Dagster requires 14.0
-        "arelle-release>=2.2,<2.3",
+        "arelle-release>=2.3,<2.4",
         "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.6",
@@ -89,9 +89,8 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     # Directory to search recursively for __init__.py files defining Python packages
     packages=find_packages("src"),
