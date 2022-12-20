@@ -1,7 +1,7 @@
 """XBRL prototype structures."""
 import json
 from pathlib import Path
-from typing import Any, Dict, Literal
+from typing import Any, Literal
 
 import pydantic
 from arelle import XbrlConst
@@ -14,7 +14,7 @@ from ferc_xbrl_extractor.arelle_interface import (
     load_taxonomy_from_archive,
 )
 
-ConceptDict = Dict[str, ModelConcept]
+ConceptDict = dict[str, ModelConcept]
 
 
 class XBRLType(BaseModel):

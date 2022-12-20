@@ -27,7 +27,7 @@ setup(
         "Issue Tracker": "https://github.com/catalyst-cooperative/ferc-xbrl-extract/issues",
     },
     keywords=["xbrl", "ferc", "financial"],
-    python_requires=">=3.8,<3.11",
+    python_requires=">=3.10,<3.12",
     license="MIT",
     install_requires=[
         "pydantic>=1.9,<2",
@@ -89,9 +89,8 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     # Directory to search recursively for __init__.py files defining Python packages
     packages=find_packages("src"),
