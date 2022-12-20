@@ -2,7 +2,44 @@
 ferc-xbrl-extract
 ===============================================================================
 
+
 .. readme-intro
+
+.. image:: https://www.repostatus.org/badges/latest/active.svg
+   :target: https://www.repostatus.org/#active
+   :alt: Project Status: Active
+
+.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/workflows/tox-pytest/badge.svg
+   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions?query=workflow%3Atox-pytest
+   :alt: Tox-PyTest Status
+
+.. image:: https://img.shields.io/codecov/c/github/catalyst-cooperative/ferc-xbrl-extractor?style=flat&logo=codecov
+   :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
+   :alt: Codecov Test Coverage
+
+.. image:: https://img.shields.io/readthedocs/catalystcoop-ferx-xbrl-extractor?style=flat&logo=readthedocs
+   :target: https://catalystcoop-ferc-xbrl-extractor.readthedocs.io/en/latest/
+   :alt: Read the Docs Build Status
+
+.. image:: https://img.shields.io/pypi/v/catalystcoop.ferc-xbrl-extractor
+   :target: https://pypi.org/project/catalystcoop.ferc-xbrl-extractor/
+   :alt: PyPI Latest Version
+
+.. image:: https://img.shields.io/conda/vn/conda-forge/catalystcoop.ferc_xbrl_extractor
+   :target: https://anaconda.org/conda-forge/catalystcoop.ferc_xbrl_extractor
+   :alt: conda-forge Version
+
+.. image:: https://img.shields.io/pypi/pyversions/catalystcoop.ferc-xbrl-extractor
+   :target: https://pypi.org/project/catalystcoop.ferc-xbrl-extractor/
+   :alt: Supported Python Versions
+
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+   :target: https://github.com/psf/black
+   :alt: Any color you want, so long as it's black.
+
+.. image:: https://results.pre-commit.ci/badge/github/catalyst-cooperative/ferc-xbrl-extractor/main.svg
+   :target: https://results.pre-commit.ci/latest/github/catalyst-cooperative/ferc-xbrl-extractor/main
+   :alt: pre-commit CI
 
 The Federal Energy Regulatory Commission (FERC) has moved to collecting and distributing
 data using `XBRL <https://en.wikipedia.org/wiki/XBRL>`__. XBRL is primarily designed for
@@ -19,10 +56,29 @@ versions of a Taxonomy, the provided taxonomy will be used when processing all o
 instances, so the output database will have a consistent structure. For more information
 on the technical details of the XBRL extraction, see the docs.
 
-As of this point in time this tool is only tested with FERC Form 1, but is intended
-to extend support to other FERC forms. It is possible it could be used with non-FER
-taxonomies with some tweaking, but we do not provide any official support for
-non-FERC data.
+We are currently using this tool to extract and publish the following FERC data:
+
+.. list-table::
+   :header-rows: 1
+
+   * - FERC Form
+     - Archived XBRL
+     - SQLite DB
+   * - `Form 1 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-1-electric-utility-annual>`__
+     - https://doi.org/10.5281/zenodo.4127043
+     - https://data.catalyst.coop/ferc1_xbrl
+   * - `Form 2 <https://www.ferc.gov/industries-data/natural-gas/industry-forms/form-2-2a-3-q-gas-historical-vfp-data>`__
+     - https://doi.org/10.5281/zenodo.5879542
+     - https://data.catalyst.coop/ferc2_xbrl
+   * - `Form 6 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-66-q-overview-orders>`__
+     - https://doi.org/10.5281/zenodo.7126395
+     - https://data.catalyst.coop/ferc6_xbrl
+   * - `Form 60 <https://www.ferc.gov/ferc-online/ferc-online/filing-forms/service-companies-filing-forms/form-60-annual-report>`_
+     - https://doi.org/10.5281/zenodo.7126434
+     - https://data.catalyst.coop/ferc60_xbrl
+   * - `Form 714 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric>`__
+     - https://doi.org/10.5281/zenodo.4127100
+     - https://data.catalyst.coop/ferc714_xbrl
 
 Usage
 -----
