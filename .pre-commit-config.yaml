@@ -126,17 +126,6 @@ repos:
     hooks:
       - id: hadolint
 
-  # Use type annotations to check types
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.991
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pytest
-          - types-jinja2
-          - types-setuptools
-        args: ["--strict", "src", "tests"]
-
   ########################################################################################
   # Custom local hooks
   ########################################################################################
