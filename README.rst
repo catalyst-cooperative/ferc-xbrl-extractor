@@ -17,7 +17,7 @@ ferc-xbrl-extract
    :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
    :alt: Codecov Test Coverage
 
-.. image:: https://img.shields.io/readthedocs/catalystcoop-ferx-xbrl-extractor?style=flat&logo=readthedocs
+.. image:: https://img.shields.io/readthedocs/catalystcoop-ferc-xbrl-extractor?style=flat&logo=readthedocs
    :target: https://catalystcoop-ferc-xbrl-extractor.readthedocs.io/en/latest/
    :alt: Read the Docs Build Status
 
