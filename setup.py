@@ -31,12 +31,14 @@ setup(
     license="MIT",
     install_requires=[
         "pydantic>=1.9,<2",
-        "coloredlogs>=14.0,<15.1",  # Dagster requires 14.0
+        "coloredlogs>=14.0,<15.1",
         "arelle-release>=2.3,<2.4",
         "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.6",
         "stringcase~=1.2.0",
+        "numpy>=1.16,<1.25",
+        "lxml>=4.9.1,<5",
     ],
     extras_require={
         "dev": [
