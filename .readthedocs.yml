@@ -8,9 +8,9 @@ version: 2
 
 # Set the version of Python and other tools we might need
 build:
-os: ubuntu-22.04
-tools:
-  python: mambaforge-4.10
+  os: ubuntu-22.04
+  tools:
+    python: mambaforge-4.10
 
 # Use conda / mamba to define the python environment
 conda:
