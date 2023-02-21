@@ -35,7 +35,7 @@ setup(
         "arelle-release>=2.3,<2.4",
         "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
-        "pandas>=1.4,<1.6",
+        "pandas>=1.4,<2.1",
         "stringcase~=1.2.0",
     ],
     extras_require={
