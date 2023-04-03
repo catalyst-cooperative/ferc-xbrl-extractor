@@ -32,7 +32,7 @@ setup(
     install_requires=[
         "pydantic>=1.9,<2",
         "coloredlogs>=14.0,<15.1",
-        "arelle-release>=2.3,<2.4",
+        "arelle-release>=2.3,<2.6",
         "frictionless>=4.4,<5",
         "sqlalchemy>=1.4,<2",
         "pandas>=1.4,<1.6",
