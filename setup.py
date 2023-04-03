@@ -48,7 +48,7 @@ setup(
             "twine>=3.3,<4.1",  # Used to make releases to PyPI
         ],
         "docs": [
-            "doc8>=0.9,<1.1",  # Ensures clean documentation formatting
+            "doc8>=0.9,<1.2",  # Ensures clean documentation formatting
             "furo>=2022.4.7",
             "sphinx>=4,!=5.1.0,<5.1.2",  # The default Python documentation engine
             "sphinx-autoapi>=1.8,<1.10",  # Generates documentation from docstrings
@@ -57,7 +57,7 @@ setup(
         "tests": [
             "bandit>=1.6,<1.8",  # Checks code for security issues
             "coverage>=5.3,<6.5",  # Lets us track what code is being tested
-            "doc8>=0.9,<1.1",  # Ensures clean documentation formatting
+            "doc8>=0.9,<1.2",  # Ensures clean documentation formatting
             "flake8>=4.0,<5.1",  # A framework for linting & static analysis
             "flake8-builtins>=1.5,<1.6",  # Avoid shadowing Python built-in names
             "flake8-colors>=0.1,<0.2",  # Produce colorful error / warning output
