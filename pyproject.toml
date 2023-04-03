@@ -1,17 +1,109 @@
 [build-system]
+build-backend = "setuptools.build_meta"
 requires = [
-    "setuptools<66",
+    "setuptools>=66,<68",
+    "setuptools_scm[toml]>=3.5.0",
     "wheel",
-    "setuptools_scm[tomp]>=3.5.0",
 ]
+
+[project]
+name = "catalystcoop.ferc_xbrl_extractor"
+description = "A tool for extracting data from FERC XBRL Filings."
+readme = {file = "README.rst", content-type = "text/x-rst"}
+authors = [
+    {name = "Catalyst Cooperative", email = "pudl@catalyst.coop"},
+    {name = "Zach Schira", email = "zach.schira@catalyst.coop"}
+]
+requires-python = ">=3.10,<3.12"
+dynamic = ["version"]
+license = {file = "LICENSE.txt"}
+dependencies = [
+    "pydantic>=1.9,<2",
+    "coloredlogs>=14.0,<15.1",
+    "arelle-release>=2.3,<2.6",
+    "frictionless>=4.4,<5",
+    "sqlalchemy>=1.4,<2",
+    "pandas>=1.5,<2.1",
+    "stringcase~=1.2.0",
+    "numpy>=1.16,<1.25",
+    "lxml>=4.9.1,<5",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+keywords = ["xbrl", "ferc", "finance", "regulation", "accounting"]
+
+[project.urls]
+"Homepage" = "https://github.com/catalyst-cooperative/ferc-xbrl-extract"
+"Source" = "https://github.com/catalyst-cooperative/ferc-xbrl-extract"
+"Documentation" = "https://catalystcoop-ferc-xbrl-extractor.readthedocs.io"
+"Issue Tracker" = "https://github.com/catalyst-cooperative/ferc-xbrl-extract/issues"
+
+[project.scripts]
+xbrl_extract = "ferc_xbrl_extractor.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "black>=22.0,<23.2",  # A deterministic code formatter
+    "build>=0.10,<0.11",
+    "isort>=5.0,<5.13",  # Standardized import sorting
+    "tox>=4,<5",  # Python test environment manager
+    "twine>=3.3,<4.1",  # Used to make releases to PyPI
+]
+docs = [
+    "doc8>=1.0,<1.2",  # Ensures clean documentation formatting
+    "furo>=2022.4.7",
+    "sphinx>=4,!=5.1.0,<5.1.2",  # The default Python documentation engine
+    "sphinx-autoapi>=2.0,<2.1",  # Generates documentation from docstrings
+    "sphinx-issues>=1.2,<3.1",  # Allows references to GitHub issues
+]
+tests = [
+    "bandit>=1.6,<1.8",  # Checks code for security issues
+    "coverage>=5.3,<7.3",  # Lets us track what code is being tested
+    "doc8>=0.9,<1.2",  # Ensures clean documentation formatting
+    "flake8>=4.0,<6.1",  # A framework for linting & static analysis
+    "flake8-builtins>=1.5,<2.2",  # Avoid shadowing Python built-in names
+    "flake8-colors>=0.1,<0.2",  # Produce colorful error / warning output
+    "flake8-docstrings>=1.5,<1.8",  # Ensure docstrings are formatted well
+    "flake8-rst-docstrings>=0.2,<0.4",  # Allow use of ReST in docstrings
+    "flake8-use-fstring>=1.0,<1.5",  # Highlight use of old-style string formatting
+    "mccabe>=0.6,<0.8",  # Checks that code isn't overly complicated
+    "mypy>=1.0,<1.2",  # Static type checking
+    "pep8-naming>=0.12,<0.14",  # Require PEP8 compliant variable names
+    "pre-commit>=2.9,<3.3",  # Allow us to run pre-commit hooks in testing
+    "pydocstyle>=5.1,<6.4",  # Style guidelines for Python documentation
+    "pytest>=6.2,<7.3",  # Our testing framework
+    "pytest-console-scripts>=1.1,<1.4",  # Allow automatic testing of scripts
+    "pytest-cov>=2.10,<3.1",  # Pytest plugin for working with coverage
+    "rstcheck[sphinx]>=5.0,<6.2",  # ReStructuredText linter
+    "tox>=4,<5",  # Python test environment manager
+]
+types = [
+    "types-setuptools",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools_scm]
 
 [tool.black]
 line-length = 88
-target-version = ["py38", "py39", "py310"]
+target-version = ["py310", "py311"]
 include = "\\.pyi?$"
 
 [tool.isort]
 profile = "black"
-# known_first_party = "PACKAGE NAME AS IMPORTED e.g. pudl not catalystcoop.pudl"
+known_first_party = "ferc_xbrl_extractor"
