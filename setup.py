@@ -59,7 +59,7 @@ setup(
             "coverage>=5.3,<6.5",  # Lets us track what code is being tested
             "doc8>=0.9,<1.1",  # Ensures clean documentation formatting
             "flake8>=4.0,<5.1",  # A framework for linting & static analysis
-            "flake8-builtins>=1.5,<1.6",  # Avoid shadowing Python built-in names
+            "flake8-builtins>=1.5,<2.2",  # Avoid shadowing Python built-in names
             "flake8-colors>=0.1,<0.2",  # Produce colorful error / warning output
             "flake8-docstrings>=1.5,<1.7",  # Ensure docstrings are formatted well
             "flake8-rst-docstrings>=0.2,<0.3",  # Allow use of ReST in docstrings
