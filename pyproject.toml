@@ -56,20 +56,20 @@ dev = [
     "black>=22.0,<23.2",  # A deterministic code formatter
     "build>=0.10,<0.11",
     "isort>=5.0,<5.13",  # Standardized import sorting
-    "tox>=4,<5",  # Python test environment manager
+    "tox>=4.0,<4.5",  # Python test environment manager
     "twine>=3.3,<4.1",  # Used to make releases to PyPI
 ]
 docs = [
     "doc8>=1.0,<1.2",  # Ensures clean documentation formatting
     "furo>=2022.4.7",
     "sphinx>=4,!=5.1.0,<5.1.2",  # The default Python documentation engine
-    "sphinx-autoapi>=2.0,<2.1",  # Generates documentation from docstrings
+    "sphinx-autoapi>=2.0,<2.2",  # Generates documentation from docstrings
     "sphinx-issues>=1.2,<3.1",  # Allows references to GitHub issues
 ]
 tests = [
     "bandit>=1.6,<1.8",  # Checks code for security issues
     "coverage>=5.3,<7.3",  # Lets us track what code is being tested
-    "doc8>=0.9,<1.2",  # Ensures clean documentation formatting
+    "doc8>=1.0,<1.2",  # Ensures clean documentation formatting
     "flake8>=4.0,<6.1",  # A framework for linting & static analysis
     "flake8-builtins>=1.5,<2.2",  # Avoid shadowing Python built-in names
     "flake8-colors>=0.1,<0.2",  # Produce colorful error / warning output
@@ -83,9 +83,9 @@ tests = [
     "pydocstyle>=5.1,<6.4",  # Style guidelines for Python documentation
     "pytest>=6.2,<7.3",  # Our testing framework
     "pytest-console-scripts>=1.1,<1.4",  # Allow automatic testing of scripts
-    "pytest-cov>=2.10,<3.1",  # Pytest plugin for working with coverage
+    "pytest-cov>=2.10,<4.1",  # Pytest plugin for working with coverage
     "rstcheck[sphinx]>=5.0,<6.2",  # ReStructuredText linter
-    "tox>=4,<5",  # Python test environment manager
+    "tox>=4.0,<4.5",  # Python test environment manager
 ]
 types = [
     "types-setuptools",
