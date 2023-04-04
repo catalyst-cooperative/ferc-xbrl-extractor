@@ -1,0 +1,6 @@
+prune .github
+prune docs
+prune examples
+
+global-exclude .gitignore .gitattributes
+global-exclude .bandit.yml .mypy.ini .pre-commit-config.yaml .readthedocs.yml
