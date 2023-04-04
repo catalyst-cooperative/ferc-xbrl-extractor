@@ -1,7 +1,6 @@
-graft src/xbrl_extract/package_data
-
 prune .github
-prune tests/data
-global-exclude .gitignore __pycache__ *.py[cod] *checkpoint.ipynb
-global-exclude .gitattributes .readthedocs.yml
-global-exclude *_test.py
+prune docs
+prune examples
+
+global-exclude .gitignore .gitattributes
+global-exclude .bandit.yml .mypy.ini .pre-commit-config.yaml .readthedocs.yml
