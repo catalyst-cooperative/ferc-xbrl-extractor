@@ -25,7 +25,7 @@ dependencies = [
     "sqlalchemy>=1.4,<3",
     "pandas>=1.5,<2.1",
     "stringcase~=1.2.0",
-    "numpy>=1.16,<1.25",
+    "numpy>=1.16,<2",
     "lxml>=4.9.1,<5",
 ]
 classifiers = [
