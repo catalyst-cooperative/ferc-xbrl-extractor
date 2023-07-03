@@ -18,7 +18,7 @@ requires-python = ">=3.10,<3.12"
 dynamic = ["version"]
 license = {file = "LICENSE.txt"}
 dependencies = [
-    "pydantic>=1.9,<2",
+    "pydantic>=1.9,<3",
     "coloredlogs>=14.0,<15.1",
     "arelle-release>=2.3,<2.12",
     "frictionless>=4.4,<5",
