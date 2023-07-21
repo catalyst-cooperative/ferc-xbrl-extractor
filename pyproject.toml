@@ -18,7 +18,7 @@ requires-python = ">=3.10,<3.12"
 dynamic = ["version"]
 license = {file = "LICENSE.txt"}
 dependencies = [
-    "pydantic>=1.9,<3",
+    "pydantic>=2,<3",
     "coloredlogs>=14.0,<15.1",
     "arelle-release>=2.3,<2.12",
     "frictionless>=4.4,<5",
@@ -84,7 +84,7 @@ tests = [
     "pytest>=6.2,<7.5",  # Our testing framework
     "pytest-console-scripts>=1.1,<1.5",  # Allow automatic testing of scripts
     "pytest-cov>=2.10,<4.2",  # Pytest plugin for working with coverage
-    "rstcheck[sphinx]>=5.0,<6.2",  # ReStructuredText linter
+    #"rstcheck[sphinx]>=5.0,<6.2",  # ReStructuredText linter
     "tox>=4.0,<4.7",  # Python test environment manager
 ]
 types = [

@@ -6,7 +6,7 @@ from typing import BinaryIO
 import stringcase
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
@@ -20,7 +20,7 @@ class Period(BaseModel):
     """
 
     instant: bool
-    start_date: str | None
+    start_date: str | None = None
     end_date: str
 
     @classmethod
@@ -61,7 +61,8 @@ class Axis(BaseModel):
     value: str = ""
     dimension_type: DimensionType
 
-    @validator("name", pre=True)  # type: ignore
+    @field_validator("name", mode="before")  # type: ignore
+    @classmethod
     def strip_prefix(cls, name: str):  # noqa: N805
         """Strip XML prefix from name."""
         return name.split(":")[1] if ":" in name else name
@@ -192,7 +193,7 @@ class Fact(BaseModel):
 
     name: str
     c_id: str
-    value: str | None
+    value: str | None = None
 
     @classmethod
     def from_xml(cls, elem: Element) -> "Fact":
