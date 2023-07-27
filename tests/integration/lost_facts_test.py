@@ -1,10 +1,11 @@
-from collections import Counter
 import itertools
 import os
+from collections import Counter
 from pathlib import Path
+
 from sqlalchemy import create_engine
 
-from ferc_xbrl_extractor.cli import get_instances, TAXONOMY_MAP
+from ferc_xbrl_extractor.cli import TAXONOMY_MAP, get_instances
 from ferc_xbrl_extractor.xbrl import extract, process_instance
 
 
@@ -54,8 +55,8 @@ def test_lost_fact_finder(tmp_path):
     """
     date | entity | sorted_dims | fact_name | value
     ----------------
-    2021-12-31 | AP | [("dim1", 1), ("dim2", 2)] | Why Don't I have a home? | 17 
-    2021-12-31 | AP | [("dim1", 1)] | Why Don't I have a home? | 18 
+    2021-12-31 | AP | [("dim1", 1), ("dim2", 2)] | Why Don't I have a home? | 17
+    2021-12-31 | AP | [("dim1", 1)] | Why Don't I have a home? | 18
     ....
 
     """
