@@ -78,14 +78,17 @@ def extract(
         results = executor.map(process_batches, batched_instances)
 
         # Write extracted data to database
+        ids = {}
         for i, batch in enumerate(results):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
 
             # Loop through tables and write to database
             with engine.begin() as conn:
-                for key, df in batch.items():
+                for key, df in batch["dfs"].items():
                     if not df.empty:
                         df.to_sql(key, conn, if_exists="append")
+                ids.update(batch["ids"])
+        return ids
 
 
 def process_batch(
@@ -106,14 +109,17 @@ def process_batch(
     logger = get_logger(__name__)
 
     dfs: dict[str, pd.DataFrame] = {}
+    ids: dict[str, set] = {}
     for instance in instances:
         # Parse XBRL instance. Log/skip if file is empty
         try:
-            instance_dfs = process_instance(instance, tables)
+            instance_info = process_instance(instance, tables)
         except XMLSyntaxError:
             logger.info(f"XBRL filing {instance.name} is empty. Skipping.")
             continue
 
+        instance_dfs = instance_info["dfs"]
+        ids[instance.name] = instance_info["ids"]
         for key, df in instance_dfs.items():
             if key not in dfs:
                 dfs[key] = []
@@ -122,7 +128,7 @@ def process_batch(
 
     dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
-    return dfs
+    return {"dfs": dfs, "ids": ids}
 
 
 def process_instance(
@@ -145,10 +151,13 @@ def process_instance(
     logger.info(f"Extracting {instance.filing_name}")
 
     dfs = {}
+    ids = set()
     for key, table in tables.items():
-        dfs[key] = table.construct_dataframe(instance)
+        constructed = table.construct_dataframe(instance)
+        dfs[key] = constructed["df"]
+        ids.update(constructed["ids"])
 
-    return dfs
+    return {"dfs": dfs, "ids": ids}
 
 
 def get_fact_tables(

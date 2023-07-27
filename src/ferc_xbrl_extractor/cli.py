@@ -102,7 +102,7 @@ def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
     Args:
         instance_path: Path to zipfile containing XBRL filings.
     """
-    allowable_suffixes = ["xbrl", "xml"]
+    allowable_suffixes = [".xbrl"]  # , ".xml"]
 
     archive = zipfile.ZipFile(instance_path)
 
@@ -112,7 +112,7 @@ def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
             io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
         )
         for filename in archive.namelist()
-        if filename.split(".")[1] in allowable_suffixes
+        if Path(filename).suffix in allowable_suffixes
     ]
 
 

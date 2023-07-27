@@ -193,6 +193,7 @@ class Fact(BaseModel):
 
     name: str
     c_id: str
+    f_id: str
     value: str | None = None
 
     @classmethod
@@ -203,6 +204,7 @@ class Fact(BaseModel):
         return cls(
             name=stringcase.snakecase(elem.tag.replace(prefix, "")),  # Strip prefix
             c_id=elem.attrib["contextRef"],
+            f_id=elem.attrib["id"],
             value=elem.text,
         )
 
@@ -257,6 +259,7 @@ class Instance:
         # This is a nested dictionary of dictionaries to locate facts by context
         self.instant_facts: FactDict = {}
         self.duration_facts: FactDict = {}
+        self.contexts = contexts
 
         self.filing_name = filing_name
 

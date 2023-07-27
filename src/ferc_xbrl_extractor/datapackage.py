@@ -360,12 +360,14 @@ class FactTable:
 
         # Loop through contexts and get facts in each context
         # Each context corresponds to one unique row
+        fact_ids = set()
         for i, (context, facts) in enumerate(contexts.items()):
             if self.instant != context.period.instant:
                 continue
 
             # Construct dictionary to represent row which corresponds to current context
             row = {fact.name: fact.value for fact in facts if fact.name in df}
+            fact_ids.update({fact.f_id for fact in facts if fact.name in df})
 
             # If row is empty skip
             if row:
@@ -383,7 +385,7 @@ class FactTable:
                         )
 
         # Create dataframe and drop empty rows
-        return pd.DataFrame(df).dropna(how="all")
+        return {"df": pd.DataFrame(df).dropna(how="all"), "ids": fact_ids}
 
 
 class Datapackage(BaseModel):
