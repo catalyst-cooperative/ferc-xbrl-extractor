@@ -193,7 +193,7 @@ class Fact(BaseModel):
 
     name: str
     c_id: str
-    f_id: str
+    f_id: str | None = None
     value: str | None = None
 
     @classmethod
@@ -204,7 +204,7 @@ class Fact(BaseModel):
         return cls(
             name=stringcase.snakecase(elem.tag.replace(prefix, "")),  # Strip prefix
             c_id=elem.attrib["contextRef"],
-            f_id=elem.attrib["id"],
+            f_id=elem.attrib.get("id"),
             value=elem.text,
         )
 
