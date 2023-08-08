@@ -122,7 +122,7 @@ def get_instances(instance_path: Path) -> list[InstanceBuilder]:
     Args:
         instance_path: Path to one or more XBRL filings.
     """
-    allowable_suffixes = [".xbrl", ".xml"]
+    allowable_suffixes = [".xbrl"]  # , ".xml"]
 
     if not instance_path.exists():
         raise ValueError(
@@ -187,7 +187,7 @@ def main():
         Path(args.instance_path),
     )
 
-    xbrl.extract(
+    filings = xbrl.extract(
         instances,
         engine,
         taxonomy,
@@ -198,6 +198,12 @@ def main():
         datapackage_path=args.save_datapackage,
         metadata_path=args.metadata_path,
     )
+
+    with engine.begin() as conn:
+        for table_name, filing in filings.items():
+            # Loop through tables and write to database
+            if not filing.empty:
+                filing.to_sql(table_name, conn, if_exists="append")
 
 
 if __name__ == "__main__":

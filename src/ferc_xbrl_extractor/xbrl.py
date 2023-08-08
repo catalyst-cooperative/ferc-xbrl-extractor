@@ -1,6 +1,7 @@
 """XBRL extractor."""
 import math
 from collections.abc import Iterable
+from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
 
@@ -75,17 +76,16 @@ def extract(
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = executor.map(process_batches, batched_instances)
 
-        # Write extracted data to database
-        for i, batch in enumerate(results):
+        results = defaultdict(list)
+        for i, batch in enumerate(executor.map(process_batches, batched_instances)):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
+            for key, df in batch.items():
+                results[key].append(df)
 
-            # Loop through tables and write to database
-            with engine.begin() as conn:
-                for key, df in batch.items():
-                    if not df.empty:
-                        df.to_sql(key, conn, if_exists="append")
+        return {
+            table: pd.concat(dfs, ignore_index=True) for table, dfs in results.items()
+        }
 
 
 def process_batch(
