@@ -154,7 +154,9 @@ class Context(BaseModel):
         """
         return self.entity.check_dimensions(axes)
 
-    def as_primary_key(self, filing_name: str) -> dict[str, str]:
+    def as_primary_key(
+        self, filing_name: str, optional_axis: str | None = None
+    ) -> dict[str, str]:
         """Return a dictionary that represents the context as composite primary key."""
         # Create dictionary mapping axis (column) name to value
         axes_dict = {
@@ -171,6 +173,9 @@ class Context(BaseModel):
                 "start_date": self.period.start_date,  # type: ignore
                 "end_date": self.period.end_date,
             }
+
+        if optional_axis:
+            axes_dict[optional_axis] = "TOTAL"
 
         return {
             "entity_id": self.entity.identifier,

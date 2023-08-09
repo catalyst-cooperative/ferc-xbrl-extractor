@@ -1,16 +1,17 @@
+"""Test for lost facts."""
 import itertools
 import os
-from collections import Counter
 from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import create_engine
 
 from ferc_xbrl_extractor.cli import TAXONOMY_MAP, get_instances
-from ferc_xbrl_extractor.xbrl import extract, get_fact_tables, process_instance
+from ferc_xbrl_extractor.xbrl import extract, get_fact_tables
 
 
 def test_lost_fact_finder(tmp_path):
+    """Find number of lost facts."""
     instances = get_instances(
         Path(os.getenv("PUDL_INPUT"))
         / "ferc1"
@@ -26,6 +27,7 @@ def test_lost_fact_finder(tmp_path):
         batch_size=50,
         metadata_path=Path(tmp_path) / "metadata.json",
     )
+
     tables = get_fact_tables(
         taxonomy_path=TAXONOMY_MAP[1],
         form_number=1,
@@ -69,12 +71,9 @@ def test_lost_fact_finder(tmp_path):
             if f.f_id not in used_ids[instance_builder.name]
         ]
 
-    lostest_names = Counter(f["name"] for f in lost_facts)
-
     rows = [
         {
             "name": fact["name"],
-            "filing": instance_builder.name,
             "entity": fact["context"].entity.identifier,
             "start_date": fact["context"].period.start_date,
             "end_date": fact["context"].period.end_date,
@@ -94,11 +93,10 @@ def test_lost_fact_finder(tmp_path):
     ]
     df = pd.DataFrame(rows)
     print(f"Of {num_all_facts} facts, {len(df) / num_all_facts}% were lost")
-    df.drop(df[df["name"] == "OrderNumber"].index, inplace=True)
+    df.drop(df[df["name"] == "order_number"].index, inplace=True)
     df.to_pickle("lost_facts.pickle")
-    breakpoint()
 
-    assert len(lost_facts) / len(all_facts) < 0.1
+    assert len(lost_facts) / num_all_facts < 0.1
     # print(lost_facts_info)
     """
     date | entity | sorted_dims | fact_name | value

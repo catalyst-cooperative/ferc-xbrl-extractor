@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance
+from ferc_xbrl_extractor.settings import FERC1_OPTIONAL_COLUMNS
 from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
 
@@ -336,7 +337,7 @@ class FactTable:
         self.columns = {
             field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
         }
-        self.axes = [name for name in schema.primary_key if name.endswith("axis")]
+        self.axes = {name for name in schema.primary_key if name.endswith("axis")}
         self.instant = period_type == "instant"
         self.logger = get_logger(__name__)
 
@@ -347,10 +348,15 @@ class FactTable:
             instance: Parsed XBRL instance used to construct dataframe.
         """
         # Filter contexts to only those relevant to table
-        contexts = instance.get_facts(self.instant, self.axes)
+        fact_map = {}
+        fact_map[None] = instance.get_facts(self.instant, self.axes)
+
+        for optional_axis in self.axes.intersection(FERC1_OPTIONAL_COLUMNS):
+            axes = [axis for axis in self.axes if axis != optional_axis]
+            fact_map[optional_axis] = instance.get_facts(self.instant, axes)
 
         # Get the maximum number of rows that could be in table and allocate space
-        max_len = len(contexts)
+        max_len = sum([len(contexts) for contexts in fact_map.values()])
 
         # Allocate space for columns
         df = {
@@ -358,31 +364,34 @@ class FactTable:
             for field in self.schema.fields
         }
 
-        # Loop through contexts and get facts in each context
+        # Loop through fact_map and get facts in each context
         # Each context corresponds to one unique row
-        fact_ids = set()
-        for i, (context, facts) in enumerate(contexts.items()):
-            if self.instant != context.period.instant:
-                continue
+        fact_ids = []
+        for optional_axis, context_fact_map in fact_map.items():
+            for i, (context, facts) in enumerate(context_fact_map.items()):
+                if self.instant != context.period.instant:
+                    continue
 
-            # Construct dictionary to represent row which corresponds to current context
-            row = {fact.name: fact.value for fact in facts if fact.name in df}
-            fact_ids.update({fact.f_id for fact in facts if fact.name in df})
+                # Construct dictionary to represent row which corresponds to current context
+                row = {fact.name: fact.value for fact in facts if fact.name in df}
+                fact_ids += [fact.f_id for fact in facts if fact.name in df]
 
-            # If row is empty skip
-            if row:
-                # Use context to create primary key for row and add to dictionary
-                row.update(context.as_primary_key(instance.filing_name))
+                # If row is empty skip
+                if row:
+                    # Use context to create primary key for row and add to dictionary
+                    row.update(
+                        context.as_primary_key(instance.filing_name, optional_axis)
+                    )
 
-                # Loop through each field in row and add to appropriate column
-                for key, val in row.items():
-                    # Try to parse value from XBRL if not possible it will remain NA
-                    try:
-                        df[key][i] = self.columns[key](val)
-                    except ValueError:
-                        self.logger.warning(
-                            f"Could not parse {val} as {self.columns[key]} in column {key}"
-                        )
+                    # Loop through each field in row and add to appropriate column
+                    for key, val in row.items():
+                        # Try to parse value from XBRL if not possible it will remain NA
+                        try:
+                            df[key][i] = self.columns[key](val)
+                        except ValueError:
+                            self.logger.warning(
+                                f"Could not parse {val} as {self.columns[key]} in column {key}"
+                            )
 
         # Create dataframe and drop empty rows
         return {"df": pd.DataFrame(df).dropna(how="all"), "ids": fact_ids}

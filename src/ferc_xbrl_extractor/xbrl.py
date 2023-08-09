@@ -109,7 +109,7 @@ def process_batch(
     logger = get_logger(__name__)
 
     dfs: dict[str, pd.DataFrame] = {}
-    ids: dict[str, set] = {}
+    ids: dict[str, list] = {}
     for instance in instances:
         # Parse XBRL instance. Log/skip if file is empty
         try:
@@ -151,11 +151,11 @@ def process_instance(
     logger.info(f"Extracting {instance.filing_name}")
 
     dfs = {}
-    ids = set()
+    ids = []
     for key, table in tables.items():
         constructed = table.construct_dataframe(instance)
         dfs[key] = constructed["df"]
-        ids.update(constructed["ids"])
+        ids += constructed["ids"]
 
     return {"dfs": dfs, "ids": ids}
 
