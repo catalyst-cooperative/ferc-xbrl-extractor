@@ -285,17 +285,33 @@ class Instance:
 
                 self.duration_facts[axes][context] = facts[c_id]
 
-    def get_facts(self, instant: bool, axes: list[str]) -> dict[Context, list[Fact]]:
+    def get_facts(
+        self, instant: bool, axes: list[tuple[str, bool]]
+    ) -> dict[Context, list[Fact]]:
         """Return a dictionary that maps Contexts to a list of facts for each context.
 
         Args:
             instant: Get facts with instant or duration period.
             axes: List of axis names defined for fact table.
         """
-        if instant:
-            facts = self.instant_facts.get(tuple(sorted(axes)), {})
-        else:
-            facts = self.duration_facts.get(tuple(sorted(axes)), {})
+        all_axes = [axis for axis, nullable in axes]
+        # Create a list of all nullable axes
+        optional_axes = [axis for axis, nullable in axes if nullable]
+        # Add None which represents the case where all axes are used
+        optional_axes.append(None)
+
+        facts = {}
+        for optional_axis in optional_axes:
+            # Create a key for looking up facts by their context
+            # Each key consists of all non-nullable axes and all but one nullable axis
+            # The one exception is when optional_axis is None which will use all axes
+            axis_key = [axis for axis in all_axes if axis != optional_axis]
+
+            # Look up facts by key
+            if instant:
+                facts.update(self.instant_facts.get(tuple(sorted(axis_key)), {}))
+            else:
+                facts.update(self.duration_facts.get(tuple(sorted(axis_key)), {}))
 
         return facts
 
