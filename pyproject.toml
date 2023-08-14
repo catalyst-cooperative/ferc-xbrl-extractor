@@ -56,7 +56,7 @@ dev = [
     "black>=22.0,<23.8",  # A deterministic code formatter
     "build>=0.10,<0.11",
     "isort>=5.0,<5.13",  # Standardized import sorting
-    "tox>=4.0,<4.7",  # Python test environment manager
+    "tox>=4.0,<4.9",  # Python test environment manager
     "twine>=3.3,<4.1",  # Used to make releases to PyPI
 ]
 docs = [
@@ -85,7 +85,7 @@ tests = [
     "pytest-console-scripts>=1.1,<1.5",  # Allow automatic testing of scripts
     "pytest-cov>=2.10,<4.2",  # Pytest plugin for working with coverage
     #"rstcheck[sphinx]>=5.0,<6.2",  # ReStructuredText linter
-    "tox>=4.0,<4.7",  # Python test environment manager
+    "tox>=4.0,<4.9",  # Python test environment manager
 ]
 types = [
     "types-setuptools",
