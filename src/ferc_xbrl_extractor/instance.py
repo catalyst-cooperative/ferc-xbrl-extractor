@@ -209,6 +209,10 @@ class Fact(BaseModel):
             value=elem.text,
         )
 
+    def f_id(self) -> str:
+        # this would be a property, but a property is not pickleable for our parallelization
+        return f"{self.c_id}:{self.name}"
+
 
 class Instance:
     """Class to encapsulate a parsed instance.
@@ -240,6 +244,14 @@ class Instance:
         # This is a nested dictionary of dictionaries to locate facts by context
         self.instant_facts = instant_facts
         self.duration_facts = duration_facts
+        self.all_fact_ids = set(
+            f.f_id()
+            for f in itertools.chain.from_iterable(
+                (instant_facts | duration_facts).values()
+            )
+        )
+        self.used_fact_ids: set[str] = set()
+
         self.filing_name = filing_name
         self.contexts = contexts
 

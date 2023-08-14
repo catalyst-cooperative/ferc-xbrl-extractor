@@ -3,7 +3,15 @@ import logging
 
 import pytest
 
-from ferc_xbrl_extractor.instance import Context, DimensionType, InstanceBuilder
+from ferc_xbrl_extractor.instance import (
+    Context,
+    DimensionType,
+    Entity,
+    Fact,
+    Instance,
+    InstanceBuilder,
+    Period,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,3 +141,49 @@ def test_parse_instance(file_fixture, request):
             )
             == 0
         )
+
+
+def test_all_fact_ids():
+    instant_facts = {
+        "context_1": [
+            Fact(name="fruit", c_id="context_1", f_id="c1f1_id", value="apple"),
+            Fact(
+                name="caveman_utterance", c_id="context_1", f_id="c1f2_id", value="ooga"
+            ),
+        ],
+        "context_2": [
+            Fact(name="fruit", c_id="context_2", f_id="c2f1_id", value="banana"),
+            Fact(
+                name="caveman_utterance",
+                c_id="context_2",
+                f_id="c2f2_id",
+                value="booga",
+            ),
+        ],
+    }
+
+    contexts = {
+        "context_1": Context(
+            c_id="context_1",
+            entity=Entity(identifier="entity_1", dimensions=[]),
+            period=Period(instant=True, end_date="2023-01-01"),
+        ),
+        "context_2": Context(
+            c_id="context_2",
+            entity=Entity(identifier="entity_2", dimensions=[]),
+            period=Period(instant=True, end_date="2023-01-01"),
+        ),
+    }
+
+    instance = Instance(
+        contexts,
+        instant_facts=instant_facts,
+        duration_facts={},
+        filing_name="test_instance",
+    )
+
+    assert instance.all_fact_ids == {
+        f"context_{c_num}:{f}"
+        for c_num in [1, 2]
+        for f in ["fruit", "caveman_utterance"]
+    }
