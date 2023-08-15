@@ -210,7 +210,16 @@ class Fact(BaseModel):
         )
 
     def f_id(self) -> str:
-        # this would be a property, but a property is not pickleable for our parallelization
+        """A unique identifier for the Fact.
+
+        There is an `id` attribute on most fact entries, but there are some
+        facts without an `id` attribute, so we can't use that. Instead we
+        assume that each fact is uniquely identified by its context ID and the
+        concept name.
+
+        NB, this is a function, not a property. This would be a property, but a
+        property is not pickleable for our parallelization
+        """
         return f"{self.c_id}:{self.name}"
 
 
@@ -244,12 +253,12 @@ class Instance:
         # This is a nested dictionary of dictionaries to locate facts by context
         self.instant_facts = instant_facts
         self.duration_facts = duration_facts
-        self.all_fact_ids = set(
+        self.all_fact_ids = {
             f.f_id()
             for f in itertools.chain.from_iterable(
                 (instant_facts | duration_facts).values()
             )
-        )
+        }
         self.used_fact_ids: set[str] = set()
 
         self.filing_name = filing_name

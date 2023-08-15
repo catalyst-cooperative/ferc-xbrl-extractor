@@ -1,10 +1,9 @@
 """XBRL extractor."""
 import math
-from collections.abc import Iterable
 from collections import defaultdict
+from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
-import itertools
 
 import numpy as np
 import pandas as pd
@@ -21,8 +20,7 @@ from ferc_xbrl_extractor.taxonomy import Taxonomy
 def extract(
     instances: list[Instance],
     engine: sa.engine.Engine,
-    taxonomy: str,
-    form_number: int,
+    tables: dict[str, FactTable],
     archive_file_path: str | None = None,
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
@@ -35,8 +33,7 @@ def extract(
     Args:
         instances: A list of Instance objects used for parsing XBRL filings.
         engine: SQLite connection to output database.
-        form_number: FERC Form number (can be 1, 2, 6, 60, 714).
-        taxonomy: Specify taxonomy used to create structure of output DB.
+        tables: the full set of tables we can attempt to parse facts into.
         archive_file_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         requested_tables: Optionally specify the set of tables to extract.
@@ -54,16 +51,6 @@ def extract(
         batch_size = num_instances // workers if workers else num_instances
 
     num_batches = math.ceil(num_instances / batch_size)
-
-    tables = get_fact_tables(
-        taxonomy,
-        form_number,
-        str(engine.url),
-        archive_file_path=archive_file_path,
-        tables=requested_tables,
-        datapackage_path=datapackage_path,
-        metadata_path=metadata_path,
-    )
 
     with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings

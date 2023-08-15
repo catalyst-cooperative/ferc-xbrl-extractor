@@ -183,7 +183,7 @@ def test_all_fact_ids():
     )
 
     assert instance.all_fact_ids == {
-        f"context_{c_num}:{f}"
-        for c_num in [1, 2]
-        for f in ["fruit", "caveman_utterance"]
+        f"context_{context_num}:{field_name}"
+        for context_num in [1, 2]
+        for field_name in ["fruit", "caveman_utterance"]
     }
