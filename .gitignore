@@ -132,5 +132,9 @@ dmypy.json
 **/*~
 
 
+# OS and VS Code stuff
 **.DS_Store
 .vscode
+
+# full sized test data
+tests/integration/full_data/

@@ -1,4 +1,5 @@
 import re
+from collections import namedtuple
 from pathlib import Path
 
 import pytest
@@ -10,58 +11,60 @@ from ferc_xbrl_extractor.cli import (  # TODO (daz) move this function out of CL
 )
 from ferc_xbrl_extractor.xbrl import extract, get_fact_tables
 
+Dataset = namedtuple("Dataset", ["form", "year", "path"])
+
+
+ExtractOutput = namedtuple(
+    "ExtractOutput", ["tables", "instances", "filings", "metadata"]
+)
+
 
 @pytest.fixture(scope="session")
-def metadata_dir(tmp_path_factory):
+def metadata_dir(tmp_path_factory) -> Path:
     return tmp_path_factory.mktemp("metadata")
 
 
-def get_available_test_datasets() -> list[dict[str, int]]:
-    """Automatically generate test cases for all the files in our test data."""
-    data_dir = Path(__file__).parent / "data"
+@pytest.fixture(scope="session")
+def data_dir(request) -> Path:
+    return request.config.getoption("--integration-data-dir")
+
+
+@pytest.fixture(scope="session")
+def test_datasets(data_dir) -> list[Dataset]:
+    """Get available test datasets"""
 
     def extract_components(path: Path) -> dict[str, int]:
         match = re.match(r"ferc(\d+)-xbrl-(\d{4}).zip", path.name)
-        return {"form": int(match.group(1)), "year": int(match.group(2))}
+        return Dataset(form=int(match.group(1)), year=int(match.group(2)), path=path)
 
-    return [extract_components(path) for path in data_dir.glob("*.zip")]
-
-
-datasets = get_available_test_datasets()
+    return [extract_components(path) for path in data_dir.glob("ferc*-xbrl-*.zip")]
 
 
-@pytest.fixture(
-    scope="session",
-    params=datasets,
-    ids=["form{form}_{year}".format(**ds) for ds in datasets],  # noqa: FS002
-)
-def extracted(test_dir, metadata_dir, request):
-    form = request.param["form"]
-    year = request.param["year"]
+@pytest.fixture(scope="session")
+def extracted(metadata_dir, test_datasets) -> dict[Dataset, ExtractOutput]:
+    def extract_dataset(dataset: Dataset) -> ExtractOutput:
+        tables = get_fact_tables(
+            taxonomy_path=TAXONOMY_MAP[dataset.form],
+            form_number=dataset.form,
+            db_path="path",
+            metadata_path=Path(metadata_dir) / "metadata.json",
+        )
+        instance_builders = get_instances(dataset.path)
+        instances = [ib.parse() for ib in instance_builders]
+        filings, metadata = extract(
+            instances=instances,
+            engine=create_engine("sqlite:///:memory:"),
+            tables=tables,
+            batch_size=max(1, len(instances) // 5),
+            metadata_path=Path(metadata_dir) / "metadata.json",
+        )
+        return tables, instances, filings, metadata
 
-    tables = get_fact_tables(
-        taxonomy_path=TAXONOMY_MAP[form],
-        form_number=form,
-        db_path="path",
-        metadata_path=Path(metadata_dir) / "metadata.json",
-    )
-    instance_builders = get_instances(
-        Path(test_dir) / "integration" / "data" / f"ferc{form}-xbrl-{year}.zip"
-    )
-    instances = [ib.parse() for ib in instance_builders]
-    filings, metadata = extract(
-        instances=instances,
-        engine=create_engine("sqlite:///:memory:"),
-        tables=tables,
-        batch_size=max(1, len(instances) // 5),
-        metadata_path=Path(metadata_dir) / "metadata.json",
-    )
-    return tables, instances, filings, metadata
+    return {dataset: extract_dataset(dataset) for dataset in test_datasets}
 
 
-@pytest.mark.xfail(reason="We don't have good lost facts handling yet.")
-def test_lost_facts_pct(extracted):
-    tables, instances, filings, metadata = extracted
+def _test_lost_facts_pct(extracted, dataset):
+    tables, instances, filings, metadata = extracted[dataset]
     total_facts = sum(len(i.all_fact_ids) for i in instances)
     total_used_facts = sum(len(f_ids) for f_ids in metadata["fact_ids"].values())
 
@@ -78,8 +81,14 @@ def test_lost_facts_pct(extracted):
         assert instance_used_ratio > filing_threshold and instance_used_ratio <= 1
 
 
-def test_primary_key_uniqueness(extracted):
-    tables, _instances, filings, _metadata = extracted
+@pytest.mark.xfail(reason="We don't have good lost facts handling yet.")
+def test_lost_facts_pct(extracted, test_datasets):
+    for dataset in test_datasets:
+        _test_lost_facts_pct(extracted, dataset)
+
+
+def _test_primary_key_uniqueness(extracted, dataset):
+    tables, _instances, filings, _metadata = extracted[dataset]
 
     for table_name, table in tables.items():
         if table.instant:
@@ -91,8 +100,13 @@ def test_primary_key_uniqueness(extracted):
         assert not filing.index.duplicated().any()
 
 
-def test_null_values(extracted):
-    tables, _instances, filings, _metadata = extracted
+def test_primary_key_uniqueness(extracted, test_datasets):
+    for dataset in test_datasets:
+        _test_primary_key_uniqueness(extracted, dataset)
+
+
+def _test_null_values(extracted, dataset):
+    tables, _instances, filings, _metadata = extracted[dataset]
 
     for table_name, table in tables.items():
         if table.instant:
@@ -103,3 +117,8 @@ def test_null_values(extracted):
         filing = filings[table_name].set_index(primary_key_cols)
         # every row has at least one non-null value
         assert filing.notna().sum(axis=1).all()
+
+
+def test_null_values(extracted, test_datasets):
+    for dataset in test_datasets:
+        _test_null_values(extracted, dataset)
