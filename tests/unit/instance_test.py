@@ -8,110 +8,72 @@ from ferc_xbrl_extractor.instance import Context, DimensionType
 logger = logging.getLogger(__name__)
 
 
-@pytest.mark.parametrize(
-    "context,axes",
-    [
-        (
-            {
-                "c_id": "c-01",
-                "entity": {
-                    "identifier": "fake_id",
-                    "dimensions": [
-                        {
-                            "name": "dimension_1",
-                            "value": "value_1",
-                            "dimension_type": DimensionType.EXPLICIT,
-                        },
-                        {
-                            "name": "dimension_2",
-                            "value": "value_2",
-                            "dimension_type": DimensionType.EXPLICIT,
-                        },
-                        {
-                            "name": "dimension_3",
-                            "value": "value_3",
-                            "dimension_type": DimensionType.EXPLICIT,
-                        },
-                    ],
-                },
-                "period": {
-                    "instant": True,
-                    "start_date": None,
-                    "end_date": "2020-01-01",
-                },
+@pytest.fixture
+def test_context():
+    """Create a test Context object."""
+    return Context(
+        **{
+            "c_id": "c-01",
+            "entity": {
+                "identifier": "fake_id",
+                "dimensions": [
+                    {
+                        "name": "dimension_1",
+                        "value": "value_1",
+                        "dimension_type": DimensionType.EXPLICIT,
+                    },
+                    {
+                        "name": "dimension_2",
+                        "value": "value_2",
+                        "dimension_type": DimensionType.EXPLICIT,
+                    },
+                    {
+                        "name": "dimension_3",
+                        "value": "value_3",
+                        "dimension_type": DimensionType.EXPLICIT,
+                    },
+                ],
             },
-            ["dimension_1", "dimension_2", "dimension_3"],
-        )
-    ],
-)
-def test_context_dimensions(context, axes):
+            "period": {
+                "instant": True,
+                "start_date": None,
+                "end_date": "2020-01-01",
+            },
+        }
+    )
+
+
+def test_context_dimensions(test_context):
     """Test Context class and verifying dimensions."""
-    context = Context(**context)
+    primary_key = [dim.name for dim in test_context.entity.dimensions]
+    primary_key.extend(["entity_id", "date", "filing_name"])
+    assert test_context.check_dimensions(primary_key)
 
-    assert context.check_dimensions(axes)
-
-    # Add an extra dimension (should fail)
-    assert not context.check_dimensions(axes + ["extra_dimension"])
+    # Add an extra dimension (should pass)
+    assert test_context.check_dimensions(primary_key + ["extra_dimension"])
 
     # Remove dimension (should fail)
-    assert not context.check_dimensions(axes[1:])
+    assert not test_context.check_dimensions(primary_key[1:])
 
     # Change a dimension name
-    axes[0] = "bogus_dimension"
-    assert not context.check_dimensions(axes)
+    primary_key[0] = "bogus_dimension"
+    assert not test_context.check_dimensions(primary_key)
 
 
-@pytest.mark.parametrize(
-    "context_dict,axes",
-    [
-        (
-            {
-                "c_id": "c-01",
-                "entity": {
-                    "identifier": "fake_id",
-                    "dimensions": [
-                        {
-                            "name": "dimension_1",
-                            "value": "value_1",
-                            "dimension_type": DimensionType.EXPLICIT,
-                        },
-                        {
-                            "name": "dimension_2",
-                            "value": "value_2",
-                            "dimension_type": DimensionType.EXPLICIT,
-                        },
-                        {
-                            "name": "dimension_3",
-                            "value": "value_3",
-                            "dimension_type": DimensionType.EXPLICIT,
-                        },
-                    ],
-                },
-                "period": {
-                    "instant": True,
-                    "start_date": None,
-                    "end_date": "2020-01-01",
-                },
-            },
-            ["dimension_1", "dimension_2", "dimension_3"],
-        )
-    ],
-)
-def test_context_ids(context_dict, axes):
+def test_context_ids(test_context):
     """Test generation of context id dictionary."""
-    context = Context(**context_dict)
-    context_ids = context.as_primary_key("filing_name")
+    axes = [dim.name for dim in test_context.entity.dimensions]
+    context_ids = test_context.as_primary_key("filing_name", axes)
 
-    assert context_ids.get("entity_id") == "fake_id"
+    assert context_ids.get("entity_id") == test_context.entity.identifier
     assert context_ids.get("filing_name") == "filing_name"
-    assert context_ids.get("date") == "2020-01-01"
+    assert context_ids.get("date") == test_context.period.end_date
 
     # Change context to have a duration period, then change
-    context_dict["period"]["instant"] = False
-    context_dict["period"]["start_date"] = "2019-01-01"
+    test_context.period.instant = False
+    test_context.period.start_date = "2019-01-01"
 
-    context = Context(**context_dict)
-    context_ids = context.as_primary_key("filing_name")
+    context_ids = test_context.as_primary_key("filing_name", axes)
 
-    assert context_ids.get("start_date") == "2019-01-01"
-    assert context_ids.get("end_date") == "2020-01-01"
+    assert context_ids.get("start_date") == test_context.period.start_date
+    assert context_ids.get("end_date") == test_context.period.end_date
