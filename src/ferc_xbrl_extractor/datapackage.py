@@ -362,7 +362,10 @@ class FactTable:
                 ).items()
             }
 
+        # Create dataframe indexed by context ID
         df = pd.DataFrame(df)
+
+        # Expand context ID to contain columns for date, entity ID, and any axes
         primary_key = pd.DataFrame(
             {
                 c_id: instance.contexts[c_id].as_primary_key(
@@ -372,8 +375,9 @@ class FactTable:
             }
         )
 
+        # Join on context ID
         df = primary_key.T.join(df)
-        # Create dataframe and drop empty rows
+        # Drop empty rows
         return pd.DataFrame(df).dropna(how="all")
 
 
