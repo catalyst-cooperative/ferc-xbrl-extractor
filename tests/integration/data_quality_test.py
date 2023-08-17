@@ -3,7 +3,6 @@ from collections import namedtuple
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine
 
 from ferc_xbrl_extractor.cli import (  # TODO (daz) move this function out of CLI!
     TAXONOMY_MAP,
@@ -14,9 +13,7 @@ from ferc_xbrl_extractor.xbrl import extract, get_fact_tables
 Dataset = namedtuple("Dataset", ["form", "year", "path"])
 
 
-ExtractOutput = namedtuple(
-    "ExtractOutput", ["tables", "instances", "filings", "metadata"]
-)
+ExtractOutput = namedtuple("ExtractOutput", ["tables", "instances", "filings", "stats"])
 
 
 @pytest.fixture(scope="session")
@@ -51,22 +48,22 @@ def extracted(metadata_dir, test_datasets) -> dict[Dataset, ExtractOutput]:
         )
         instance_builders = get_instances(dataset.path)
         instances = [ib.parse() for ib in instance_builders]
-        filings, metadata = extract(
+        filings, stats = extract(
             instances=instances,
-            engine=create_engine("sqlite:///:memory:"),
             tables=tables,
             batch_size=max(1, len(instances) // 5),
-            metadata_path=Path(metadata_dir) / "metadata.json",
         )
-        return tables, instances, filings, metadata
+        return ExtractOutput(
+            tables=tables, instances=instances, filings=filings, stats=stats
+        )
 
     return {dataset: extract_dataset(dataset) for dataset in test_datasets}
 
 
 def _test_lost_facts_pct(extracted, dataset):
-    tables, instances, filings, metadata = extracted[dataset]
+    tables, instances, filings, stats = extracted[dataset]
     total_facts = sum(len(i.all_fact_ids) for i in instances)
-    total_used_facts = sum(len(f_ids) for f_ids in metadata["fact_ids"].values())
+    total_used_facts = sum(len(f_ids) for f_ids in stats["fact_ids"].values())
 
     used_fact_ratio = total_used_facts / total_facts
 
@@ -75,7 +72,7 @@ def _test_lost_facts_pct(extracted, dataset):
 
     filing_threshold = 0.95
     for instance in instances:
-        instance_used_ratio = len(metadata["fact_ids"][instance.filing_name]) / len(
+        instance_used_ratio = len(stats["fact_ids"][instance.filing_name]) / len(
             instance.all_fact_ids
         )
         assert instance_used_ratio > filing_threshold and instance_used_ratio <= 1
@@ -88,7 +85,7 @@ def test_lost_facts_pct(extracted, test_datasets):
 
 
 def _test_primary_key_uniqueness(extracted, dataset):
-    tables, _instances, filings, _metadata = extracted[dataset]
+    tables, _instances, filings, _stats = extracted[dataset]
 
     for table_name, table in tables.items():
         if table.instant:
@@ -106,7 +103,7 @@ def test_primary_key_uniqueness(extracted, test_datasets):
 
 
 def _test_null_values(extracted, dataset):
-    tables, _instances, filings, _metadata = extracted[dataset]
+    tables, _instances, filings, _stats = extracted[dataset]
 
     for table_name, table in tables.items():
         if table.instant:

@@ -1,13 +1,14 @@
 """Test the PUDL console scripts from within PyTest."""
 
-import pkg_resources
+from importlib.metadata import entry_points
+
 import pytest
 
 # Obtain a list of all deployed entry point scripts to test:
 ENTRY_POINTS = [
     ep.name
-    for ep in pkg_resources.iter_entry_points("console_scripts")
-    if ep.module_name.startswith("xbrl_extract")
+    for ep in entry_points(group="console_scripts")
+    if ep.name.startswith("xbrl_extract")
 ]
 
 
@@ -30,6 +31,7 @@ def test_extract_example_filings(script_runner):
     with the example filings and taxonomy in the ``examples/`` directory, and verify
     that it returns successfully.
     """
+    # TODO: make real assertions & use tmp_path
     ret = script_runner.run(
         "xbrl_extract",
         "examples/ferc1-2021-sample.zip",

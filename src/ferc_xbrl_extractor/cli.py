@@ -157,12 +157,12 @@ def main():
     log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
     coloredlogs.install(fmt=log_format, level=args.loglevel, logger=logger)
 
+    engine = create_engine(f"sqlite:///{args.sql_path}")
+
     if args.logfile:
         file_logger = logging.FileHandler(args.logfile)
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
-
-    engine = create_engine(f"sqlite:///{args.sql_path}")
 
     if args.clobber:
         helpers.drop_tables(engine)
@@ -183,20 +183,25 @@ def main():
         # Get most recent taxonomy for specified form number
         taxonomy = TAXONOMY_MAP[args.form_number]
 
-    instances = get_instances(
-        Path(args.instance_path),
-    )
-
-    filings = xbrl.extract(
-        instances,
-        engine,
-        taxonomy,
-        args.form_number,
+    # TODO: fix the arg names
+    tables = xbrl.get_fact_tables(
+        taxonomy_path=taxonomy,
+        form_number=args.form_number,
+        db_path=str(engine.url),
         archive_file_path=args.archive_path,
-        batch_size=args.batch_size,
-        workers=args.workers,
         datapackage_path=args.save_datapackage,
         metadata_path=args.metadata_path,
+    )
+
+    instances = [
+        i.parse()
+        for i in get_instances(
+            Path(args.instance_path),
+        )
+    ]
+
+    filings, stats = xbrl.extract(
+        instances, tables, workers=args.workers, batch_size=args.batch_size
     )
 
     with engine.begin() as conn:

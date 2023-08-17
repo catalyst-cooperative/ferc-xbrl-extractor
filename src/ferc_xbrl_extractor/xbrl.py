@@ -7,7 +7,6 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
-import sqlalchemy as sa
 from frictionless import Package
 from lxml.etree import XMLSyntaxError  # nosec: B410
 
@@ -19,20 +18,15 @@ from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 def extract(
     instances: list[Instance],
-    engine: sa.engine.Engine,
     tables: dict[str, FactTable],
-    archive_file_path: str | None = None,
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
-    datapackage_path: str | None = None,
-    metadata_path: str | None = None,
 ) -> dict[str, pd.DataFrame]:
     """Extract data from all specified XBRL filings.
 
     Args:
         instances: A list of Instance objects used for parsing XBRL filings.
-        engine: SQLite connection to output database.
         tables: the full set of tables we can attempt to parse facts into.
         archive_file_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
@@ -40,9 +34,6 @@ def extract(
                 If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
-        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
-                          If path is None no datapackage descriptor will be saved.
-        metadata_path: Path to metadata json file to output taxonomy metadata.
     """
     logger = get_logger(__name__)
 
