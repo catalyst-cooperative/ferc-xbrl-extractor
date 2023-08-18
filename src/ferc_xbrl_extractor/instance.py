@@ -161,7 +161,7 @@ class Context(BaseModel):
             stringcase.snakecase(axis.name): axis.value
             for axis in self.entity.dimensions
         }
-        axes_dict |= {axis: "Total" for axis in axes if axis not in axes_dict}
+        axes_dict |= {axis: "total" for axis in axes if axis not in axes_dict}
 
         # Get date based on period type
         if self.period.instant:
