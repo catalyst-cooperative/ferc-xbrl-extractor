@@ -378,7 +378,7 @@ class FactTable:
         # Join on context ID
         df = primary_key.T.join(df)
         # Drop empty rows
-        return pd.DataFrame(df).dropna(how="all")
+        return df.dropna(how="all")
 
 
 class Datapackage(BaseModel):

@@ -3,7 +3,7 @@ import logging
 
 import pytest
 
-from ferc_xbrl_extractor.instance import Context, DimensionType
+from ferc_xbrl_extractor.instance import Context, DimensionType, InstanceBuilder
 
 logger = logging.getLogger(__name__)
 
@@ -77,3 +77,48 @@ def test_context_ids(test_context):
 
     assert context_ids.get("start_date") == test_context.period.start_date
     assert context_ids.get("end_date") == test_context.period.end_date
+
+
+@pytest.mark.parametrize(
+    "file_fixture",
+    [
+        ("in_memory_filing"),
+        ("temp_file_filing"),
+    ],
+)
+def test_parse_instance(file_fixture, request):
+    """Test instance parsing."""
+    file = request.getfixturevalue(file_fixture)
+
+    instance_builder = InstanceBuilder(file, "filing")
+    instance = instance_builder.parse()
+
+    expected_instant_facts = {
+        "column_one": {("cid_2", "value 5"), ("cid_3", "value 7")},
+        "column_two": {("cid_2", "value 6"), ("cid_3", "value 8")},
+    }
+    expected_duration_facts = {
+        "column_one": {("cid_1", "value 1"), ("cid_4", "value 3")},
+        "column_two": {("cid_1", "value 2"), ("cid_4", "value 4")},
+    }
+
+    for column, fact_ids in expected_instant_facts.items():
+        assert (
+            len(
+                {(fact.c_id, fact.value) for fact in instance.instant_facts.get(column)}
+                - fact_ids
+            )
+            == 0
+        )
+
+    for column, fact_ids in expected_duration_facts.items():
+        assert (
+            len(
+                {
+                    (fact.c_id, fact.value)
+                    for fact in instance.duration_facts.get(column)
+                }
+                - fact_ids
+            )
+            == 0
+        )
