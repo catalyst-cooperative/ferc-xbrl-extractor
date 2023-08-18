@@ -96,10 +96,20 @@ def test_parse_instance(file_fixture, request):
     expected_instant_facts = {
         "column_one": {("cid_2", "value 5"), ("cid_3", "value 7")},
         "column_two": {("cid_2", "value 6"), ("cid_3", "value 8")},
+        "column_three": {("cid_2", "value 11")},
+        "column_four": {("cid_2", "value 12")},
     }
     expected_duration_facts = {
-        "column_one": {("cid_1", "value 1"), ("cid_4", "value 3")},
-        "column_two": {("cid_1", "value 2"), ("cid_4", "value 4")},
+        "column_one": {
+            ("cid_1", "value 1"),
+            ("cid_4", "value 3"),
+            ("cid_5", "value 9"),
+        },
+        "column_two": {
+            ("cid_1", "value 2"),
+            ("cid_4", "value 4"),
+            ("cid_5", "value 10"),
+        },
     }
 
     for column, fact_ids in expected_instant_facts.items():

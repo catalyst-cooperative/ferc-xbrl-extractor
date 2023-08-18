@@ -104,6 +104,15 @@ def _create_schema(instant=True, axes=None):
                         "column_one": "value 3",
                         "column_two": "value 4",
                     },
+                    "cid_5": {
+                        "entity_id": "EID1",
+                        "filing_name": "filing",
+                        "start_date": "2020-01-01",
+                        "end_date": "2020-12-31",
+                        "dimension_one_axis": "Dim 1 Value",
+                        "column_one": "value 9",
+                        "column_two": "value 10",
+                    },
                 }
             ).T,
         ),
