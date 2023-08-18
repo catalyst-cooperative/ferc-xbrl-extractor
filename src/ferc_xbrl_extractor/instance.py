@@ -243,8 +243,8 @@ class Instance:
 
     def get_facts(
         self, instant: bool, concept_name: str, primary_key: list[str]
-    ) -> dict[Context, list[Fact]]:
-        """Return a dictionary that maps Contexts to a list of facts for each context.
+    ) -> dict[str, list[Fact]]:
+        """Return a dictionary that maps Context ID's to a list of facts for each context.
 
         Args:
             instant: Get facts with instant or duration period.
@@ -324,6 +324,8 @@ class InstanceBuilder:
         # Loop through facts and parse into pydantic structures
         for fact in facts:
             new_fact = Fact.from_xml(fact)
+
+            # Sort facts by period type and by name
             if new_fact.value is not None:
                 if context_dict[new_fact.c_id].period.instant:
                     if new_fact.name not in instant_facts:

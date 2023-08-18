@@ -112,6 +112,7 @@ def test_parse_instance(file_fixture, request):
         },
     }
 
+    # Check that all expected facts are parsed and have appropriate context id
     for column, fact_ids in expected_instant_facts.items():
         assert (
             len(
