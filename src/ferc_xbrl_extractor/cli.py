@@ -183,7 +183,6 @@ def main():
         # Get most recent taxonomy for specified form number
         taxonomy = TAXONOMY_MAP[args.form_number]
 
-    # TODO: fix the arg names
     tables = xbrl.get_fact_tables(
         taxonomy_path=taxonomy,
         form_number=args.form_number,
