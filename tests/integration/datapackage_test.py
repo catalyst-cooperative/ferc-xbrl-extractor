@@ -1,4 +1,6 @@
 """Test datapackage descriptor from taxonomy."""
+import io
+
 import pandas as pd
 import pytest
 from frictionless import Package
@@ -60,87 +62,36 @@ def _create_schema(instant=True, axes=None):
         (
             _create_schema(instant=False),
             "duration",
-            pd.DataFrame(
-                {
-                    "cid_1": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "start_date": "2021-01-01",
-                        "end_date": "2021-12-31",
-                        "column_one": "value 1",
-                        "column_two": "value 2",
-                    },
-                    "cid_4": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "start_date": "2020-01-01",
-                        "end_date": "2020-12-31",
-                        "column_one": "value 3",
-                        "column_two": "value 4",
-                    },
-                }
-            ).T,
+            pd.read_csv(
+                io.StringIO(
+                    "c_id,entity_id,filing_name,start_date,end_date,column_one,column_two\n"
+                    'cid_1,EID1,filing,2021-01-01,2021-12-31,"value 1","value 2"\n'
+                    'cid_4,EID1,filing,2020-01-01,2020-12-31,"value 3","value 4"\n'
+                )
+            ),
         ),
         (
             _create_schema(instant=False, axes=["dimension_one_axis"]),
             "duration",
-            pd.DataFrame(
-                {
-                    "cid_1": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "start_date": "2021-01-01",
-                        "end_date": "2021-12-31",
-                        "dimension_one_axis": "total",
-                        "column_one": "value 1",
-                        "column_two": "value 2",
-                    },
-                    "cid_4": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "start_date": "2020-01-01",
-                        "end_date": "2020-12-31",
-                        "dimension_one_axis": "total",
-                        "column_one": "value 3",
-                        "column_two": "value 4",
-                    },
-                    "cid_5": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "start_date": "2020-01-01",
-                        "end_date": "2020-12-31",
-                        "dimension_one_axis": "Dim 1 Value",
-                        "column_one": "value 9",
-                        "column_two": "value 10",
-                    },
-                }
-            ).T,
+            pd.read_csv(
+                io.StringIO(
+                    "c_id,entity_id,filing_name,start_date,end_date,dimension_one_axis,column_one,column_two\n"
+                    'cid_1,EID1,filing,2021-01-01,2021-12-31,Total,"value 1","value 2"\n'
+                    'cid_4,EID1,filing,2020-01-01,2020-12-31,Total,"value 3","value 4"\n'
+                    'cid_5,EID1,filing,2020-01-01,2020-12-31,"Dim 1 Value","value 9","value 10"\n'
+                )
+            ),
         ),
         (
             _create_schema(axes=["dimension_one_axis", "dimension_two_axis"]),
             "instant",
-            pd.DataFrame(
-                {
-                    "cid_2": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "date": "2021-12-31",
-                        "dimension_one_axis": "total",
-                        "dimension_two_axis": "total",
-                        "column_one": "value 5",
-                        "column_two": "value 6",
-                    },
-                    "cid_3": {
-                        "entity_id": "EID1",
-                        "filing_name": "filing",
-                        "date": "2021-12-31",
-                        "dimension_one_axis": "Dim 1 Value",
-                        "dimension_two_axis": "ferc:Dimension2Value",
-                        "column_one": "value 7",
-                        "column_two": "value 8",
-                    },
-                }
-            ).T,
+            pd.read_csv(
+                io.StringIO(
+                    "c_id,entity_id,filing_name,date,dimension_one_axis,dimension_two_axis,column_one,column_two\n"
+                    'cid_2,EID1,filing,2021-12-31,Total,Total,"value 5","value 6"\n'
+                    'cid_3,EID1,filing,2021-12-31,"Dim 1 Value","ferc:Dimension2Value","value 7","value 8"\n'
+                )
+            ),
         ),
     ],
 )
@@ -152,4 +103,5 @@ def test_construct_dataframe(table_schema, period, df, in_memory_filing):
     fact_table = FactTable(table_schema, period)
 
     constructed_df = fact_table.construct_dataframe(instance)
-    pd.testing.assert_frame_equal(df, constructed_df)
+    expected_df = df.set_index(table_schema.primary_key).drop("c_id", axis="columns")
+    pd.testing.assert_frame_equal(expected_df, constructed_df)

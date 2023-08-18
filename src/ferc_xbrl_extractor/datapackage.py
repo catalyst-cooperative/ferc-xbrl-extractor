@@ -351,34 +351,29 @@ class FactTable:
         Args:
             instance: Parsed XBRL instance used to construct dataframe.
         """
-        # Loop through contexts and get facts in each context
-        # Each context corresponds to one unique row
-        df = {}
-        for column in self.data_columns:
-            df[column] = {
-                c_id: self.columns[column](fact.value)
-                for c_id, fact in instance.get_facts(
-                    self.instant, column, self.schema.primary_key
-                ).items()
-            }
+        facts = pd.DataFrame(
+            fact.dict()
+            for fact in instance.get_facts(
+                self.instant, self.data_columns, self.schema.primary_key
+            )
+        )
+        if facts.empty:
+            return facts
 
-        # Create dataframe indexed by context ID
-        df = pd.DataFrame(df)
-
-        # Expand context ID to contain columns for date, entity ID, and any axes
-        primary_key = pd.DataFrame(
-            {
-                c_id: instance.contexts[c_id].as_primary_key(
-                    instance.filing_name, self.axes
-                )
-                for c_id in df.index
-            }
+        facts_concepts_wide = (
+            facts.drop_duplicates().set_index(["c_id", "name"])["value"].unstack("name")
+        )
+        contexts = facts_concepts_wide.index.to_series().apply(
+            lambda c_id: pd.Series(
+                instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)
+            )
         )
 
-        # Join on context ID
-        df = primary_key.T.join(df)
-        # Drop empty rows
-        return df.dropna(how="all")
+        return (
+            contexts.join(facts_concepts_wide)
+            .set_index(self.schema.primary_key)
+            .dropna(how="all")
+        )
 
 
 class Datapackage(BaseModel):

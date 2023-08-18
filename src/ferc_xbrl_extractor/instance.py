@@ -1,5 +1,7 @@
 """Parse a single instance."""
 import io
+import itertools
+from collections import defaultdict
 from enum import Enum, auto
 from typing import BinaryIO
 
@@ -242,13 +244,13 @@ class Instance:
         self.contexts = contexts
 
     def get_facts(
-        self, instant: bool, concept_name: str, primary_key: list[str]
+        self, instant: bool, concept_names: list[str], primary_key: list[str]
     ) -> dict[str, list[Fact]]:
         """Return a dictionary that maps Context ID's to a list of facts for each context.
 
         Args:
             instant: Get facts with instant or duration period.
-            concept_name: Name of context which maps to a column name and name of facts.
+            concept_names: Name of concepts which map to a column name and name of facts.
             primary_key: Name of columns in primary_key used to filter facts.
         """
         if instant:
@@ -256,11 +258,14 @@ class Instance:
         else:
             period_fact_dict = self.duration_facts
 
-        return {
-            fact.c_id: fact
-            for fact in period_fact_dict.get(concept_name, [])
+        all_facts_for_concepts = itertools.chain.from_iterable(
+            period_fact_dict[concept_name] for concept_name in concept_names
+        )
+        return (
+            fact
+            for fact in all_facts_for_concepts
             if self.contexts[fact.c_id].check_dimensions(primary_key)
-        }
+        )
 
 
 class InstanceBuilder:
@@ -307,8 +312,8 @@ class InstanceBuilder:
 
         # Dictionary mapping context ID's to fact structures
         # Allows looking up all facts with a specific context ID
-        instant_facts: dict[str, list[Fact]] = {}
-        duration_facts: dict[str, list[Fact]] = {}
+        instant_facts: dict[str, list[Fact]] = defaultdict(list)
+        duration_facts: dict[str, list[Fact]] = defaultdict(list)
 
         # Find all contexts in XML file
         contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
@@ -325,15 +330,11 @@ class InstanceBuilder:
         for fact in facts:
             new_fact = Fact.from_xml(fact)
 
-            # Sort facts by period type and by name
+            # Sort facts by period type
             if new_fact.value is not None:
                 if context_dict[new_fact.c_id].period.instant:
-                    if new_fact.name not in instant_facts:
-                        instant_facts[new_fact.name] = []
                     instant_facts[new_fact.name].append(new_fact)
                 else:
-                    if new_fact.name not in duration_facts:
-                        duration_facts[new_fact.name] = []
                     duration_facts[new_fact.name].append(new_fact)
 
         return Instance(context_dict, instant_facts, duration_facts, self.name)
