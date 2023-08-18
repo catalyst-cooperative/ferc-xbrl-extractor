@@ -337,6 +337,11 @@ class FactTable:
             field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
         }
         self.axes = [name for name in schema.primary_key if name.endswith("axis")]
+        self.data_columns = [
+            field.name
+            for field in schema.fields
+            if field.name not in schema.primary_key
+        ]
         self.instant = period_type == "instant"
         self.logger = get_logger(__name__)
 
@@ -346,44 +351,29 @@ class FactTable:
         Args:
             instance: Parsed XBRL instance used to construct dataframe.
         """
-        # Filter contexts to only those relevant to table
-        contexts = instance.get_facts(self.instant, self.axes)
+        facts = pd.DataFrame(
+            fact.dict()
+            for fact in instance.get_facts(
+                self.instant, self.data_columns, self.schema.primary_key
+            )
+        )
+        if facts.empty:
+            return facts
 
-        # Get the maximum number of rows that could be in table and allocate space
-        max_len = len(contexts)
+        facts_concepts_wide = (
+            facts.drop_duplicates().set_index(["c_id", "name"])["value"].unstack("name")
+        )
+        contexts = facts_concepts_wide.index.to_series().apply(
+            lambda c_id: pd.Series(
+                instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)
+            )
+        )
 
-        # Allocate space for columns
-        df = {
-            field.name: pd.Series([pd.NA] * max_len, dtype=FIELD_TO_PANDAS[field.type_])
-            for field in self.schema.fields
-        }
-
-        # Loop through contexts and get facts in each context
-        # Each context corresponds to one unique row
-        for i, (context, facts) in enumerate(contexts.items()):
-            if self.instant != context.period.instant:
-                continue
-
-            # Construct dictionary to represent row which corresponds to current context
-            row = {fact.name: fact.value for fact in facts if fact.name in df}
-
-            # If row is empty skip
-            if row:
-                # Use context to create primary key for row and add to dictionary
-                row.update(context.as_primary_key(instance.filing_name))
-
-                # Loop through each field in row and add to appropriate column
-                for key, val in row.items():
-                    # Try to parse value from XBRL if not possible it will remain NA
-                    try:
-                        df[key][i] = self.columns[key](val)
-                    except ValueError:
-                        self.logger.warning(
-                            f"Could not parse {val} as {self.columns[key]} in column {key}"
-                        )
-
-        # Create dataframe and drop empty rows
-        return pd.DataFrame(df).dropna(how="all")
+        return (
+            contexts.join(facts_concepts_wide)
+            .set_index(self.schema.primary_key)
+            .dropna(how="all")
+        )
 
 
 class Datapackage(BaseModel):

@@ -80,7 +80,7 @@ class Concept(BaseModel):
     type_: XBRLType = pydantic.Field(alias="type")
     period_type: Literal["duration", "instant"]
     child_concepts: "list[Concept]"
-    metadata: Metadata | None = None
+    metadata: Metadata | None
 
     @classmethod
     def from_list(cls, concept_list: list, concept_dict: ConceptDict) -> "Concept":

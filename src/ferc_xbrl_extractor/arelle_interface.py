@@ -88,7 +88,7 @@ class Metadata(BaseModel):
     name: str
     references: References
     calculations: list[Calculation]
-    balance: Literal["credit", "debit"] | None = None
+    balance: Literal["credit", "debit"] | None
 
     @classmethod
     def from_concept(cls, concept: ModelConcept) -> "Metadata":
