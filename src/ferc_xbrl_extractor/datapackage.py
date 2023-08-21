@@ -351,14 +351,25 @@ class FactTable:
         Args:
             instance: Parsed XBRL instance used to construct dataframe.
         """
-        facts = pd.DataFrame(
-            fact.dict()
-            for fact in instance.get_facts(
-                self.instant, self.data_columns, self.schema.primary_key
-            )
+        raw_facts = list(
+            instance.get_facts(self.instant, self.data_columns, self.schema.primary_key)
         )
-        if facts.empty:
-            return facts
+
+        if not raw_facts:
+            return pd.DataFrame()
+
+        facts = pd.DataFrame(
+            {
+                "c_id": fact.c_id,
+                "name": fact.name,
+                "value": self.columns[fact.name](fact.value),
+            }
+            for fact in raw_facts
+        )
+
+        # update which IDs from the instance have been assigned to a table,
+        # so we can track leftover facts.
+        instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
         facts_concepts_wide = (
             facts.drop_duplicates().set_index(["c_id", "name"])["value"].unstack("name")

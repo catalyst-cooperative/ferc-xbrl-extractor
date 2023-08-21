@@ -209,6 +209,7 @@ class Fact(BaseModel):
             value=elem.text,
         )
 
+    # TODO (daz): use computed_field once we upgrade to Pydantic 2.x
     def f_id(self) -> str:
         """A unique identifier for the Fact.
 
@@ -218,7 +219,7 @@ class Fact(BaseModel):
         concept name.
 
         NB, this is a function, not a property. This would be a property, but a
-        property is not pickleable for our parallelization
+        property is not pickleable within Pydantic 1.x
         """
         return f"{self.c_id}:{self.name}"
 

@@ -63,10 +63,7 @@ def extract(
             for instance_name, fact_ids in batch["fact_ids"].items():
                 results["fact_ids"][instance_name] |= fact_ids
 
-        filings = {
-            table: pd.concat(dfs, ignore_index=True)
-            for table, dfs in results["dfs"].items()
-        }
+        filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
         metadata = {"fact_ids": results["fact_ids"]}
 
         return filings, metadata

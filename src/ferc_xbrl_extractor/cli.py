@@ -122,7 +122,7 @@ def get_instances(instance_path: Path) -> list[InstanceBuilder]:
     Args:
         instance_path: Path to one or more XBRL filings.
     """
-    allowable_suffixes = [".xbrl"]  # , ".xml"]
+    allowable_suffixes = [".xbrl"]
 
     if not instance_path.exists():
         raise ValueError(
@@ -157,12 +157,12 @@ def main():
     log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
     coloredlogs.install(fmt=log_format, level=args.loglevel, logger=logger)
 
-    engine = create_engine(f"sqlite:///{args.sql_path}")
-
     if args.logfile:
         file_logger = logging.FileHandler(args.logfile)
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
+
+    engine = create_engine(f"sqlite:///{args.sql_path}")
 
     if args.clobber:
         helpers.drop_tables(engine)
