@@ -46,7 +46,7 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
         "taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd",
         "--metadata-path",
         str(metadata),
-        "--save-datapackage",
+        "--datapackage-path",
         str(datapackage),
     )
 

@@ -1,9 +1,10 @@
 """XBRL extractor."""
 import math
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,11 +13,53 @@ from lxml.etree import XMLSyntaxError  # nosec: B410
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
-from ferc_xbrl_extractor.instance import Instance
+from ferc_xbrl_extractor.instance import Instance, get_instances
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
+ExtractOutput = namedtuple("ExtractOutput", ["tables", "instances", "filings", "stats"])
 
+
+# TODO (daz): make taxonomy_path take a union type of "taxonomy location" = URL | (Path, Path) and then ditch archive_path arg
 def extract(
+    taxonomy_path,
+    form_number,
+    db_path,
+    archive_path,
+    datapackage_path,
+    metadata_path,
+    instance_path,
+    workers,
+    batch_size,
+) -> ExtractOutput:
+    """Parse XBRL filings into filings dataframe."""
+    tables = get_fact_tables(
+        taxonomy_path=taxonomy_path,
+        form_number=form_number,
+        db_path=db_path,
+        archive_path=archive_path,
+        datapackage_path=datapackage_path,
+        metadata_path=metadata_path,
+    )
+
+    maybe_instances = [
+        i.parse()
+        for i in get_instances(
+            Path(instance_path),
+        )
+    ]
+
+    instances = [i for i in maybe_instances if i]
+
+    filings, stats = ingest_instances(
+        instances, tables, workers=workers, batch_size=batch_size
+    )
+
+    return ExtractOutput(
+        tables=tables, instances=instances, filings=filings, stats=stats
+    )
+
+
+def ingest_instances(
     instances: list[Instance],
     tables: dict[str, FactTable],
     requested_tables: set[str] | None = None,
@@ -28,7 +71,7 @@ def extract(
     Args:
         instances: A list of Instance objects used for parsing XBRL filings.
         tables: the full set of tables we can attempt to parse facts into.
-        archive_file_path: Path to taxonomy entry point within archive. If not None,
+        archive_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         requested_tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
@@ -137,7 +180,7 @@ def get_fact_tables(
     taxonomy_path: str,
     form_number: int,
     db_path: str,
-    archive_file_path: str | None = None,
+    archive_path: str | None = None,
     tables: set[str] | None = None,
     datapackage_path: str | None = None,
     metadata_path: str | None = None,
@@ -157,7 +200,7 @@ def get_fact_tables(
         taxonomy_path: URL of taxonomy.
         form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_path: Path to database used for constructing datapackage descriptor.
-        archive_file_path: Path to taxonomy entry point within archive. If not None,
+        archive_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
@@ -170,7 +213,7 @@ def get_fact_tables(
     """
     logger = get_logger(__name__)
     logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, archive_file_path=archive_file_path)
+    taxonomy = Taxonomy.from_path(taxonomy_path, archive_path=archive_path)
 
     # Save taxonomy metadata
     taxonomy.save_metadata(metadata_path)

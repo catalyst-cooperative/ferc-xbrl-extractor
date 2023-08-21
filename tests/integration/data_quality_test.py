@@ -5,15 +5,12 @@ import pytest
 
 from ferc_xbrl_extractor.cli import (  # TODO (daz) move this function out of CLI!
     TAXONOMY_MAP,
-    get_instances,
 )
-from ferc_xbrl_extractor.xbrl import extract, get_fact_tables
+from ferc_xbrl_extractor.xbrl import ExtractOutput, extract
 
 Dataset = namedtuple("Dataset", ["form", "year"])
 
 DATASETS = [Dataset(form=f, year=y) for f in {1, 2, 6, 60, 714} for y in {2021, 2022}]
-
-ExtractOutput = namedtuple("ExtractOutput", ["tables", "instances", "filings", "stats"])
 
 
 @pytest.fixture(scope="session")
@@ -33,21 +30,16 @@ def data_dir(request) -> Path:
 )
 def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
     form, year = request.param
-    tables = get_fact_tables(
+    return extract(
         taxonomy_path=TAXONOMY_MAP[form],
         form_number=form,
         db_path="path",
-        metadata_path=Path(metadata_dir) / "metadata.json",
-    )
-    instance_builders = get_instances(data_dir / f"ferc{form}-xbrl-{year}.zip")
-    instances = [ib.parse() for ib in instance_builders]
-    filings, stats = extract(
-        instances=instances,
-        tables=tables,
-        batch_size=max(1, len(instances) // 5),
-    )
-    return ExtractOutput(
-        tables=tables, instances=instances, filings=filings, stats=stats
+        archive_path=None,
+        metadata_path=metadata_dir / "metadata.json",
+        datapackage_path=metadata_dir / "datapackage.json",
+        instance_path=data_dir / f"ferc{form}-xbrl-{year}.zip",
+        workers=None,
+        batch_size=2,
     )
 
 
