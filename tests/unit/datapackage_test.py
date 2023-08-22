@@ -1,9 +1,10 @@
 """Test XBRL extraction interface."""
 import logging
 
+import pandas as pd
 import pytest
 
-from ferc_xbrl_extractor.datapackage import Resource
+from ferc_xbrl_extractor.datapackage import Resource, fuzzy_dedup
 from ferc_xbrl_extractor.taxonomy import LinkRole
 
 logger = logging.getLogger(__name__)
@@ -130,3 +131,31 @@ def test_columns_from_concepts(link_role, duration_column_names, instant_column_
     assert instant_columns.get("instant_concept").type_ == "string"
     assert instant_columns.get("child_concept").type_ == "year"
     assert instant_columns.get("concept_bool").type_ == "boolean"
+
+
+def test_fuzzy_dedup():
+    fact_index = ["c_id", "name"]
+    df = pd.DataFrame(
+        [
+            {"c_id": "a", "name": "cost", "value": 1.0},
+            {"c_id": "a", "name": "cost", "value": 1.0000001},
+            {"c_id": "a", "name": "cost", "value": 1.0000002},
+            {"c_id": "a", "name": "job", "value": "accountant"},
+            {"c_id": "b", "name": "cost", "value": 2.0},
+            {"c_id": "b", "name": "job", "value": "Councilor"},
+            {"c_id": "c", "name": "cost", "value": 3.0},
+            {"c_id": "c", "name": "job", "value": "custodian"},
+        ]
+    ).set_index(fact_index)
+    expected = pd.DataFrame(
+        [
+            {"c_id": "a", "name": "cost", "value": 1.0},
+            {"c_id": "a", "name": "job", "value": "accountant"},
+            {"c_id": "b", "name": "cost", "value": 2.0},
+            {"c_id": "b", "name": "job", "value": "Councilor"},
+            {"c_id": "c", "name": "cost", "value": 3.0},
+            {"c_id": "c", "name": "job", "value": "custodian"},
+        ]
+    ).set_index(fact_index)
+
+    pd.testing.assert_frame_equal(fuzzy_dedup(df), expected)

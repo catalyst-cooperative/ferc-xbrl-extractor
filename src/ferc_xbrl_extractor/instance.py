@@ -271,7 +271,7 @@ class Instance:
             )
         ]
         if self.duplicated_fact_ids:
-            self.logger.info(
+            self.logger.debug(
                 f"Duplicated facts in {filing_name}: {self.duplicated_fact_ids}"
             )
         self.used_fact_ids: set[str] = set()
@@ -335,10 +335,7 @@ class InstanceBuilder:
         parser = etree.XMLParser(huge_tree=True)
 
         # Check if instance contains path to file or file data and parse accordingly
-        try:
-            tree = etree.parse(self.file, parser=parser)  # nosec: B320
-        except etree.XMLSyntaxError:
-            return None
+        tree = etree.parse(self.file, parser=parser)  # nosec: B320
         root = tree.getroot()
 
         # Dictionary mapping context ID's to context structures

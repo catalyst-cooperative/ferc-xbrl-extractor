@@ -2,6 +2,7 @@
 import re
 from collections.abc import Callable
 
+import numpy as np
 import pandas as pd
 import pydantic
 import stringcase
@@ -290,14 +291,14 @@ class Resource(BaseModel):
 
     @classmethod
     def from_link_role(
-        cls, fact_table: LinkRole, period_type: str, db_path: str
+        cls, fact_table: LinkRole, period_type: str, db_uri: str
     ) -> "Resource":
         """Generate a Resource from a fact table (defined by a LinkRole).
 
         Args:
             fact_table: Link role which defines a fact table.
             period_type: Period type of table.
-            db_path: Path to database required for a Frictionless resource.
+            db_uri: Path to database required for a Frictionless resource.
         """
         cleaned_name = clean_table_names(fact_table.definition)
 
@@ -307,7 +308,7 @@ class Resource(BaseModel):
         name = f"{cleaned_name}_{period_type}"
 
         return cls(
-            path=db_path,
+            path=db_uri,
             name=name,
             dialect=Dialect(table=name),
             title=f"{fact_table.definition} - {period_type}",
@@ -354,37 +355,34 @@ class FactTable:
         raw_facts = list(
             instance.get_facts(self.instant, self.data_columns, self.schema.primary_key)
         )
+        instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
         if not raw_facts:
             return pd.DataFrame()
 
-        facts = pd.DataFrame(
-            {
-                "c_id": fact.c_id,
-                "name": fact.name,
-                "value": self.columns[fact.name](fact.value),
-            }
-            for fact in raw_facts
+        fact_index = ["c_id", "name"]
+        facts = (
+            pd.DataFrame(
+                {
+                    "c_id": fact.c_id,
+                    "name": fact.name,
+                    "value": self.columns[fact.name](fact.value),
+                }
+                for fact in raw_facts
+            )
+            .drop_duplicates()  # drop exact duplicates, before dropping fuzzy duplicates
+            .set_index(fact_index)
+            .pipe(fuzzy_dedup)["value"]
+            .unstack("name")
         )
 
-        # update which IDs from the instance have been assigned to a table,
-        # so we can track leftover facts.
-        instance.used_fact_ids |= {f.f_id() for f in raw_facts}
-
-        facts_concepts_wide = (
-            facts.drop_duplicates().set_index(["c_id", "name"])["value"].unstack("name")
-        )
-        contexts = facts_concepts_wide.index.to_series().apply(
+        contexts = facts.index.to_series().apply(
             lambda c_id: pd.Series(
                 instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)
             )
         )
 
-        return (
-            contexts.join(facts_concepts_wide)
-            .set_index(self.schema.primary_key)
-            .dropna(how="all")
-        )
+        return contexts.join(facts).set_index(self.schema.primary_key).dropna(how="all")
 
 
 class Datapackage(BaseModel):
@@ -400,34 +398,72 @@ class Datapackage(BaseModel):
 
     @classmethod
     def from_taxonomy(
-        cls, taxonomy: Taxonomy, db_path: str, form_number: int = 1
+        cls, taxonomy: Taxonomy, db_uri: str, form_number: int = 1
     ) -> "Datapackage":
         """Construct a Datapackage from an XBRL Taxonomy.
 
         Args:
             taxonomy: XBRL taxonomy which defines the structure of the database.
-            db_path: Path to database required for a Frictionless resource.
+            db_uri: Path to database required for a Frictionless resource.
             form_number: FERC form number used for datapackage name.
         """
         resources = []
         for role in taxonomy.roles:
             for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type, db_path)
+                resource = Resource.from_link_role(role, period_type, db_uri)
                 if resource:
                     resources.append(resource)
 
         return cls(resources=resources, name=f"ferc{form_number}-extracted-xbrl")
 
-    def get_fact_tables(self, tables: set[str] | None = None) -> dict[str, FactTable]:
+    def get_fact_tables(
+        self, filter_tables: set[str] | None = None
+    ) -> dict[str, FactTable]:
         """Use schema's defined in datapackage resources to construct FactTables.
 
         Args:
-            tables: Optionally specify the set of tables to extract.
+            filter_tables: Optionally specify the set of tables to extract.
                     If None, all possible tables will be extracted.
         """
+        if filter_tables:
+            filtered_resources = {r for r in self.resources if r.name in filter_tables}
+        else:
+            filtered_resources = self.resources
         return {
             resource.name: FactTable(resource.schema_, resource.get_period_type())
-            for resource in self.resources
-            if not tables  # If no tables are provided extract all tables
-            or resource.name in tables  # Otherwise only add tables in requested set
+            for resource in filtered_resources
         }
+
+
+def fuzzy_dedup(df: pd.DataFrame) -> pd.DataFrame:
+    """Deduplicate a 1-column dataframe with floats that are close in value.
+
+    We pull out the duplicated values, group them by index, and then see if
+    the values are "close enough" to each other. If they are, we pull in the
+    first value, and combine all the values together back into one dataframe.
+
+    The relative tolerance is set to 2e-4 because there is one data point in
+    FERC Form 1 in 2021/2022 outside of the `np.isclose()` default 1e-5
+    tolerance:
+
+    For one context, concept `length_for_stand_alone_transmission_lines`
+    has the values of 2655.53 and 2656.0.
+
+    Args:
+        df: the dataframe to be deduplicated.
+    """
+    duplicated = df.index.duplicated(keep=False)
+
+    def resolve_conflict(series: pd.Series) -> pd.Series:
+        typed = series.convert_dtypes()
+        if pd.api.types.is_numeric_dtype(typed):
+            avg = typed.mean()
+            if np.isclose(np.array(list(typed)), avg, rtol=2e-4).all():
+                return typed.iloc[0]
+
+            raise ValueError(
+                f"Fact {':'.join(series.index.values[0])} has values {series.values}"
+            )
+
+    resolved = df[duplicated].groupby(df.index.names).aggregate(resolve_conflict)
+    return pd.concat([df[~duplicated], resolved]).sort_index()

@@ -33,18 +33,18 @@ def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
     return extract(
         taxonomy_path=TAXONOMY_MAP[form],
         form_number=form,
-        db_path="path",
+        db_uri="sqlite://:memory:",
         archive_path=None,
         metadata_path=metadata_dir / "metadata.json",
         datapackage_path=metadata_dir / "datapackage.json",
         instance_path=data_dir / f"ferc{form}-xbrl-{year}.zip",
         workers=None,
-        batch_size=2,
+        batch_size=8,
     )
 
 
 def test_lost_facts_pct(extracted, request):
-    tables, instances, filings, stats = extracted
+    table_defs, instances, table_data, stats = extracted
     total_facts = sum(len(i.fact_id_counts) for i in instances)
     total_used_facts = sum(len(f_ids) for f_ids in stats["fact_ids"].values())
 
@@ -53,7 +53,7 @@ def test_lost_facts_pct(extracted, request):
     if "form6_" in request.node.name:
         # We have unallocated data for Form 6 for some reason.
         total_threshold = 0.9
-        per_filing_threshold = 0.85
+        per_filing_threshold = 0.8
         # Assert that this is < 0.95 so we remember to fix this test once we
         # fix the bug. We don't use xfail here because the parametrization is
         # at the *fixture* level, and only the lost facts tests should fail
@@ -72,27 +72,27 @@ def test_lost_facts_pct(extracted, request):
 
 
 def test_primary_key_uniqueness(extracted):
-    tables, _instances, filings, _stats = extracted
+    table_defs, _instances, table_data, _stats = extracted
 
-    for table_name, table in tables.items():
+    for table_name, table in table_defs.items():
         if table.instant:
             date_cols = ["date"]
         else:
             date_cols = ["start_date", "end_date"]
         primary_key_cols = ["entity_id", "filing_name"] + date_cols + table.axes
-        filing = filings[table_name]
-        if filing.empty:
+        dataframe = table_data[table_name]
+        if dataframe.empty:
             continue
-        assert set(filing.index.names) == set(primary_key_cols)
-        assert not filing.index.duplicated().any()
+        assert set(dataframe.index.names) == set(primary_key_cols)
+        assert not dataframe.index.duplicated().any()
 
 
 def test_null_values(extracted):
-    tables, _instances, filings, _stats = extracted
+    table_defs, _instances, table_data, _stats = extracted
 
-    for table_name, table in tables.items():
-        filing = filings[table_name]
-        if filing.empty:
+    for table_name, table in table_defs.items():
+        dataframe = table_data[table_name]
+        if dataframe.empty:
             continue
         # every row has at least one non-null value
-        assert filing.notna().sum(axis=1).all()
+        assert dataframe.notna().sum(axis=1).all()

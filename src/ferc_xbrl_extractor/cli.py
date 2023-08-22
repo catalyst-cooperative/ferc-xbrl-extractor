@@ -119,8 +119,8 @@ def run_main(
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
-    db_path = f"sqlite:///{sql_path}"
-    engine = create_engine(db_path)
+    db_uri = f"sqlite:///{sql_path}"
+    engine = create_engine(db_uri)
 
     if clobber:
         helpers.drop_tables(engine)
@@ -141,7 +141,7 @@ def run_main(
     extracted = xbrl.extract(
         taxonomy_path=taxonomy,
         form_number=form_number,
-        db_path=db_path,
+        db_uri=db_uri,
         archive_path=archive_path,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
@@ -151,10 +151,10 @@ def run_main(
     )
 
     with engine.begin() as conn:
-        for table_name, filing in extracted.filings.items():
+        for table_name, data in extracted.table_data.items():
             # Loop through tables and write to database
-            if not filing.empty:
-                filing.to_sql(table_name, conn, if_exists="append")
+            if not data.empty:
+                data.to_sql(table_name, conn, if_exists="append")
 
 
 def main():
