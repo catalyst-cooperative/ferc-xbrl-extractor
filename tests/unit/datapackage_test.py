@@ -138,10 +138,11 @@ def test_fuzzy_dedup():
     df = pd.DataFrame(
         [
             {"c_id": "a", "name": "cost", "value": 1.0},
-            {"c_id": "a", "name": "cost", "value": 1.0000001},
-            {"c_id": "a", "name": "cost", "value": 1.0000002},
+            {"c_id": "a", "name": "cost", "value": 1.1},
             {"c_id": "a", "name": "job", "value": "accountant"},
             {"c_id": "b", "name": "cost", "value": 2.0},
+            {"c_id": "b", "name": "cost", "value": 2.1},
+            {"c_id": "b", "name": "cost", "value": 2.15},
             {"c_id": "b", "name": "job", "value": "Councilor"},
             {"c_id": "c", "name": "cost", "value": 3.0},
             {"c_id": "c", "name": "job", "value": "custodian"},
@@ -149,9 +150,9 @@ def test_fuzzy_dedup():
     ).set_index(fact_index)
     expected = pd.DataFrame(
         [
-            {"c_id": "a", "name": "cost", "value": 1.0},
+            {"c_id": "a", "name": "cost", "value": 1.1},
             {"c_id": "a", "name": "job", "value": "accountant"},
-            {"c_id": "b", "name": "cost", "value": 2.0},
+            {"c_id": "b", "name": "cost", "value": 2.15},
             {"c_id": "b", "name": "job", "value": "Councilor"},
             {"c_id": "c", "name": "cost", "value": 3.0},
             {"c_id": "c", "name": "job", "value": "custodian"},

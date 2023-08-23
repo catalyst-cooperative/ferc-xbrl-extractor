@@ -1,8 +1,8 @@
 """Define structures for creating a datapackage descriptor."""
 import re
 from collections.abc import Callable
+from typing import Any
 
-import numpy as np
 import pandas as pd
 import pydantic
 import stringcase
@@ -436,34 +436,30 @@ class Datapackage(BaseModel):
 
 
 def fuzzy_dedup(df: pd.DataFrame) -> pd.DataFrame:
-    """Deduplicate a 1-column dataframe with floats that are close in value.
+    """Deduplicate a 1-column dataframe with numbers that are close in value.
 
-    We pull out the duplicated values, group them by index, and then see if
-    the values are "close enough" to each other. If they are, we pull in the
-    first value, and combine all the values together back into one dataframe.
+    We pick the number with the highest precision, up to a max precision of 6
+    digits after the decimal point.
 
-    The relative tolerance is set to 2e-4 because there is one data point in
-    FERC Form 1 in 2021/2022 outside of the `np.isclose()` default 1e-5
-    tolerance:
-
-    For one context, concept `length_for_stand_alone_transmission_lines`
-    has the values of 2655.53 and 2656.0.
+    If we get passed duplicated str values, or non-numeric values at all, we
+    raise a ValueError - though we can add more code here to handle specific
+    cases if we need to.
 
     Args:
         df: the dataframe to be deduplicated.
     """
     duplicated = df.index.duplicated(keep=False)
 
-    def resolve_conflict(series: pd.Series) -> pd.Series:
+    def resolve_conflict(series: pd.Series, max_precision=6) -> Any:
         typed = series.convert_dtypes()
         if pd.api.types.is_numeric_dtype(typed):
-            avg = typed.mean()
-            if np.isclose(np.array(list(typed)), avg, rtol=2e-4).all():
-                return typed.iloc[0]
-
-            raise ValueError(
-                f"Fact {':'.join(series.index.values[0])} has values {series.values}"
-            )
+            for precision in range(max_precision):
+                at_least_this_precise = typed.round(precision) != typed
+                if len(typed[at_least_this_precise]) == 1:
+                    return typed[at_least_this_precise].iloc[0]
+        raise ValueError(
+            f"Fact {':'.join(series.index.values[0])} has values {series.values}"
+        )
 
     resolved = df[duplicated].groupby(df.index.names).aggregate(resolve_conflict)
     return pd.concat([df[~duplicated], resolved]).sort_index()
