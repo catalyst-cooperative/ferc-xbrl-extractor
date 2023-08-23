@@ -1,5 +1,6 @@
 """Test XBRL instance interface."""
 import logging
+from collections import Counter
 
 import pytest
 
@@ -146,13 +147,12 @@ def test_parse_instance(file_fixture, request):
 def test_all_fact_ids():
     instant_facts = {
         "context_1": [
-            Fact(name="fruit", c_id="context_1", f_id="c1f1_id", value="apple"),
-            Fact(
-                name="caveman_utterance", c_id="context_1", f_id="c1f2_id", value="ooga"
-            ),
+            Fact(name="fruit", c_id="context_1", value="apple"),
+            Fact(name="fruit", c_id="context_1", value="apple"),
+            Fact(name="caveman_utterance", c_id="context_1", value="ooga"),
         ],
         "context_2": [
-            Fact(name="fruit", c_id="context_2", f_id="c2f1_id", value="banana"),
+            Fact(name="fruit", c_id="context_2", value="banana"),
             Fact(
                 name="caveman_utterance",
                 c_id="context_2",
@@ -182,8 +182,11 @@ def test_all_fact_ids():
         filing_name="test_instance",
     )
 
-    assert instance.all_fact_ids == {
-        f"context_{context_num}:{field_name}"
-        for context_num in [1, 2]
-        for field_name in ["fruit", "caveman_utterance"]
-    }
+    assert instance.fact_id_counts == Counter(
+        {
+            "context_1:fruit": 2,
+            "context_1:caveman_utterance": 1,
+            "context_2:fruit": 1,
+            "context_2:caveman_utterance": 1,
+        }
+    )

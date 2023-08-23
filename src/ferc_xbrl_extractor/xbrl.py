@@ -22,7 +22,7 @@ def extract(
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
-) -> dict[str, pd.DataFrame]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, list]]:
     """Extract data from all specified XBRL filings.
 
     Args:

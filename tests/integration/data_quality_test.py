@@ -53,7 +53,7 @@ def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
 
 def test_lost_facts_pct(extracted, request):
     tables, instances, filings, stats = extracted
-    total_facts = sum(len(i.all_fact_ids) for i in instances)
+    total_facts = sum(len(i.fact_id_counts) for i in instances)
     total_used_facts = sum(len(f_ids) for f_ids in stats["fact_ids"].values())
 
     used_fact_ratio = total_used_facts / total_facts
@@ -74,7 +74,7 @@ def test_lost_facts_pct(extracted, request):
 
     for instance in instances:
         instance_used_ratio = len(stats["fact_ids"][instance.filing_name]) / len(
-            instance.all_fact_ids
+            instance.fact_id_counts
         )
         assert instance_used_ratio > per_filing_threshold and instance_used_ratio <= 1
 

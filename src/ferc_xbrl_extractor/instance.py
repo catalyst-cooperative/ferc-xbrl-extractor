@@ -1,7 +1,7 @@
 """Parse a single instance."""
 import io
 import itertools
-from collections import defaultdict
+from collections import Counter, defaultdict
 from enum import Enum, auto
 from typing import BinaryIO
 
@@ -9,6 +9,8 @@ import stringcase
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
+
+from ferc_xbrl_extractor.helpers import get_logger
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
@@ -251,15 +253,25 @@ class Instance:
             duration_facts: Dictionary mapping concept name to list of duration facts.
             filing_name: Name of parsed filing.
         """
-        # This is a nested dictionary of dictionaries to locate facts by context
+        self.logger = get_logger(__name__)
         self.instant_facts = instant_facts
         self.duration_facts = duration_facts
-        self.all_fact_ids = {
+        self.fact_id_counts = Counter(
             f.f_id()
             for f in itertools.chain.from_iterable(
                 (instant_facts | duration_facts).values()
             )
-        }
+        )
+        self.duplicated_fact_ids = [
+            f_id
+            for f_id, _ in itertools.takewhile(
+                lambda c: c[1] >= 2, self.fact_id_counts.most_common()
+            )
+        ]
+        if self.duplicated_fact_ids:
+            self.logger.info(
+                f"Duplicated facts in {filing_name}: {self.duplicated_fact_ids}"
+            )
         self.used_fact_ids: set[str] = set()
 
         self.filing_name = filing_name
