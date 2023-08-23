@@ -154,16 +154,13 @@ def process_batch(
         instances: Iterator of instances.
         table_defs: Dictionary mapping table names to FactTable objects describing table structure.
     """
-    dfs: dict[str, pd.DataFrame] = {}
+    dfs: defaultdict[str, list[pd.DataFrame]] = defaultdict(list)
     fact_ids = {}
     for instance in instances:
         # Convert XBRL instance to dataframes. Log/skip if file is empty
         instance_dfs = process_instance(instance, table_defs)
 
         for key, df in instance_dfs.items():
-            if key not in dfs:
-                dfs[key] = []
-
             dfs[key].append(df)
         fact_ids[instance.filing_name] = instance.used_fact_ids
 

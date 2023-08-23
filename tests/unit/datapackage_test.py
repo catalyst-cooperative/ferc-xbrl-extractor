@@ -160,3 +160,30 @@ def test_fuzzy_dedup():
     ).set_index(fact_index)
 
     pd.testing.assert_frame_equal(fuzzy_dedup(df), expected)
+
+
+def test_fuzzy_dedup_failed_to_resolve():
+    fact_index = ["c_id", "name"]
+    df = pd.DataFrame(
+        [
+            {"c_id": "a", "name": "cost", "value": 1.1},
+            {"c_id": "a", "name": "cost", "value": 1.2},
+            {"c_id": "a", "name": "job", "value": "accountant"},
+        ]
+    ).set_index(fact_index)
+
+    with pytest.raises(ValueError, match=r"Fact a:cost has values.*1.1.*1.2"):
+        fuzzy_dedup(df)
+
+    df = pd.DataFrame(
+        [
+            {"c_id": "a", "name": "cost", "value": 1.1},
+            {"c_id": "a", "name": "job", "value": "accountant"},
+            {"c_id": "a", "name": "job", "value": "pringle"},
+        ]
+    ).set_index(fact_index)
+
+    with pytest.raises(
+        ValueError, match=r"Fact a:job has values.*'accountant'.*'pringle'.*"
+    ):
+        fuzzy_dedup(df)

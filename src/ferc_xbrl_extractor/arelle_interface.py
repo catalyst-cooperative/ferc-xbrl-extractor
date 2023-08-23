@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 def _taxonomy_view(taxonomy_source: str | FileSource.FileSource):
-    """Actually use Arelle to get a taxonomy its relationships."""
+    """Actually use Arelle to get a taxonomy and its relationships."""
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
