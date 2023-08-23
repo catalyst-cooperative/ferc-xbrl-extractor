@@ -1,49 +1,39 @@
 """XBRL extractor."""
 import math
+from collections import defaultdict
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
 
 import numpy as np
 import pandas as pd
-import sqlalchemy as sa
 from frictionless import Package
 from lxml.etree import XMLSyntaxError  # nosec: B410
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
-from ferc_xbrl_extractor.instance import InstanceBuilder
+from ferc_xbrl_extractor.instance import Instance
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 
 def extract(
-    instances: list[InstanceBuilder],
-    engine: sa.engine.Engine,
-    taxonomy: str,
-    form_number: int,
-    archive_file_path: str | None = None,
+    instances: list[Instance],
+    tables: dict[str, FactTable],
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
-    datapackage_path: str | None = None,
-    metadata_path: str | None = None,
-) -> None:
+) -> tuple[dict[str, pd.DataFrame], dict[str, list]]:
     """Extract data from all specified XBRL filings.
 
     Args:
-        instances: A list of InstanceBuilder objects used for parsing XBRL filings.
-        engine: SQLite connection to output database.
-        form_number: FERC Form number (can be 1, 2, 6, 60, 714).
-        taxonomy: Specify taxonomy used to create structure of output DB.
+        instances: A list of Instance objects used for parsing XBRL filings.
+        tables: the full set of tables we can attempt to parse facts into.
         archive_file_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         requested_tables: Optionally specify the set of tables to extract.
                 If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
-        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
-                          If path is None no datapackage descriptor will be saved.
-        metadata_path: Path to metadata json file to output taxonomy metadata.
     """
     logger = get_logger(__name__)
 
@@ -52,16 +42,6 @@ def extract(
         batch_size = num_instances // workers if workers else num_instances
 
     num_batches = math.ceil(num_instances / batch_size)
-
-    tables = get_fact_tables(
-        taxonomy,
-        form_number,
-        str(engine.url),
-        archive_file_path=archive_file_path,
-        tables=requested_tables,
-        datapackage_path=datapackage_path,
-        metadata_path=metadata_path,
-    )
 
     with Executor(max_workers=workers) as executor:
         # Bind arguments generic to all filings
@@ -75,23 +55,24 @@ def extract(
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = executor.map(process_batches, batched_instances)
-
-        # Write extracted data to database
-        for i, batch in enumerate(results):
+        results = {"dfs": defaultdict(list), "fact_ids": defaultdict(set)}
+        for i, batch in enumerate(executor.map(process_batches, batched_instances)):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
+            for key, df in batch["dfs"].items():
+                results["dfs"][key].append(df)
+            for instance_name, fact_ids in batch["fact_ids"].items():
+                results["fact_ids"][instance_name] |= fact_ids
 
-            # Loop through tables and write to database
-            with engine.begin() as conn:
-                for key, df in batch.items():
-                    if not df.empty:
-                        df.to_sql(key, conn, if_exists="append")
+        filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
+        metadata = {"fact_ids": results["fact_ids"]}
+
+        return filings, metadata
 
 
 def process_batch(
-    instances: Iterable[InstanceBuilder],
+    instances: Iterable[Instance],
     tables: dict[str, FactTable],
-) -> dict[str, pd.DataFrame]:
+) -> tuple[dict[str, pd.DataFrame], set[str]]:
     """Extract data from one batch of instances.
 
     Splitting instances into batches significantly improves multiprocessing
@@ -106,8 +87,9 @@ def process_batch(
     logger = get_logger(__name__)
 
     dfs: dict[str, pd.DataFrame] = {}
+    fact_ids = {}
     for instance in instances:
-        # Parse XBRL instance. Log/skip if file is empty
+        # Convert XBRL instance to dataframes. Log/skip if file is empty
         try:
             instance_dfs = process_instance(instance, tables)
         except XMLSyntaxError:
@@ -119,28 +101,28 @@ def process_batch(
                 dfs[key] = []
 
             dfs[key].append(df)
+        fact_ids[instance.filing_name] = instance.used_fact_ids
 
     dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
-    return dfs
+    return {"dfs": dfs, "fact_ids": fact_ids}
 
 
 def process_instance(
-    instance_parser: InstanceBuilder,
+    instance: Instance,
     tables: dict[str, FactTable],
 ) -> dict[str, pd.DataFrame]:
     """Extract data from a single XBRL filing.
 
-    This function will use the InstanceBuilder object to parse
+    This function will use the Instance object to parse
     a single XBRL filing. It then iterates through requested tables
     and populates them with data extracted from the filing.
 
     Args:
-        instance_parser: A single InstanceBuilder object used to parse an XBRL filing.
+        instance: A single Instance object that represents an XBRL filing.
         tables: Dictionary mapping table names to FactTable objects describing table structure.
     """
     logger = get_logger(__name__)
-    instance = instance_parser.parse()
 
     logger.info(f"Extracting {instance.filing_name}")
 

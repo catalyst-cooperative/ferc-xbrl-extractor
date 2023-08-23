@@ -1,7 +1,7 @@
 """Parse a single instance."""
 import io
 import itertools
-from collections import defaultdict
+from collections import Counter, defaultdict
 from enum import Enum, auto
 from typing import BinaryIO
 
@@ -9,6 +9,8 @@ import stringcase
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
+
+from ferc_xbrl_extractor.helpers import get_logger
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
@@ -209,6 +211,20 @@ class Fact(BaseModel):
             value=elem.text,
         )
 
+    # TODO (daz): use computed_field once we upgrade to Pydantic 2.x
+    def f_id(self) -> str:
+        """A unique identifier for the Fact.
+
+        There is an `id` attribute on most fact entries, but there are some
+        facts without an `id` attribute, so we can't use that. Instead we
+        assume that each fact is uniquely identified by its context ID and the
+        concept name.
+
+        NB, this is a function, not a property. This would be a property, but a
+        property is not pickleable within Pydantic 1.x
+        """
+        return f"{self.c_id}:{self.name}"
+
 
 class Instance:
     """Class to encapsulate a parsed instance.
@@ -237,9 +253,27 @@ class Instance:
             duration_facts: Dictionary mapping concept name to list of duration facts.
             filing_name: Name of parsed filing.
         """
-        # This is a nested dictionary of dictionaries to locate facts by context
+        self.logger = get_logger(__name__)
         self.instant_facts = instant_facts
         self.duration_facts = duration_facts
+        self.fact_id_counts = Counter(
+            f.f_id()
+            for f in itertools.chain.from_iterable(
+                (instant_facts | duration_facts).values()
+            )
+        )
+        self.duplicated_fact_ids = [
+            f_id
+            for f_id, _ in itertools.takewhile(
+                lambda c: c[1] >= 2, self.fact_id_counts.most_common()
+            )
+        ]
+        if self.duplicated_fact_ids:
+            self.logger.info(
+                f"Duplicated facts in {filing_name}: {self.duplicated_fact_ids}"
+            )
+        self.used_fact_ids: set[str] = set()
+
         self.filing_name = filing_name
         self.contexts = contexts
 

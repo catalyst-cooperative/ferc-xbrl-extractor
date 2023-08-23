@@ -23,6 +23,15 @@ def pytest_addoption(parser):
         help="Flag to indicate that the tests should use a sandbox.",
     )
 
+    parser.addoption(
+        "--integration-data-dir",
+        action="store",
+        type=Path,
+        default=Path(__file__).parent / "integration" / "data",
+        help="Path to a data directory to use for integration testing. Useful "
+        "for testing on larger samples of data than we ship in the repo.",
+    )
+
 
 @pytest.fixture(scope="session")
 def test_dir():

@@ -1,9 +1,18 @@
 """Test XBRL instance interface."""
 import logging
+from collections import Counter
 
 import pytest
 
-from ferc_xbrl_extractor.instance import Context, DimensionType, InstanceBuilder
+from ferc_xbrl_extractor.instance import (
+    Context,
+    DimensionType,
+    Entity,
+    Fact,
+    Instance,
+    InstanceBuilder,
+    Period,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,3 +142,51 @@ def test_parse_instance(file_fixture, request):
             )
             == 0
         )
+
+
+def test_all_fact_ids():
+    instant_facts = {
+        "context_1": [
+            Fact(name="fruit", c_id="context_1", value="apple"),
+            Fact(name="fruit", c_id="context_1", value="apple"),
+            Fact(name="caveman_utterance", c_id="context_1", value="ooga"),
+        ],
+        "context_2": [
+            Fact(name="fruit", c_id="context_2", value="banana"),
+            Fact(
+                name="caveman_utterance",
+                c_id="context_2",
+                f_id="c2f2_id",
+                value="booga",
+            ),
+        ],
+    }
+
+    contexts = {
+        "context_1": Context(
+            c_id="context_1",
+            entity=Entity(identifier="entity_1", dimensions=[]),
+            period=Period(instant=True, end_date="2023-01-01"),
+        ),
+        "context_2": Context(
+            c_id="context_2",
+            entity=Entity(identifier="entity_2", dimensions=[]),
+            period=Period(instant=True, end_date="2023-01-01"),
+        ),
+    }
+
+    instance = Instance(
+        contexts,
+        instant_facts=instant_facts,
+        duration_facts={},
+        filing_name="test_instance",
+    )
+
+    assert instance.fact_id_counts == Counter(
+        {
+            "context_1:fruit": 2,
+            "context_1:caveman_utterance": 1,
+            "context_2:fruit": 1,
+            "context_2:caveman_utterance": 1,
+        }
+    )

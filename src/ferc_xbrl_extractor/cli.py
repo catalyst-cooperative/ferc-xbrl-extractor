@@ -122,7 +122,7 @@ def get_instances(instance_path: Path) -> list[InstanceBuilder]:
     Args:
         instance_path: Path to one or more XBRL filings.
     """
-    allowable_suffixes = [".xbrl", ".xml"]
+    allowable_suffixes = [".xbrl"]
 
     if not instance_path.exists():
         raise ValueError(
@@ -183,21 +183,31 @@ def main():
         # Get most recent taxonomy for specified form number
         taxonomy = TAXONOMY_MAP[args.form_number]
 
-    instances = get_instances(
-        Path(args.instance_path),
-    )
-
-    xbrl.extract(
-        instances,
-        engine,
-        taxonomy,
-        args.form_number,
+    tables = xbrl.get_fact_tables(
+        taxonomy_path=taxonomy,
+        form_number=args.form_number,
+        db_path=str(engine.url),
         archive_file_path=args.archive_path,
-        batch_size=args.batch_size,
-        workers=args.workers,
         datapackage_path=args.save_datapackage,
         metadata_path=args.metadata_path,
     )
+
+    instances = [
+        i.parse()
+        for i in get_instances(
+            Path(args.instance_path),
+        )
+    ]
+
+    filings, stats = xbrl.extract(
+        instances, tables, workers=args.workers, batch_size=args.batch_size
+    )
+
+    with engine.begin() as conn:
+        for table_name, filing in filings.items():
+            # Loop through tables and write to database
+            if not filing.empty:
+                filing.to_sql(table_name, conn, if_exists="append")
 
 
 if __name__ == "__main__":
