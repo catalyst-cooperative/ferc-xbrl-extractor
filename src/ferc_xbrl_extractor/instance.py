@@ -371,11 +371,14 @@ class InstanceBuilder:
         return Instance(context_dict, instant_facts, duration_facts, self.name)
 
 
-def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
+def instances_from_zip(
+    instance_path: Path, skip_filings: list[str] | None = None
+) -> list[InstanceBuilder]:
     """Get list of instances from specified path to zipfile.
 
     Args:
         instance_path: Path to zipfile containing XBRL filings.
+        skip_filings: Skip filings in list.
     """
     allowable_suffixes = [".xbrl"]
 
@@ -387,23 +390,29 @@ def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
             io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
         )
         for filename in archive.namelist()
-        if Path(filename).suffix in allowable_suffixes
+        if Path(filename).suffix in allowable_suffixes and filename not in skip_filings
     ]
 
 
-def get_instances(instance_path: Path) -> list[InstanceBuilder]:
+def get_instances(
+    instance_path: Path, skip_filings: list[str] | None = None
+) -> list[InstanceBuilder]:
     """Get list of instances from specified path.
 
     Args:
         instance_path: Path to one or more XBRL filings.
+        skip_filings: Skip filings in list.
     """
     allowable_suffixes = [".xbrl"]
+
+    if skip_filings is None:
+        skip_filings = []
 
     if not instance_path.exists():
         raise ValueError(f"Could not find XBRL instances at {instance_path}.")
 
     if instance_path.suffix == ".zip":
-        return instances_from_zip(instance_path)
+        return instances_from_zip(instance_path, skip_filings=skip_filings)
 
     # Single instance
     if instance_path.is_file():
@@ -417,5 +426,5 @@ def get_instances(instance_path: Path) -> list[InstanceBuilder]:
     return [
         InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
         for instance in sorted(instances)
-        if instance.suffix in allowable_suffixes
+        if instance.suffix in allowable_suffixes and instance.name not in skip_filings
     ]

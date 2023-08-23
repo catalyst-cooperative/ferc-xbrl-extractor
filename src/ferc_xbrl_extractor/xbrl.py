@@ -32,6 +32,7 @@ def extract(
     requested_tables: set[str] | None = None,
     workers: int | None = None,
     batch_size: int | None = None,
+    skip_filings: list[str] | None = None,
 ) -> ExtractOutput:
     """Extract fact tables from instance documents as Pandas dataframes.
 
@@ -51,6 +52,7 @@ def extract(
         requested_tables: only attempt to ingest data for these tables.
         workers: max number of workers to use.
         batch_size: max number of instances to parse for each worker.
+        skip_filings: optionally skip filings in list.
     """
     logger = get_logger(__name__)
     table_defs = get_fact_tables(
@@ -63,7 +65,9 @@ def extract(
     )
 
     instances = []
-    for instance_builder in get_instances(Path(instance_path)):
+    for instance_builder in get_instances(
+        Path(instance_path), skip_filings=skip_filings
+    ):
         try:
             instances.append(instance_builder.parse())
         except XMLSyntaxError:
