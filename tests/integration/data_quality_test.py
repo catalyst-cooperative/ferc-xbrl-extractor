@@ -31,10 +31,10 @@ def data_dir(request) -> Path:
 def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
     form, year = request.param
     return extract(
-        taxonomy_path=TAXONOMY_MAP[form],
+        taxonomy_source=TAXONOMY_MAP[form],
         form_number=form,
         db_uri="sqlite://:memory:",
-        archive_path=None,
+        entry_point=None,
         metadata_path=metadata_dir / "metadata.json",
         datapackage_path=metadata_dir / "datapackage.json",
         instance_path=data_dir / f"ferc{form}-xbrl-{year}.zip",

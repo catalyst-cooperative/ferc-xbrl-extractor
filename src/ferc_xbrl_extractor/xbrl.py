@@ -1,4 +1,5 @@
 """XBRL extractor."""
+import io
 import math
 from collections import defaultdict, namedtuple
 from collections.abc import Iterable
@@ -23,10 +24,10 @@ ExtractOutput = namedtuple(
 
 def extract(
     instance_path: Path,
-    taxonomy_path: Path,
+    taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
-    archive_path: Path | None = None,
+    entry_point: Path | None = None,
     datapackage_path: Path | None = None,
     metadata_path: Path | None = None,
     requested_tables: set[str] | None = None,
@@ -38,11 +39,11 @@ def extract(
 
     Args:
         instance_path: where to find instance documents.
-        taxonomy_path: either a URL for a taxonomy, or the path to a ZIP
-            archive that contains taxonomy files.
+        taxonomy_source: either a URL/path to taxonomy or in memory archive of
+            taxonomy.
         form_number: the FERC form number (1, 2, 6, 60, 714).
         db_uri: the location of the database we are writing this form out to.
-        archive_path: if taxonomy_path is a ZIP archive, this is a Path to the
+        entry_point: if taxonomy_path is a ZIP archive, this is a Path to the
             relevant taxonomy file within the archive. Otherwise, this should
             be None.
         datapackage_path: where to write a Frictionless datapackage descriptor
@@ -56,10 +57,10 @@ def extract(
     """
     logger = get_logger(__name__)
     table_defs = get_fact_tables(
-        taxonomy_path=taxonomy_path,
+        taxonomy_source=taxonomy_source,
         form_number=form_number,
         db_uri=db_uri,
-        archive_path=archive_path,
+        entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
     )
@@ -199,10 +200,10 @@ def process_instance(
 
 
 def get_fact_tables(
-    taxonomy_path: str,
+    taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
-    archive_path: str | None = None,
+    entry_point: Path | None = None,
     filter_tables: set[str] | None = None,
     datapackage_path: str | None = None,
     metadata_path: str | None = None,
@@ -234,8 +235,8 @@ def get_fact_tables(
         Dictionary mapping to table names to structure.
     """
     logger = get_logger(__name__)
-    logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, archive_path=archive_path)
+    logger.info(f"Parsing taxonomy from {taxonomy_source}")
+    taxonomy = Taxonomy.from_source(taxonomy_source, entry_point=entry_point)
 
     # Save taxonomy metadata
     taxonomy.save_metadata(metadata_path)

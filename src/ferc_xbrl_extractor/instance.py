@@ -372,7 +372,7 @@ class InstanceBuilder:
 
 
 def instances_from_zip(
-    instance_path: Path, skip_filings: list[str] | None = None
+    instance_path: Path | io.BytesIO, skip_filings: list[str] | None = None
 ) -> list[InstanceBuilder]:
     """Get list of instances from specified path to zipfile.
 
@@ -395,7 +395,7 @@ def instances_from_zip(
 
 
 def get_instances(
-    instance_path: Path, skip_filings: list[str] | None = None
+    instance_path: Path | io.BytesIO, skip_filings: list[str] | None = None
 ) -> list[InstanceBuilder]:
     """Get list of instances from specified path.
 
@@ -407,6 +407,9 @@ def get_instances(
 
     if skip_filings is None:
         skip_filings = []
+
+    if isinstance(instance_path, io.BytesIO):
+        return instances_from_zip(instance_path, skip_filings=skip_filings)
 
     if not instance_path.exists():
         raise ValueError(f"Could not find XBRL instances at {instance_path}.")
