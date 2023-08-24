@@ -1,8 +1,10 @@
 """Parse a single instance."""
 import io
 import itertools
+import zipfile
 from collections import Counter, defaultdict
 from enum import Enum, auto
+from pathlib import Path
 from typing import BinaryIO
 
 import stringcase
@@ -269,7 +271,7 @@ class Instance:
             )
         ]
         if self.duplicated_fact_ids:
-            self.logger.info(
+            self.logger.debug(
                 f"Duplicated facts in {filing_name}: {self.duplicated_fact_ids}"
             )
         self.used_fact_ids: set[str] = set()
@@ -333,13 +335,8 @@ class InstanceBuilder:
         parser = etree.XMLParser(huge_tree=True)
 
         # Check if instance contains path to file or file data and parse accordingly
-        if isinstance(self.file, str):
-            tree = etree.parse(self.file, parser=parser)  # nosec: B320
-            root = tree.getroot()
-        elif isinstance(self.file, io.BytesIO):
-            root = etree.fromstring(self.file.read(), parser=parser)  # nosec: B320
-        else:
-            raise TypeError("Can only parse XBRL from path to file or file like object")
+        tree = etree.parse(self.file, parser=parser)  # nosec: B320
+        root = tree.getroot()
 
         # Dictionary mapping context ID's to context structures
         context_dict = {}
@@ -372,3 +369,53 @@ class InstanceBuilder:
                     duration_facts[new_fact.name].append(new_fact)
 
         return Instance(context_dict, instant_facts, duration_facts, self.name)
+
+
+def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
+    """Get list of instances from specified path to zipfile.
+
+    Args:
+        instance_path: Path to zipfile containing XBRL filings.
+    """
+    allowable_suffixes = [".xbrl"]
+
+    archive = zipfile.ZipFile(instance_path)
+
+    # Read files into in memory buffers to parse
+    return [
+        InstanceBuilder(
+            io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
+        )
+        for filename in archive.namelist()
+        if Path(filename).suffix in allowable_suffixes
+    ]
+
+
+def get_instances(instance_path: Path) -> list[InstanceBuilder]:
+    """Get list of instances from specified path.
+
+    Args:
+        instance_path: Path to one or more XBRL filings.
+    """
+    allowable_suffixes = [".xbrl"]
+
+    if not instance_path.exists():
+        raise ValueError(f"Could not find XBRL instances at {instance_path}.")
+
+    if instance_path.suffix == ".zip":
+        return instances_from_zip(instance_path)
+
+    # Single instance
+    if instance_path.is_file():
+        instances = [instance_path]
+    # Directory of instances
+    else:
+        # Must be either a directory or file
+        assert instance_path.is_dir()  # nosec: B101
+        instances = sorted(instance_path.iterdir())
+
+    return [
+        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
+        for instance in sorted(instances)
+        if instance.suffix in allowable_suffixes
+    ]

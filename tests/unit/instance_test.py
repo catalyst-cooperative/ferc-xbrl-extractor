@@ -12,6 +12,7 @@ from ferc_xbrl_extractor.instance import (
     Instance,
     InstanceBuilder,
     Period,
+    get_instances,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,3 +191,8 @@ def test_all_fact_ids():
             "context_2:caveman_utterance": 1,
         }
     )
+
+
+def test_get_instances_wrong_path(tmp_path):
+    with pytest.raises(ValueError, match="Could not find XBRL instances"):
+        get_instances(tmp_path / "bogus")

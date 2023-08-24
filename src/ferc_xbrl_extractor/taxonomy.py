@@ -230,8 +230,8 @@ class Taxonomy(BaseModel):
     @classmethod
     def from_path(
         cls,
-        path: str,
-        archive_file_path: str | None = None,
+        path: Path,
+        archive_path: Path | None = None,
     ):
         """Construct taxonomy from taxonomy URL.
 
@@ -242,13 +242,13 @@ class Taxonomy(BaseModel):
 
         Args:
             path: URL or local path to taxonomy.
-            archive_file_path: Path to taxonomy entry point within archive. If not None,
+            archive_path: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         """
-        if not archive_file_path:
+        if not archive_path:
             taxonomy, view = load_taxonomy(path)
         else:
-            taxonomy, view = load_taxonomy_from_archive(path, archive_file_path)
+            taxonomy, view = load_taxonomy_from_archive(path, archive_path)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {

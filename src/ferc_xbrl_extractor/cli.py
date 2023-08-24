@@ -1,9 +1,7 @@
 """A command line interface (CLI) to the xbrl extractor."""
 import argparse
-import io
 import logging
 import sys
-import zipfile
 from pathlib import Path
 
 import coloredlogs
@@ -11,7 +9,6 @@ from sqlalchemy import create_engine
 
 from ferc_xbrl_extractor import helpers, xbrl
 from ferc_xbrl_extractor.helpers import get_logger
-from ferc_xbrl_extractor.instance import InstanceBuilder
 
 TAXONOMY_MAP = {
     1: "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd",
@@ -22,7 +19,7 @@ TAXONOMY_MAP = {
 }
 
 
-def parse_main():
+def parse():
     """Process base commands from the CLI."""
     parser = argparse.ArgumentParser(description="Extract data from XBRL filings")
     parser.add_argument(
@@ -34,8 +31,9 @@ def parse_main():
     )
     parser.add_argument(
         "-s",
-        "--save-datapackage",
+        "--datapackage-path",
         default=None,
+        type=Path,
         help="Generate frictionless datapackage descriptor, and write to JSON file at specified path.",
     )
     parser.add_argument(
@@ -76,14 +74,14 @@ def parse_main():
         "-a",
         "--archive-path",
         default=None,
-        type=str,
+        type=Path,
         help="Specify path to taxonomy entry point within a zipfile archive. This is a relative path within the taxonomy. If specified, `taxonomy` must be set to point to the zipfile location on the local file system.",
     )
     parser.add_argument(
         "-m",
         "--metadata-path",
         default=None,
-        type=str,
+        type=Path,
         help="Specify path to output metadata extracted taxonomy. Metadata will not be extracted if no path is specified.",
     )
     parser.add_argument(
@@ -91,123 +89,77 @@ def parse_main():
         help="Set log level (valid arguments include DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         default="INFO",
     )
-    parser.add_argument("--logfile", help="Path to logfile", default=None)
+    parser.add_argument("--logfile", help="Path to logfile", type=Path, default=None)
 
     return parser.parse_args()
 
 
-def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
-    """Get list of instances from specified path to zipfile.
-
-    Args:
-        instance_path: Path to zipfile containing XBRL filings.
-    """
-    allowable_suffixes = [".xbrl"]
-
-    archive = zipfile.ZipFile(instance_path)
-
-    # Read files into in memory buffers to parse
-    return [
-        InstanceBuilder(
-            io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
-        )
-        for filename in archive.namelist()
-        if Path(filename).suffix in allowable_suffixes
-    ]
-
-
-def get_instances(instance_path: Path) -> list[InstanceBuilder]:
-    """Get list of instances from specified path.
-
-    Args:
-        instance_path: Path to one or more XBRL filings.
-    """
-    allowable_suffixes = [".xbrl"]
-
-    if not instance_path.exists():
-        raise ValueError(
-            "Must provide valid path to XBRL instance or directory" "of XBRL instances."
-        )
-
-    if instance_path.suffix == ".zip":
-        return instances_from_zip(instance_path)
-
-    # Single instance
-    if instance_path.is_file():
-        instances = [instance_path]
-    # Directory of instances
-    else:
-        # Must be either a directory or file
-        assert instance_path.is_dir()  # nosec: B101
-        instances = sorted(instance_path.iterdir())
-
-    return [
-        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
-        for instance in sorted(instances)
-        if instance.suffix in allowable_suffixes
-    ]
-
-
-def main():
-    """CLI for extracting data fro XBRL filings."""
-    args = parse_main()
-
+def run_main(
+    instance_path: Path,
+    sql_path: Path,
+    clobber: bool,
+    taxonomy: str | None,
+    archive_path: Path,
+    form_number: int,
+    metadata_path: Path | None,
+    datapackage_path: Path | None,
+    workers: int | None,
+    batch_size: int | None,
+    loglevel: str,
+    logfile: Path | None,
+):
+    """Log setup, taxonomy finding, and SQL IO."""
     logger = get_logger("ferc_xbrl_extractor")
-    logger.setLevel(args.loglevel)
+    logger.setLevel(loglevel)
     log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
-    coloredlogs.install(fmt=log_format, level=args.loglevel, logger=logger)
+    coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
-    if args.logfile:
-        file_logger = logging.FileHandler(args.logfile)
+    if logfile:
+        file_logger = logging.FileHandler(logfile)
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
-    engine = create_engine(f"sqlite:///{args.sql_path}")
+    db_uri = f"sqlite:///{sql_path}"
+    engine = create_engine(db_uri)
 
-    if args.clobber:
+    if clobber:
         helpers.drop_tables(engine)
 
     # Verify taxonomy is set if archive_path is set
-    if args.archive_path and not args.taxonomy:
+    if archive_path and not taxonomy:
         raise ValueError("taxonomy must be set if archive_path is given.")
 
     # Get taxonomy URL
-    if args.taxonomy:
-        taxonomy = args.taxonomy
-    else:
-        if args.form_number not in TAXONOMY_MAP:
+    if taxonomy is None:
+        if form_number not in TAXONOMY_MAP:
             raise ValueError(
-                f"Form number {args.form_number} is not valid. Supported form numbers include {list(TAXONOMY_MAP.keys())}"
+                f"Form number {form_number} is not valid. Supported form numbers include {list(TAXONOMY_MAP.keys())}"
             )
-
         # Get most recent taxonomy for specified form number
-        taxonomy = TAXONOMY_MAP[args.form_number]
+        taxonomy = TAXONOMY_MAP[form_number]
 
-    tables = xbrl.get_fact_tables(
+    extracted = xbrl.extract(
         taxonomy_path=taxonomy,
-        form_number=args.form_number,
-        db_path=str(engine.url),
-        archive_file_path=args.archive_path,
-        datapackage_path=args.save_datapackage,
-        metadata_path=args.metadata_path,
-    )
-
-    instances = [
-        i.parse()
-        for i in get_instances(
-            Path(args.instance_path),
-        )
-    ]
-
-    filings, stats = xbrl.extract(
-        instances, tables, workers=args.workers, batch_size=args.batch_size
+        form_number=form_number,
+        db_uri=db_uri,
+        archive_path=archive_path,
+        datapackage_path=datapackage_path,
+        metadata_path=metadata_path,
+        instance_path=instance_path,
+        workers=workers,
+        batch_size=batch_size,
     )
 
     with engine.begin() as conn:
-        for table_name, filing in filings.items():
+        for table_name, data in extracted.table_data.items():
             # Loop through tables and write to database
-            if not filing.empty:
-                filing.to_sql(table_name, conn, if_exists="append")
+            if not data.empty:
+                data.to_sql(table_name, conn, if_exists="append")
+
+
+def main():
+    """Parse arguments and pass to run_main."""
+    return run_main(**vars(parse()))
 
 
 if __name__ == "__main__":
