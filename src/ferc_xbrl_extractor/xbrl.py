@@ -247,7 +247,9 @@ def get_fact_tables(
         # Verify that datapackage descriptor is valid before outputting
         frictionless_package = Package(descriptor=datapackage.dict(by_alias=True))
         if not frictionless_package.metadata_valid:
-            raise RuntimeError("Generated datapackage is invalid")
+            raise RuntimeError(
+                f"Generated datapackage is invalid - {frictionless_package.metadata_errors}"
+            )
 
         # Write to JSON file
         with open(datapackage_path, "w") as f:
