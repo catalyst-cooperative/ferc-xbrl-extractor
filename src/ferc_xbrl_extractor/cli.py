@@ -26,6 +26,7 @@ def parse():
     parser.add_argument(
         "instance_path",
         help="Path to a single xbrl filing, or a directory of xbrl filings",
+        type=Path,
     )
     parser.add_argument(
         "sql_path", help="Store data in sqlite database specified in argument"

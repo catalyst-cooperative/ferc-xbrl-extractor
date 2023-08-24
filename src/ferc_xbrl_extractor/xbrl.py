@@ -66,9 +66,7 @@ def extract(
     )
 
     instances = []
-    for instance_builder in get_instances(
-        Path(instance_path), skip_filings=skip_filings
-    ):
+    for instance_builder in get_instances(instance_path, skip_filings=skip_filings):
         try:
             instances.append(instance_builder.parse())
         except XMLSyntaxError:
