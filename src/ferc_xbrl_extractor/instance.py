@@ -1,4 +1,5 @@
 """Parse a single instance."""
+import datetime
 import io
 import itertools
 import zipfile
@@ -278,6 +279,16 @@ class Instance:
 
         self.filing_name = filing_name
         self.contexts = contexts
+        if "report_date" in duration_facts:
+            self.report_date = datetime.date.fromisoformat(
+                duration_facts["report_date"][0].value
+            )
+        else:
+            # FERC 714 workaround - though sometimes reports with different
+            # publish dates have the same certifying official date.
+            self.report_date = datetime.date.fromisoformat(
+                duration_facts["certifying_official_date"][0].value
+            )
 
     def get_facts(
         self, instant: bool, concept_names: list[str], primary_key: list[str]

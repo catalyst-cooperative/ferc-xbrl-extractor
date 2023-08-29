@@ -71,7 +71,7 @@ def test_lost_facts_pct(extracted, request):
         assert instance_used_ratio > per_filing_threshold and instance_used_ratio <= 1
 
 
-def test_primary_key_uniqueness(extracted):
+def test_deduplication(extracted):
     table_defs, _instances, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
@@ -79,12 +79,12 @@ def test_primary_key_uniqueness(extracted):
             date_cols = ["date"]
         else:
             date_cols = ["start_date", "end_date"]
-        primary_key_cols = ["entity_id", "filing_name"] + date_cols + table.axes
-        dataframe = table_data[table_name]
-        if dataframe.empty:
+        # we want to make sure that any fact only comes from one filing, so we
+        # don't want to include filing_name in the unique_cols
+        if (df := table_data[table_name]).empty:
             continue
-        assert set(dataframe.index.names) == set(primary_key_cols)
-        assert not dataframe.index.duplicated().any()
+        unique_cols = ["entity_id"] + date_cols + table.axes
+        assert not df.reset_index().duplicated(unique_cols).any()
 
 
 def test_null_values(extracted):

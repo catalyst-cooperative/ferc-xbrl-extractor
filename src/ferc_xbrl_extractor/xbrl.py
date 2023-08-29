@@ -86,6 +86,20 @@ def extract(
     )
 
 
+def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.DataFrame:
+    if df.empty:
+        return df
+    unique_cols = [col for col in primary_key if col != "filing_name"]
+    old_index = df.index.names
+    return (
+        df.reset_index()
+        .groupby(unique_cols)
+        .apply(lambda df: df.sort_values("report_date").ffill().iloc[-1])
+        .drop("report_date", axis="columns")
+        .set_index(old_index)
+    )
+
+
 def table_data_from_instances(
     instances: list[Instance],
     table_defs: dict[str, FactTable],
@@ -136,9 +150,13 @@ def table_data_from_instances(
             for instance_name, fact_ids in batch["fact_ids"].items():
                 results["fact_ids"][instance_name] |= fact_ids
 
-        filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
+        filings = {
+            table: pd.concat(dfs).pipe(
+                _dedupe_newer_report_wins, table_defs[table].schema.primary_key
+            )
+            for table, dfs in results["dfs"].items()
+        }
         metadata = {"fact_ids": results["fact_ids"]}
-
         return filings, metadata
 
 
