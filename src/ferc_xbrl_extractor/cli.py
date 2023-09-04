@@ -92,12 +92,6 @@ def parse():
         default="INFO",
     )
     parser.add_argument("--logfile", help="Path to logfile", type=Path, default=None)
-    parser.add_argument(
-        "--skip-filings",
-        help="List of filings to skip during extraction.",
-        default=None,
-        nargs="*",
-    )
 
     return parser.parse_args()
 
@@ -115,7 +109,6 @@ def run_main(
     batch_size: int | None,
     loglevel: str,
     logfile: Path | None,
-    skip_filings: list[str] | None,
 ):
     """Log setup, taxonomy finding, and SQL IO."""
     logger = get_logger("ferc_xbrl_extractor")
@@ -157,7 +150,6 @@ def run_main(
         instance_path=instance_path,
         workers=workers,
         batch_size=batch_size,
-        skip_filings=skip_filings,
     )
 
     with engine.begin() as conn:
