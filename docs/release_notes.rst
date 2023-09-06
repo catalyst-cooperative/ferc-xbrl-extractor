@@ -2,6 +2,20 @@
 PACKAGE_NAME Release Notes
 =======================================================================================
 
+.. _release-v1-0-0:
+
+---------------------------------------------------------------------------------------
+1.0.0 (2023-09-07)
+---------------------------------------------------------------------------------------
+
+* Match facts that are missing some dimensions to their corresponding fact tables - see
+  `this issue <https://github.com/catalyst-cooperative/pudl/issues/2755>`_.
+* Multiple filings from one entity in a year are now combined as if later ones are
+  updates to earlier ones instead of duplicated.
+* Separate taxonomy archives from data archives, since data refers to taxonomies from a
+  specific year.
+* Update to Pandas 2.0 and loosen dependency pins on ``arelle`` (now ">=2.3,<3")
+
 .. _release-v0-7-0:
 
 ---------------------------------------------------------------------------------------
