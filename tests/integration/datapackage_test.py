@@ -102,6 +102,8 @@ def test_construct_dataframe(table_schema, period, df, in_memory_filing):
 
     fact_table = FactTable(table_schema, period)
 
-    constructed_df = fact_table.construct_dataframe(instance)
+    constructed_df = fact_table.construct_dataframe(instance).drop(
+        "report_date", axis="columns"
+    )
     expected_df = df.set_index(table_schema.primary_key).drop("c_id", axis="columns")
     pd.testing.assert_frame_equal(expected_df, constructed_df)
