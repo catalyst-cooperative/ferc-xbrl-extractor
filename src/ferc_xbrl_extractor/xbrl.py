@@ -85,6 +85,11 @@ def extract(
 
 
 def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.DataFrame:
+    """Collapse all facts for a primary key into one row.
+
+    If a primary key corresponds to multiple rows of data from different
+    filings, treat the newer filings as updates to the older ones.
+    """
     if df.empty:
         return df
     unique_cols = [col for col in primary_key if col != "filing_name"]
