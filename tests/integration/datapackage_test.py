@@ -25,7 +25,7 @@ from ferc_xbrl_extractor.taxonomy import Taxonomy
 )
 def test_datapackage_generation(taxonomy_url):
     """Test that datapackage descriptor is valid."""
-    taxonomy = Taxonomy.from_path(taxonomy_url)
+    taxonomy = Taxonomy.from_source(taxonomy_url)
     datapackage = Datapackage.from_taxonomy(taxonomy, "sqlite:///test_db.sqlite")
     assert Package(descriptor=datapackage.dict(by_alias=True)).metadata_valid
 
@@ -102,6 +102,8 @@ def test_construct_dataframe(table_schema, period, df, in_memory_filing):
 
     fact_table = FactTable(table_schema, period)
 
-    constructed_df = fact_table.construct_dataframe(instance)
+    constructed_df = fact_table.construct_dataframe(instance).drop(
+        "report_date", axis="columns"
+    )
     expected_df = df.set_index(table_schema.primary_key).drop("c_id", axis="columns")
     pd.testing.assert_frame_equal(expected_df, constructed_df)

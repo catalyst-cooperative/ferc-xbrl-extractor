@@ -1,4 +1,5 @@
 """Abstract away interface to Arelle XBRL Library."""
+import io
 from pathlib import Path
 from typing import Literal
 
@@ -34,15 +35,15 @@ def load_taxonomy(path: Path):
     return _taxonomy_view(source)
 
 
-def load_taxonomy_from_archive(filepath: Path, archive_path: Path):
+def load_taxonomy_from_archive(taxonomy_archive: io.BytesIO, entry_point: Path):
     """Load an XBRL taxonomy from a zipfile archive.
 
     Args:
-        filepath: Path to zipfile on disc.
-        archive_path: Relative path to taxonomy entry point within archive.
+        taxonomy_archive: In memory taxonomy archive.
+        entry_point: Relative path to taxonomy entry point within archive.
     """
     file_source = FileSource.openFileSource(
-        str(archive_path), sourceZipStream=str(filepath)
+        str(entry_point), sourceZipStream=taxonomy_archive
     )
     return _taxonomy_view(file_source)
 

@@ -1,4 +1,5 @@
 """Test XBRL instance interface."""
+import datetime
 import logging
 from collections import Counter
 
@@ -147,13 +148,13 @@ def test_parse_instance(file_fixture, request):
 
 def test_all_fact_ids():
     instant_facts = {
-        "context_1": [
+        "fruit": [
             Fact(name="fruit", c_id="context_1", value="apple"),
             Fact(name="fruit", c_id="context_1", value="apple"),
-            Fact(name="caveman_utterance", c_id="context_1", value="ooga"),
-        ],
-        "context_2": [
             Fact(name="fruit", c_id="context_2", value="banana"),
+        ],
+        "caveman_utterance": [
+            Fact(name="caveman_utterance", c_id="context_1", value="ooga"),
             Fact(
                 name="caveman_utterance",
                 c_id="context_2",
@@ -161,6 +162,10 @@ def test_all_fact_ids():
                 value="booga",
             ),
         ],
+    }
+
+    duration_facts = {
+        "report_date": [Fact(name="report_date", c_id="context_1", value="2022-08-12")]
     }
 
     contexts = {
@@ -179,7 +184,7 @@ def test_all_fact_ids():
     instance = Instance(
         contexts,
         instant_facts=instant_facts,
-        duration_facts={},
+        duration_facts=duration_facts,
         filing_name="test_instance",
     )
 
@@ -189,6 +194,7 @@ def test_all_fact_ids():
             "context_1:caveman_utterance": 1,
             "context_2:fruit": 1,
             "context_2:caveman_utterance": 1,
+            "context_1:report_date": 1,
         }
     )
 
@@ -196,3 +202,13 @@ def test_all_fact_ids():
 def test_get_instances_wrong_path(tmp_path):
     with pytest.raises(ValueError, match="Could not find XBRL instances"):
         get_instances(tmp_path / "bogus")
+
+
+def test_instances_with_dates(multi_filings):
+    instance_builders = [
+        InstanceBuilder(f, name=f"instance_{i}") for i, f in enumerate(multi_filings)
+    ]
+    instances = [ib.parse() for ib in instance_builders]
+
+    assert instances[0].report_date == datetime.date(2021, 4, 18)
+    assert instances[1].report_date == datetime.date(2021, 4, 19)

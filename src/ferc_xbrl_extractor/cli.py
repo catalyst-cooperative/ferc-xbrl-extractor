@@ -1,5 +1,6 @@
 """A command line interface (CLI) to the xbrl extractor."""
 import argparse
+import io
 import logging
 import sys
 from pathlib import Path
@@ -25,6 +26,7 @@ def parse():
     parser.add_argument(
         "instance_path",
         help="Path to a single xbrl filing, or a directory of xbrl filings",
+        type=Path,
     )
     parser.add_argument(
         "sql_path", help="Store data in sqlite database specified in argument"
@@ -72,7 +74,7 @@ def parse():
     )
     parser.add_argument(
         "-a",
-        "--archive-path",
+        "--entry-point",
         default=None,
         type=Path,
         help="Specify path to taxonomy entry point within a zipfile archive. This is a relative path within the taxonomy. If specified, `taxonomy` must be set to point to the zipfile location on the local file system.",
@@ -95,12 +97,12 @@ def parse():
 
 
 def run_main(
-    instance_path: Path,
+    instance_path: Path | io.BytesIO,
     sql_path: Path,
     clobber: bool,
-    taxonomy: str | None,
-    archive_path: Path,
-    form_number: int,
+    taxonomy: Path | io.BytesIO | None,
+    entry_point: Path,
+    form_number: int | None,
     metadata_path: Path | None,
     datapackage_path: Path | None,
     workers: int | None,
@@ -126,7 +128,7 @@ def run_main(
         helpers.drop_tables(engine)
 
     # Verify taxonomy is set if archive_path is set
-    if archive_path and not taxonomy:
+    if entry_point and not taxonomy:
         raise ValueError("taxonomy must be set if archive_path is given.")
 
     # Get taxonomy URL
@@ -139,10 +141,10 @@ def run_main(
         taxonomy = TAXONOMY_MAP[form_number]
 
     extracted = xbrl.extract(
-        taxonomy_path=taxonomy,
+        taxonomy_source=taxonomy,
         form_number=form_number,
         db_uri=db_uri,
-        archive_path=archive_path,
+        entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
         instance_path=instance_path,

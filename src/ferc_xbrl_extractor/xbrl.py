@@ -1,4 +1,5 @@
 """XBRL extractor."""
+import io
 import math
 from collections import defaultdict, namedtuple
 from collections.abc import Iterable
@@ -23,10 +24,10 @@ ExtractOutput = namedtuple(
 
 def extract(
     instance_path: Path,
-    taxonomy_path: Path,
+    taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
-    archive_path: Path | None = None,
+    entry_point: Path | None = None,
     datapackage_path: Path | None = None,
     metadata_path: Path | None = None,
     requested_tables: set[str] | None = None,
@@ -37,11 +38,11 @@ def extract(
 
     Args:
         instance_path: where to find instance documents.
-        taxonomy_path: either a URL for a taxonomy, or the path to a ZIP
-            archive that contains taxonomy files.
+        taxonomy_source: either a URL/path to taxonomy or in memory archive of
+            taxonomy.
         form_number: the FERC form number (1, 2, 6, 60, 714).
         db_uri: the location of the database we are writing this form out to.
-        archive_path: if taxonomy_path is a ZIP archive, this is a Path to the
+        entry_point: if taxonomy_path is a ZIP archive, this is a Path to the
             relevant taxonomy file within the archive. Otherwise, this should
             be None.
         datapackage_path: where to write a Frictionless datapackage descriptor
@@ -54,16 +55,16 @@ def extract(
     """
     logger = get_logger(__name__)
     table_defs = get_fact_tables(
-        taxonomy_path=taxonomy_path,
+        taxonomy_source=taxonomy_source,
         form_number=form_number,
         db_uri=db_uri,
-        archive_path=archive_path,
+        entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
     )
 
     instances = []
-    for instance_builder in get_instances(Path(instance_path)):
+    for instance_builder in get_instances(instance_path):
         try:
             instances.append(instance_builder.parse())
         except XMLSyntaxError:
@@ -80,6 +81,25 @@ def extract(
 
     return ExtractOutput(
         table_defs=table_defs, instances=instances, table_data=table_data, stats=stats
+    )
+
+
+def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.DataFrame:
+    """Collapse all facts for a primary key into one row.
+
+    If a primary key corresponds to multiple rows of data from different
+    filings, treat the newer filings as updates to the older ones.
+    """
+    if df.empty:
+        return df
+    unique_cols = [col for col in primary_key if col != "filing_name"]
+    old_index = df.index.names
+    return (
+        df.reset_index()
+        .groupby(unique_cols)
+        .apply(lambda df: df.sort_values("report_date").ffill().iloc[-1])
+        .drop("report_date", axis="columns")
+        .set_index(old_index)
     )
 
 
@@ -133,9 +153,13 @@ def table_data_from_instances(
             for instance_name, fact_ids in batch["fact_ids"].items():
                 results["fact_ids"][instance_name] |= fact_ids
 
-        filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
+        filings = {
+            table: pd.concat(dfs).pipe(
+                _dedupe_newer_report_wins, table_defs[table].schema.primary_key
+            )
+            for table, dfs in results["dfs"].items()
+        }
         metadata = {"fact_ids": results["fact_ids"]}
-
         return filings, metadata
 
 
@@ -195,10 +219,10 @@ def process_instance(
 
 
 def get_fact_tables(
-    taxonomy_path: str,
+    taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
-    archive_path: str | None = None,
+    entry_point: Path | None = None,
     filter_tables: set[str] | None = None,
     datapackage_path: str | None = None,
     metadata_path: str | None = None,
@@ -230,8 +254,8 @@ def get_fact_tables(
         Dictionary mapping to table names to structure.
     """
     logger = get_logger(__name__)
-    logger.info(f"Parsing taxonomy from {taxonomy_path}")
-    taxonomy = Taxonomy.from_path(taxonomy_path, archive_path=archive_path)
+    logger.info(f"Parsing taxonomy from {taxonomy_source}")
+    taxonomy = Taxonomy.from_source(taxonomy_source, entry_point=entry_point)
 
     # Save taxonomy metadata
     taxonomy.save_metadata(metadata_path)
@@ -242,7 +266,9 @@ def get_fact_tables(
         # Verify that datapackage descriptor is valid before outputting
         frictionless_package = Package(descriptor=datapackage.dict(by_alias=True))
         if not frictionless_package.metadata_valid:
-            raise RuntimeError("Generated datapackage is invalid")
+            raise RuntimeError(
+                f"Generated datapackage is invalid - {frictionless_package.metadata_errors}"
+            )
 
         # Write to JSON file
         with open(datapackage_path, "w") as f:

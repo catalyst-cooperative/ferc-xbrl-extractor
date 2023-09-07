@@ -376,6 +376,8 @@ class FactTable:
             .unstack("name")
         )
 
+        facts["report_date"] = instance.report_date
+
         contexts = facts.index.to_series().apply(
             lambda c_id: pd.Series(
                 instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)

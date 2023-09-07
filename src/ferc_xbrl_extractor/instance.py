@@ -1,4 +1,5 @@
 """Parse a single instance."""
+import datetime
 import io
 import itertools
 import zipfile
@@ -278,6 +279,16 @@ class Instance:
 
         self.filing_name = filing_name
         self.contexts = contexts
+        if "report_date" in duration_facts:
+            self.report_date = datetime.date.fromisoformat(
+                duration_facts["report_date"][0].value
+            )
+        else:
+            # FERC 714 workaround - though sometimes reports with different
+            # publish dates have the same certifying official date.
+            self.report_date = datetime.date.fromisoformat(
+                duration_facts["certifying_official_date"][0].value
+            )
 
     def get_facts(
         self, instant: bool, concept_names: list[str], primary_key: list[str]
@@ -371,7 +382,7 @@ class InstanceBuilder:
         return Instance(context_dict, instant_facts, duration_facts, self.name)
 
 
-def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
+def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
     """Get list of instances from specified path to zipfile.
 
     Args:
@@ -391,13 +402,16 @@ def instances_from_zip(instance_path: Path) -> list[InstanceBuilder]:
     ]
 
 
-def get_instances(instance_path: Path) -> list[InstanceBuilder]:
+def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
     """Get list of instances from specified path.
 
     Args:
         instance_path: Path to one or more XBRL filings.
     """
     allowable_suffixes = [".xbrl"]
+
+    if isinstance(instance_path, io.BytesIO):
+        return instances_from_zip(instance_path)
 
     if not instance_path.exists():
         raise ValueError(f"Could not find XBRL instances at {instance_path}.")
