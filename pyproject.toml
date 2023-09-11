@@ -54,7 +54,7 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 [project.optional-dependencies]
 dev = [
     "black>=22.0,<23.8",  # A deterministic code formatter
-    "build>=0.10,<0.11",
+    "build>=0.10,<1.1",
     "isort>=5.0,<5.13",  # Standardized import sorting
     "tox>=4.0,<4.12",  # Python test environment manager
     "twine>=3.3,<4.1",  # Used to make releases to PyPI
