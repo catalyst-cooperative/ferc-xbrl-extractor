@@ -163,7 +163,7 @@ batches of 50 filings at a time.
         --batch-size 50
 
 There are also several options included for extracting metadata from the taxonomy.
-First is the ``--save-datapackage`` command to save a
+First is the ``--datapackage-path`` command to save a
 `frictionless datapackage <https://specs.frictionlessdata.io/data-package/>`__
 descriptor as JSON, which annotates the generated SQLite database. There is also the
 ``--metadata-path`` option, which writes more extensive taxonomy metadata to a json
@@ -177,4 +177,4 @@ filings and taxonomy, run the following command.
         --taxonomy examples/taxonomy.zip \
         --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd \
         --metadata-path metadata.json \
-        --save-datapackage datapackage.json
+        --datapackage-path datapackage.json

@@ -1,4 +1,6 @@
 """Abstract away interface to Arelle XBRL Library."""
+import io
+from pathlib import Path
 from typing import Literal
 
 import pydantic
@@ -9,44 +11,41 @@ from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 from pydantic import BaseModel
 
 
-def load_xbrl(path: str | FileSource.FileSource):
-    """Load XBRL (either taxonomy or individual filing).
-
-    Args:
-        path: URL or local path pointing to an XBRL taxonomy or instance.
-    """
+def _taxonomy_view(taxonomy_source: str | FileSource.FileSource):
+    """Actually use Arelle to get a taxonomy and its relationships."""
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
-    return ModelXbrl.load(model_manager, path)
+    taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
 
-
-def load_taxonomy(path: str | FileSource.FileSource):
-    """Load XBRL taxonomy, and parse relationships.
-
-    Args:
-        path: URL or local path pointing to an XBRL taxonomy.
-    """
-    taxonomy = load_xbrl(path)
-
-    # Interpret structure/relationships
     view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
     view.view(XbrlConst.parentChild, None, None, None)
 
     return taxonomy, view
 
 
-def load_taxonomy_from_archive(filepath: str, archive_path: str):
+def load_taxonomy(path: Path):
+    """Load XBRL taxonomy, and parse relationships.
+
+    Args:
+        path: URL or local path pointing to an XBRL taxonomy.
+    """
+    # arelle only works with `str`, not `Path` - as of version 2.12.2
+    source = str(path)
+    return _taxonomy_view(source)
+
+
+def load_taxonomy_from_archive(taxonomy_archive: io.BytesIO, entry_point: Path):
     """Load an XBRL taxonomy from a zipfile archive.
 
     Args:
-        filepath: Path to zipfile on disc.
-        archive_path: Relative path to taxonomy entry point within archive.
+        taxonomy_archive: In memory taxonomy archive.
+        entry_point: Relative path to taxonomy entry point within archive.
     """
-    # Create arelle FileSource object
-    f = FileSource.openFileSource(archive_path, sourceZipStream=filepath)
-
-    return load_taxonomy(f)
+    file_source = FileSource.openFileSource(
+        str(entry_point), sourceZipStream=taxonomy_archive
+    )
+    return _taxonomy_view(file_source)
 
 
 class References(BaseModel):

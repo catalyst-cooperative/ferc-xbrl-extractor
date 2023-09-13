@@ -1,4 +1,5 @@
 """XBRL prototype structures."""
+import io
 import json
 from pathlib import Path
 from typing import Any, Literal
@@ -80,7 +81,7 @@ class Concept(BaseModel):
     type_: XBRLType = pydantic.Field(alias="type")
     period_type: Literal["duration", "instant"]
     child_concepts: "list[Concept]"
-    metadata: Metadata | None
+    metadata: Metadata | None = None
 
     @classmethod
     def from_list(cls, concept_list: list, concept_dict: ConceptDict) -> "Concept":
@@ -228,10 +229,10 @@ class Taxonomy(BaseModel):
     roles: list[LinkRole]
 
     @classmethod
-    def from_path(
+    def from_source(
         cls,
-        path: str,
-        archive_file_path: str | None = None,
+        taxonomy_source: Path | io.BytesIO,
+        entry_point: Path | None = None,
     ):
         """Construct taxonomy from taxonomy URL.
 
@@ -241,14 +242,17 @@ class Taxonomy(BaseModel):
         instantiated and used instead.
 
         Args:
-            path: URL or local path to taxonomy.
-            archive_file_path: Path to taxonomy entry point within archive. If not None,
+            taxonomy_source: Path to taxonomy or in memory archive of taxonomy.
+            entry_point: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         """
-        if not archive_file_path:
-            taxonomy, view = load_taxonomy(path)
+        if not entry_point:
+            taxonomy, view = load_taxonomy(taxonomy_source)
         else:
-            taxonomy, view = load_taxonomy_from_archive(path, archive_file_path)
+            if isinstance(taxonomy_source, Path):
+                taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
+
+            taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {

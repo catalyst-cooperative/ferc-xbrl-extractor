@@ -1,6 +1,7 @@
 """Define structures for creating a datapackage descriptor."""
 import re
 from collections.abc import Callable
+from typing import Any
 
 import pandas as pd
 import pydantic
@@ -290,14 +291,14 @@ class Resource(BaseModel):
 
     @classmethod
     def from_link_role(
-        cls, fact_table: LinkRole, period_type: str, db_path: str
+        cls, fact_table: LinkRole, period_type: str, db_uri: str
     ) -> "Resource":
         """Generate a Resource from a fact table (defined by a LinkRole).
 
         Args:
             fact_table: Link role which defines a fact table.
             period_type: Period type of table.
-            db_path: Path to database required for a Frictionless resource.
+            db_uri: Path to database required for a Frictionless resource.
         """
         cleaned_name = clean_table_names(fact_table.definition)
 
@@ -307,7 +308,7 @@ class Resource(BaseModel):
         name = f"{cleaned_name}_{period_type}"
 
         return cls(
-            path=db_path,
+            path=db_uri,
             name=name,
             dialect=Dialect(table=name),
             title=f"{fact_table.definition} - {period_type}",
@@ -337,6 +338,11 @@ class FactTable:
             field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
         }
         self.axes = [name for name in schema.primary_key if name.endswith("axis")]
+        self.data_columns = [
+            field.name
+            for field in schema.fields
+            if field.name not in schema.primary_key
+        ]
         self.instant = period_type == "instant"
         self.logger = get_logger(__name__)
 
@@ -346,44 +352,39 @@ class FactTable:
         Args:
             instance: Parsed XBRL instance used to construct dataframe.
         """
-        # Filter contexts to only those relevant to table
-        contexts = instance.get_facts(self.instant, self.axes)
+        raw_facts = list(
+            instance.get_facts(self.instant, self.data_columns, self.schema.primary_key)
+        )
+        instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
-        # Get the maximum number of rows that could be in table and allocate space
-        max_len = len(contexts)
+        if not raw_facts:
+            return pd.DataFrame()
 
-        # Allocate space for columns
-        df = {
-            field.name: pd.Series([pd.NA] * max_len, dtype=FIELD_TO_PANDAS[field.type_])
-            for field in self.schema.fields
-        }
+        fact_index = ["c_id", "name"]
+        facts = (
+            pd.DataFrame(
+                {
+                    "c_id": fact.c_id,
+                    "name": fact.name,
+                    "value": self.columns[fact.name](fact.value),
+                }
+                for fact in raw_facts
+            )
+            .drop_duplicates()  # drop exact duplicates, before dropping fuzzy duplicates
+            .set_index(fact_index)
+            .pipe(fuzzy_dedup)["value"]
+            .unstack("name")
+        )
 
-        # Loop through contexts and get facts in each context
-        # Each context corresponds to one unique row
-        for i, (context, facts) in enumerate(contexts.items()):
-            if self.instant != context.period.instant:
-                continue
+        facts["report_date"] = instance.report_date
 
-            # Construct dictionary to represent row which corresponds to current context
-            row = {fact.name: fact.value for fact in facts if fact.name in df}
+        contexts = facts.index.to_series().apply(
+            lambda c_id: pd.Series(
+                instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)
+            )
+        )
 
-            # If row is empty skip
-            if row:
-                # Use context to create primary key for row and add to dictionary
-                row.update(context.as_primary_key(instance.filing_name))
-
-                # Loop through each field in row and add to appropriate column
-                for key, val in row.items():
-                    # Try to parse value from XBRL if not possible it will remain NA
-                    try:
-                        df[key][i] = self.columns[key](val)
-                    except ValueError:
-                        self.logger.warning(
-                            f"Could not parse {val} as {self.columns[key]} in column {key}"
-                        )
-
-        # Create dataframe and drop empty rows
-        return pd.DataFrame(df).dropna(how="all")
+        return contexts.join(facts).set_index(self.schema.primary_key).dropna(how="all")
 
 
 class Datapackage(BaseModel):
@@ -399,34 +400,68 @@ class Datapackage(BaseModel):
 
     @classmethod
     def from_taxonomy(
-        cls, taxonomy: Taxonomy, db_path: str, form_number: int = 1
+        cls, taxonomy: Taxonomy, db_uri: str, form_number: int = 1
     ) -> "Datapackage":
         """Construct a Datapackage from an XBRL Taxonomy.
 
         Args:
             taxonomy: XBRL taxonomy which defines the structure of the database.
-            db_path: Path to database required for a Frictionless resource.
+            db_uri: Path to database required for a Frictionless resource.
             form_number: FERC form number used for datapackage name.
         """
         resources = []
         for role in taxonomy.roles:
             for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type, db_path)
+                resource = Resource.from_link_role(role, period_type, db_uri)
                 if resource:
                     resources.append(resource)
 
         return cls(resources=resources, name=f"ferc{form_number}-extracted-xbrl")
 
-    def get_fact_tables(self, tables: set[str] | None = None) -> dict[str, FactTable]:
+    def get_fact_tables(
+        self, filter_tables: set[str] | None = None
+    ) -> dict[str, FactTable]:
         """Use schema's defined in datapackage resources to construct FactTables.
 
         Args:
-            tables: Optionally specify the set of tables to extract.
+            filter_tables: Optionally specify the set of tables to extract.
                     If None, all possible tables will be extracted.
         """
+        if filter_tables:
+            filtered_resources = {r for r in self.resources if r.name in filter_tables}
+        else:
+            filtered_resources = self.resources
         return {
             resource.name: FactTable(resource.schema_, resource.get_period_type())
-            for resource in self.resources
-            if not tables  # If no tables are provided extract all tables
-            or resource.name in tables  # Otherwise only add tables in requested set
+            for resource in filtered_resources
         }
+
+
+def fuzzy_dedup(df: pd.DataFrame) -> pd.DataFrame:
+    """Deduplicate a 1-column dataframe with numbers that are close in value.
+
+    We pick the number with the highest precision, up to a max precision of 6
+    digits after the decimal point.
+
+    If we get passed duplicated str values, or non-numeric values at all, we
+    raise a ValueError - though we can add more code here to handle specific
+    cases if we need to.
+
+    Args:
+        df: the dataframe to be deduplicated.
+    """
+    duplicated = df.index.duplicated(keep=False)
+
+    def resolve_conflict(series: pd.Series, max_precision=6) -> Any:
+        typed = series.convert_dtypes()
+        if pd.api.types.is_numeric_dtype(typed):
+            for precision in range(max_precision):
+                at_least_this_precise = typed.round(precision) != typed
+                if len(typed[at_least_this_precise]) == 1:
+                    return typed[at_least_this_precise].iloc[0]
+        raise ValueError(
+            f"Fact {':'.join(series.index.values[0])} has values {series.values}"
+        )
+
+    resolved = df[duplicated].groupby(df.index.names).aggregate(resolve_conflict)
+    return pd.concat([df[~duplicated], resolved]).sort_index()

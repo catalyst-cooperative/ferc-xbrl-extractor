@@ -1,13 +1,14 @@
 """Test the PUDL console scripts from within PyTest."""
 
-import pkg_resources
+from importlib.metadata import entry_points
+
 import pytest
 
 # Obtain a list of all deployed entry point scripts to test:
 ENTRY_POINTS = [
     ep.name
-    for ep in pkg_resources.iter_entry_points("console_scripts")
-    if ep.module_name.startswith("xbrl_extract")
+    for ep in entry_points(group="console_scripts")
+    if ep.name.startswith("xbrl_extract")
 ]
 
 
@@ -23,25 +24,93 @@ def test_extractor_scripts(script_runner, ep):
 
 
 @pytest.mark.script_launch_mode("inprocess")
-def test_extract_example_filings(script_runner):
+def test_extract_example_filings(script_runner, tmp_path, test_dir):
     """Test the XBRL extraction on the example filings.
 
     Run the example CLI command from the readme, that will perform an extraction
     with the example filings and taxonomy in the ``examples/`` directory, and verify
     that it returns successfully.
     """
+    out_db = tmp_path / "ferc1-2021-sample.sqlite"
+    metadata = tmp_path / "metadata.json"
+    datapackage = tmp_path / "datapackage.json"
+    log_file = tmp_path / "log.log"
+    data_dir = test_dir / "integration" / "data"
+
     ret = script_runner.run(
         "xbrl_extract",
-        "examples/ferc1-2021-sample.zip",
-        "./ferc1-2021-sample.sqlite",
+        str(data_dir / "ferc1-xbrl-2021.zip"),
+        str(out_db),
         "--taxonomy",
-        "examples/taxonomy.zip",
-        "--archive-path",
+        str(data_dir / "taxonomy.zip"),
+        "--entry-point",
         "taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd",
         "--metadata-path",
-        "metadata.json",
-        "--save-datapackage",
-        "datapackage.json",
+        str(metadata),
+        "--datapackage-path",
+        str(datapackage),
+        "--logfile",
+        str(log_file),
     )
 
     assert ret.success
+
+
+@pytest.mark.script_launch_mode("inprocess")
+def test_extract_example_filings_no_explicit_taxonomy(
+    script_runner, tmp_path, test_dir
+):
+    """Test the XBRL extraction on the example filings.
+
+    Same as above, but should look up the taxonomy using the TAXONOMY_MAP.
+
+    """
+    out_db = tmp_path / "ferc1-2021-sample.sqlite"
+    metadata = tmp_path / "metadata.json"
+    datapackage = tmp_path / "datapackage.json"
+    log_file = tmp_path / "log.log"
+    data_dir = test_dir / "integration" / "data"
+
+    ret = script_runner.run(
+        "xbrl_extract",
+        str(data_dir / "ferc1-xbrl-2021.zip"),
+        str(out_db),
+        "--metadata-path",
+        str(metadata),
+        "--datapackage-path",
+        str(datapackage),
+        "--logfile",
+        str(log_file),
+    )
+
+    assert ret.success
+
+
+@pytest.mark.script_launch_mode("inprocess")
+def test_extract_example_filings_bad_form(script_runner, tmp_path, test_dir):
+    """Test the XBRL extraction on the example filings.
+
+    Should fail, because of a nonexistent form number.
+
+    """
+    out_db = tmp_path / "ferc1-2021-sample.sqlite"
+    metadata = tmp_path / "metadata.json"
+    datapackage = tmp_path / "datapackage.json"
+    log_file = tmp_path / "log.log"
+    data_dir = test_dir / "integration" / "data"
+
+    ret = script_runner.run(
+        "xbrl_extract",
+        str(data_dir / "ferc1-xbrl-2021.zip"),
+        str(out_db),
+        "--form-number",
+        "666",
+        "--metadata-path",
+        str(metadata),
+        "--datapackage-path",
+        str(datapackage),
+        "--logfile",
+        str(log_file),
+    )
+
+    assert not ret.success

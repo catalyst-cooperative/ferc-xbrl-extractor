@@ -1,12 +1,19 @@
 """Parse a single instance."""
+import datetime
 import io
+import itertools
+import zipfile
+from collections import Counter, defaultdict
 from enum import Enum, auto
+from pathlib import Path
 from typing import BinaryIO
 
 import stringcase
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, validator
+
+from ferc_xbrl_extractor.helpers import get_logger
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 
@@ -20,7 +27,7 @@ class Period(BaseModel):
     """
 
     instant: bool
-    start_date: str | None
+    start_date: str | None = None
     end_date: str
 
     @classmethod
@@ -111,13 +118,10 @@ class Entity(BaseModel):
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
-    def check_dimensions(self, axes: list[str]) -> bool:
-        """Verify that fact and Entity have equivalent dimensions."""
-        if len(self.dimensions) != len(axes):
-            return False
-
+    def check_dimensions(self, primary_key: list[str]) -> bool:
+        """Check if Context has extra axes not defined in primary key."""
         for dim in self.dimensions:
-            if dim.name not in axes:
+            if stringcase.snakecase(dim.name) not in primary_key:
                 return False
         return True
 
@@ -145,21 +149,26 @@ class Context(BaseModel):
             }
         )
 
-    def check_dimensions(self, axes: list[str]) -> bool:
-        """Helper function to check if a context falls within axes.
+    def check_dimensions(self, primary_key: list[str]) -> bool:
+        """Check if Context has extra axes not defined in primary key.
+
+        Facts missing axes from primary key can be treated as totals
+        across that axis, but facts with extra axes would not fit in
+        table.
 
         Args:
-            axes: List of axes to verify against.
+            primary_key: Primary key of table.
         """
-        return self.entity.check_dimensions(axes)
+        return self.entity.check_dimensions(primary_key)
 
-    def as_primary_key(self, filing_name: str) -> dict[str, str]:
+    def as_primary_key(self, filing_name: str, axes: list[str]) -> dict[str, str]:
         """Return a dictionary that represents the context as composite primary key."""
         # Create dictionary mapping axis (column) name to value
         axes_dict = {
             stringcase.snakecase(axis.name): axis.value
             for axis in self.entity.dimensions
         }
+        axes_dict |= {axis: "total" for axis in axes if axis not in axes_dict}
 
         # Get date based on period type
         if self.period.instant:
@@ -205,27 +214,19 @@ class Fact(BaseModel):
             value=elem.text,
         )
 
+    # TODO (daz): use computed_field once we upgrade to Pydantic 2.x
+    def f_id(self) -> str:
+        """A unique identifier for the Fact.
 
-FactDict = dict[tuple, dict[Context, list[Fact]]]
-"""Dictionary to manage lookup of facts.
+        There is an `id` attribute on most fact entries, but there are some
+        facts without an `id` attribute, so we can't use that. Instead we
+        assume that each fact is uniquely identified by its context ID and the
+        concept name.
 
-Contexts provide background information necessary to interpret/identify XBRL
-facts. All contexts contain the time period, and entity that the fact pertains
-to. Contexts can also contain any number of other axes to further identify facts,
-which are defined in the taxonomy. All facts in a single fact table will contain
-the same set of axes, which is very useful when parsing an XBRL filing and
-converting fact tables into SQL tables.
-
-This class implements a mapping of Axes -> Contexts -> Facts. When constructing
-a table, first we will filter to only the set of facts that have the proper set
-of axes for that table. This does not necessarily mean that each fact in that
-set belongs in the table, but we can check that the name of the fact matches one
-of the column names in the table. By returning this set of facts as a map
-between facts and their contexts, it becomes much easier to construct rows in
-the table. This is because the primary key for each table is made up from the
-fields in the context, so every fact that is identified by the same context, will
-be in the same row in the table.
-"""
+        NB, this is a function, not a property. This would be a property, but a
+        property is not pickleable within Pydantic 1.x
+        """
+        return f"{self.c_id}:{self.name}"
 
 
 class Instance:
@@ -239,7 +240,8 @@ class Instance:
     def __init__(
         self,
         contexts: dict[str, Context],
-        facts: dict[str, list[Fact]],
+        instant_facts: dict[str, list[Fact]],
+        duration_facts: dict[str, list[Fact]],
         filing_name: str,
     ):
         """Construct Instance from parsed contexts and facts.
@@ -250,45 +252,67 @@ class Instance:
 
         Args:
             contexts: Dictionary mapping context ID to contexts.
-            facts: Dictionary mapping context ID to facts.
+            instant_facts: Dictionary mapping concept name to list of instant facts.
+            duration_facts: Dictionary mapping concept name to list of duration facts.
             filing_name: Name of parsed filing.
         """
-        # This is a nested dictionary of dictionaries to locate facts by context
-        self.instant_facts: FactDict = {}
-        self.duration_facts: FactDict = {}
+        self.logger = get_logger(__name__)
+        self.instant_facts = instant_facts
+        self.duration_facts = duration_facts
+        self.fact_id_counts = Counter(
+            f.f_id()
+            for f in itertools.chain.from_iterable(
+                (instant_facts | duration_facts).values()
+            )
+        )
+        self.duplicated_fact_ids = [
+            f_id
+            for f_id, _ in itertools.takewhile(
+                lambda c: c[1] >= 2, self.fact_id_counts.most_common()
+            )
+        ]
+        if self.duplicated_fact_ids:
+            self.logger.debug(
+                f"Duplicated facts in {filing_name}: {self.duplicated_fact_ids}"
+            )
+        self.used_fact_ids: set[str] = set()
 
         self.filing_name = filing_name
-
-        for c_id, context in contexts.items():
-            axes = tuple(
-                sorted(
-                    stringcase.snakecase(dim.name) for dim in context.entity.dimensions
-                )
+        self.contexts = contexts
+        if "report_date" in duration_facts:
+            self.report_date = datetime.date.fromisoformat(
+                duration_facts["report_date"][0].value
             )
-            if context.period.instant:
-                if axes not in self.instant_facts:
-                    self.instant_facts[axes] = {}
+        else:
+            # FERC 714 workaround - though sometimes reports with different
+            # publish dates have the same certifying official date.
+            self.report_date = datetime.date.fromisoformat(
+                duration_facts["certifying_official_date"][0].value
+            )
 
-                self.instant_facts[axes][context] = facts[c_id]
-            else:
-                if axes not in self.duration_facts:
-                    self.duration_facts[axes] = {}
-
-                self.duration_facts[axes][context] = facts[c_id]
-
-    def get_facts(self, instant: bool, axes: list[str]) -> dict[Context, list[Fact]]:
-        """Return a dictionary that maps Contexts to a list of facts for each context.
+    def get_facts(
+        self, instant: bool, concept_names: list[str], primary_key: list[str]
+    ) -> dict[str, list[Fact]]:
+        """Return a dictionary that maps Context ID's to a list of facts for each context.
 
         Args:
             instant: Get facts with instant or duration period.
-            axes: List of axis names defined for fact table.
+            concept_names: Name of concepts which map to a column name and name of facts.
+            primary_key: Name of columns in primary_key used to filter facts.
         """
         if instant:
-            facts = self.instant_facts.get(tuple(sorted(axes)), {})
+            period_fact_dict = self.instant_facts
         else:
-            facts = self.duration_facts.get(tuple(sorted(axes)), {})
+            period_fact_dict = self.duration_facts
 
-        return facts
+        all_facts_for_concepts = itertools.chain.from_iterable(
+            period_fact_dict[concept_name] for concept_name in concept_names
+        )
+        return (
+            fact
+            for fact in all_facts_for_concepts
+            if self.contexts[fact.c_id].check_dimensions(primary_key)
+        )
 
 
 class InstanceBuilder:
@@ -322,20 +346,16 @@ class InstanceBuilder:
         parser = etree.XMLParser(huge_tree=True)
 
         # Check if instance contains path to file or file data and parse accordingly
-        if isinstance(self.file, str):
-            tree = etree.parse(self.file, parser=parser)  # nosec: B320
-            root = tree.getroot()
-        elif isinstance(self.file, io.BytesIO):
-            root = etree.fromstring(self.file.read(), parser=parser)  # nosec: B320
-        else:
-            raise TypeError("Can only parse XBRL from path to file or file like object")
+        tree = etree.parse(self.file, parser=parser)  # nosec: B320
+        root = tree.getroot()
 
         # Dictionary mapping context ID's to context structures
         context_dict = {}
 
         # Dictionary mapping context ID's to fact structures
         # Allows looking up all facts with a specific context ID
-        fact_dict: dict[str, list[Fact]] = {}
+        instant_facts: dict[str, list[Fact]] = defaultdict(list)
+        duration_facts: dict[str, list[Fact]] = defaultdict(list)
 
         # Find all contexts in XML file
         contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
@@ -347,12 +367,69 @@ class InstanceBuilder:
         for context in contexts:
             new_context = Context.from_xml(context)
             context_dict[new_context.c_id] = new_context
-            fact_dict[new_context.c_id] = []
 
         # Loop through facts and parse into pydantic structures
         for fact in facts:
             new_fact = Fact.from_xml(fact)
-            if new_fact.value is not None:
-                fact_dict[new_fact.c_id].append(new_fact)
 
-        return Instance(context_dict, fact_dict, self.name)
+            # Sort facts by period type
+            if new_fact.value is not None:
+                if context_dict[new_fact.c_id].period.instant:
+                    instant_facts[new_fact.name].append(new_fact)
+                else:
+                    duration_facts[new_fact.name].append(new_fact)
+
+        return Instance(context_dict, instant_facts, duration_facts, self.name)
+
+
+def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
+    """Get list of instances from specified path to zipfile.
+
+    Args:
+        instance_path: Path to zipfile containing XBRL filings.
+    """
+    allowable_suffixes = [".xbrl"]
+
+    archive = zipfile.ZipFile(instance_path)
+
+    # Read files into in memory buffers to parse
+    return [
+        InstanceBuilder(
+            io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
+        )
+        for filename in archive.namelist()
+        if Path(filename).suffix in allowable_suffixes
+    ]
+
+
+def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
+    """Get list of instances from specified path.
+
+    Args:
+        instance_path: Path to one or more XBRL filings.
+    """
+    allowable_suffixes = [".xbrl"]
+
+    if isinstance(instance_path, io.BytesIO):
+        return instances_from_zip(instance_path)
+
+    if not instance_path.exists():
+        raise ValueError(f"Could not find XBRL instances at {instance_path}.")
+
+    if instance_path.suffix == ".zip":
+        return instances_from_zip(instance_path)
+
+    # Single instance
+    if instance_path.is_file():
+        instances = [instance_path]
+    # Directory of instances
+    else:
+        # Must be either a directory or file
+        assert instance_path.is_dir()  # nosec: B101
+        instances = sorted(instance_path.iterdir())
+
+    return [
+        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
+        for instance in sorted(instances)
+        if instance.suffix in allowable_suffixes
+    ]
