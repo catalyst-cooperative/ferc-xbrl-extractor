@@ -27,7 +27,7 @@ class Period(BaseModel):
     """
 
     instant: bool
-    start_date: str | None
+    start_date: str | None = None
     end_date: str
 
     @classmethod
