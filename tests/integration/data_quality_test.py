@@ -3,9 +3,6 @@ from pathlib import Path
 
 import pytest
 
-from ferc_xbrl_extractor.cli import (  # TODO (daz) move this function out of CLI!
-    TAXONOMY_MAP,
-)
 from ferc_xbrl_extractor.xbrl import ExtractOutput, extract
 
 Dataset = namedtuple("Dataset", ["form", "year"])
@@ -31,10 +28,10 @@ def data_dir(request) -> Path:
 def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
     form, year = request.param
     return extract(
-        taxonomy_source=TAXONOMY_MAP[form],
+        taxonomy_source=data_dir / f"ferc{form}-2022-taxonomy.zip",
         form_number=form,
         db_uri="sqlite://:memory:",
-        entry_point=None,
+        entry_point=f"taxonomy/form{form}/2022-01-01/form/form{form}/form-{form}_2022-01-01.xsd",
         metadata_path=metadata_dir / "metadata.json",
         datapackage_path=metadata_dir / "datapackage.json",
         instance_path=data_dir / f"ferc{form}-xbrl-{year}.zip",
