@@ -141,7 +141,7 @@ ignore = [
 ]
 
 # Assume Python 3.11
-target-version = "py311"
+target-version = "py310"
 line-length = 88
 
 # Don't automatically concatenate strings -- sometimes we forget a comma!

@@ -296,5 +296,5 @@ class Taxonomy(BaseModel):
         metadata = {**duration_metadata, **instant_metadata}
 
         # Write to JSON file
-        with Path.open(filename, "w") as f:
+        with Path(filename).open(mode="w") as f:
             json.dump(metadata, f, indent=4)

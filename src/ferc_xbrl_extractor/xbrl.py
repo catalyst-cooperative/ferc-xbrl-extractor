@@ -271,7 +271,7 @@ def get_fact_tables(
             )
 
         # Write to JSON file
-        with Path.open(datapackage_path, "w") as f:
+        with Path(datapackage_path).open(mode="w") as f:
             f.write(datapackage.json(by_alias=True))
 
     return datapackage.get_fact_tables(filter_tables=filter_tables)
