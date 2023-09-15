@@ -36,10 +36,7 @@ def _create_schema(instant=True, axes=None):
 
     axes = [Field(name=axis, title="", description="") for axis in axes]
 
-    if instant:
-        default_cols = INSTANT_COLUMNS
-    else:
-        default_cols = DURATION_COLUMNS
+    default_cols = INSTANT_COLUMNS if instant else DURATION_COLUMNS
 
     primary_key = [
         *[col.name for col in default_cols],

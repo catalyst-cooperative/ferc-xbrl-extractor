@@ -68,7 +68,7 @@ class Axis(BaseModel):
     value: str = ""
     dimension_type: DimensionType
 
-    @validator("name", pre=True)  # type: ignore
+    @validator("name", pre=True)
     def strip_prefix(cls, name: str):  # noqa: N805
         """Strip XML prefix from name."""
         return name.split(":")[1] if ":" in name else name
@@ -83,7 +83,7 @@ class Axis(BaseModel):
                 dimension_type=DimensionType.EXPLICIT,
             )
 
-        elif elem.tag.endswith("typedMember"):
+        if elem.tag.endswith("typedMember"):
             dim = elem.getchildren()[0]
             return cls(
                 name=elem.attrib["dimension"],
@@ -176,7 +176,7 @@ class Context(BaseModel):
         else:
             date_dict = {
                 # Ignore type because start_date will always be str if duration period
-                "start_date": self.period.start_date,  # type: ignore
+                "start_date": self.period.start_date,
                 "end_date": self.period.end_date,
             }
 
@@ -300,10 +300,7 @@ class Instance:
             concept_names: Name of concepts which map to a column name and name of facts.
             primary_key: Name of columns in primary_key used to filter facts.
         """
-        if instant:
-            period_fact_dict = self.instant_facts
-        else:
-            period_fact_dict = self.duration_facts
+        period_fact_dict = self.instant_facts if instant else self.duration_facts
 
         all_facts_for_concepts = itertools.chain.from_iterable(
             period_fact_dict[concept_name] for concept_name in concept_names
@@ -346,7 +343,7 @@ class InstanceBuilder:
         parser = etree.XMLParser(huge_tree=True)
 
         # Check if instance contains path to file or file data and parse accordingly
-        tree = etree.parse(self.file, parser=parser)  # nosec: B320
+        tree = etree.parse(self.file, parser=parser)  # noqa: S320
         root = tree.getroot()
 
         # Dictionary mapping context ID's to context structures

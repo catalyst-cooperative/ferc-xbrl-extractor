@@ -133,7 +133,7 @@ def temp_file_filing(filing_data):
     """Create temporary file of filing data."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = f"{tmpdir}/test.xbrl"
-        with open(file_path, "w") as f:
+        with Path(file_path).open(mode="w") as f:
             f.write(filing_data)
 
         yield file_path
