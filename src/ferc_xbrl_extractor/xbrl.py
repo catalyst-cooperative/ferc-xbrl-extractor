@@ -243,11 +243,11 @@ def get_fact_tables(
         form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_uri: URI of database used for constructing datapackage descriptor.
         archive_path: Path to taxonomy entry point within archive. If not None,
-                then `taxonomy` should be a path to zipfile, not a URL.
+            then `taxonomy` should be a path to zipfile, not a URL.
         filter_tables: Optionally specify the set of tables to extract.
-                If None, all possible tables will be extracted.
-        datapackage_path: Create frictionless datapackage and write to specified path as JSON file.
-                          If path is None no datapackage descriptor will be saved.
+            If None, all possible tables will be extracted.
+        datapackage_path: Create frictionless datapackage and write to specified path
+            as JSON file. If path is None no datapackage descriptor will be saved.
         metadata_path: Path to metadata json file to output taxonomy metadata.
 
     Returns:
@@ -271,7 +271,7 @@ def get_fact_tables(
             )
 
         # Write to JSON file
-        with open(datapackage_path, "w") as f:
+        with Path.open(datapackage_path, "w") as f:
             f.write(datapackage.json(by_alias=True))
 
     return datapackage.get_fact_tables(filter_tables=filter_tables)

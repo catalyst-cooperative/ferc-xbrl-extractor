@@ -40,7 +40,7 @@ class XBRLType(BaseModel):
         """Construct XBRLType class from arelle ModelType."""
         return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
 
-    def get_pandas_type(self) -> str:
+    def get_pandas_type(self) -> str | None:
         """Return corresponding pandas type.
 
         Gets a string representation of the pandas type best suited to represent the
@@ -48,23 +48,23 @@ class XBRLType(BaseModel):
         """
         if self.base == "string" or self.base == "date" or self.base == "duration":
             return "string"
-        elif self.base == "decimal":
+        if self.base == "decimal":
             return "Float64"
-        elif self.base == "gyear" or self.base == "integer":
+        if self.base == "gyear" or self.base == "integer":
             return "Int64"
-        elif self.base == "boolean":
+        if self.base == "boolean":
             return "boolean"
+        return None
 
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
         if self.base == "gyear":
             return "year"
-        elif self.base == "decimal":
+        if self.base == "decimal":
             return "number"
-        elif self.base == "duration":
+        if self.base == "duration":
             return "string"
-        else:
-            return self.base
+        return self.base
 
 
 class Concept(BaseModel):
@@ -296,5 +296,5 @@ class Taxonomy(BaseModel):
         metadata = {**duration_metadata, **instant_metadata}
 
         # Write to JSON file
-        with open(filename, "w") as f:
+        with Path.open(filename, "w") as f:
             json.dump(metadata, f, indent=4)

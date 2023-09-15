@@ -460,7 +460,7 @@ def fuzzy_dedup(df: pd.DataFrame) -> pd.DataFrame:
                 if len(typed[at_least_this_precise]) == 1:
                     return typed[at_least_this_precise].iloc[0]
         raise ValueError(
-            f"Fact {':'.join(series.index.values[0])} has values {series.values}"
+            f"Fact {':'.join(series.index.to_numpy()[0])} has values {series.to_numpy()}"
         )
 
     resolved = df[duplicated].groupby(df.index.names).aggregate(resolve_conflict)

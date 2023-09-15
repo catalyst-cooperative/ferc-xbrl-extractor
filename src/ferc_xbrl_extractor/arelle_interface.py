@@ -124,9 +124,12 @@ class Metadata(BaseModel):
                 reference_dict[reference_name] = [part_dict]
 
             # Flatten out references where applicable
-            if len(reference_dict[reference_name]) == 1 and len(part_dict) == 1:
-                if reference_name in part_dict:
-                    reference_dict[reference_name] = part_dict[reference_name]
+            if (
+                len(reference_dict[reference_name]) == 1
+                and len(part_dict) == 1
+                and reference_name in part_dict
+            ):
+                reference_dict[reference_name] = part_dict[reference_name]
 
         # Add references to metadata
         concept_metadata["references"] = reference_dict

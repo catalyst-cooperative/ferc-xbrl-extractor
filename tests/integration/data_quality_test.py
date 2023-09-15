@@ -72,10 +72,7 @@ def test_deduplication(extracted):
     table_defs, _instances, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
-        if table.instant:
-            date_cols = ["date"]
-        else:
-            date_cols = ["start_date", "end_date"]
+        date_cols = ["date"] if table.instant else ["start_date", "end_date"]
         # we want to make sure that any fact only comes from one filing, so we
         # don't want to include filing_name in the unique_cols
         if (df := table_data[table_name]).empty:
