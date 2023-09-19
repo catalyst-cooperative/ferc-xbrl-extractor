@@ -128,8 +128,11 @@ def table_data_from_instances(
     logger = get_logger(__name__)
 
     num_instances = len(instances)
+    if not workers:
+        workers = 1
+
     if not batch_size:
-        batch_size = num_instances // workers if workers else num_instances
+        batch_size = num_instances // workers
 
     num_batches = math.ceil(num_instances / batch_size)
 
