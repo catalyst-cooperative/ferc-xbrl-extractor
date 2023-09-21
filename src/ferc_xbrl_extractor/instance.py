@@ -265,6 +265,7 @@ class Instance:
                 (instant_facts | duration_facts).values()
             )
         )
+        self.total_facts = len(self.fact_id_counts)
         self.duplicated_fact_ids = [
             f_id
             for f_id, _ in itertools.takewhile(

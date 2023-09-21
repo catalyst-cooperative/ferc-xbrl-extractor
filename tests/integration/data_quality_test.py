@@ -41,10 +41,13 @@ def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
 
 
 def test_lost_facts_pct(extracted, request):
-    table_defs, instances, table_data, stats = extracted
-    total_facts = sum(len(i.fact_id_counts) for i in instances)
-    total_used_facts = sum(len(f_ids) for f_ids in stats["fact_ids"].values())
-
+    table_defs, table_data, stats = extracted
+    total_facts = sum(
+        instance_stats["total_facts"] for instance_stats in stats.values()
+    )
+    total_used_facts = sum(
+        len(instance_stats["used_facts"]) for instance_stats in stats.values()
+    )
     used_fact_ratio = total_used_facts / total_facts
 
     if "form6_" in request.node.name:
@@ -61,15 +64,15 @@ def test_lost_facts_pct(extracted, request):
         per_filing_threshold = 0.95
         assert used_fact_ratio > total_threshold and used_fact_ratio <= 1
 
-    for instance in instances:
-        instance_used_ratio = len(stats["fact_ids"][instance.filing_name]) / len(
-            instance.fact_id_counts
+    for instance_stats in stats.values():
+        instance_used_ratio = (
+            len(instance_stats["used_facts"]) / instance_stats["total_facts"]
         )
         assert instance_used_ratio > per_filing_threshold and instance_used_ratio <= 1
 
 
 def test_deduplication(extracted):
-    table_defs, _instances, table_data, _stats = extracted
+    table_defs, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
         date_cols = ["date"] if table.instant else ["start_date", "end_date"]
@@ -82,7 +85,7 @@ def test_deduplication(extracted):
 
 
 def test_null_values(extracted):
-    table_defs, _instances, table_data, _stats = extracted
+    table_defs, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
         dataframe = table_data[table_name]

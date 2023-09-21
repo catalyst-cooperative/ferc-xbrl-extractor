@@ -17,9 +17,7 @@ from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance, InstanceBuilder, get_instances
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
-ExtractOutput = namedtuple(
-    "ExtractOutput", ["table_defs", "instances", "table_data", "stats"]
-)
+ExtractOutput = namedtuple("ExtractOutput", ["table_defs", "table_data", "stats"])
 
 
 def extract(
@@ -71,9 +69,7 @@ def extract(
         batch_size=batch_size,
     )
 
-    return ExtractOutput(
-        table_defs=table_defs, instances=instances, table_data=table_data, stats=stats
-    )
+    return ExtractOutput(table_defs=table_defs, table_data=table_data, stats=stats)
 
 
 def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.DataFrame:
@@ -137,13 +133,13 @@ def table_data_from_instances(
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = {"dfs": defaultdict(list), "fact_ids": defaultdict(set)}
+        results = {"dfs": defaultdict(list), "metadata": defaultdict(dict)}
         for i, batch in enumerate(executor.map(process_batches, batched_instances)):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
             for key, df in batch["dfs"].items():
                 results["dfs"][key].append(df)
-            for instance_name, fact_ids in batch["fact_ids"].items():
-                results["fact_ids"][instance_name] |= fact_ids
+            for instance_name, fact_ids in batch["metadata"].items():
+                results["metadata"][instance_name] |= fact_ids
 
         filings = {
             table: pd.concat(dfs).pipe(
@@ -151,7 +147,7 @@ def table_data_from_instances(
             )
             for table, dfs in results["dfs"].items()
         }
-        metadata = {"fact_ids": results["fact_ids"]}
+        metadata = results["metadata"]
         return filings, metadata
 
 
@@ -172,7 +168,7 @@ def process_batch(
     """
     logger = get_logger(__name__)
     dfs: defaultdict[str, list[pd.DataFrame]] = defaultdict(list)
-    fact_ids = {}
+    metadata = {}
     for instance_builder in instance_builders:
         # Convert XBRL instance to dataframes. Log/skip if file is empty
         try:
@@ -184,11 +180,14 @@ def process_batch(
 
         for key, df in instance_dfs.items():
             dfs[key].append(df)
-        fact_ids[instance.filing_name] = instance.used_fact_ids
+        metadata[instance.filing_name] = {
+            "used_facts": instance.used_fact_ids,
+            "total_facts": instance.total_facts,
+        }
 
     dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
-    return {"dfs": dfs, "fact_ids": fact_ids}
+    return {"dfs": dfs, "metadata": metadata}
 
 
 def process_instance(
