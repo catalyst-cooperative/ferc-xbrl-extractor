@@ -7,7 +7,6 @@ def test_table_data_dedupes(multi_filings):
     instance_builders = [
         InstanceBuilder(f, name=f"instance_{i}") for i, f in enumerate(multi_filings)
     ]
-    instances = [ib.parse() for ib in instance_builders]
 
     duration_schema = Schema(
         fields=[
@@ -31,7 +30,7 @@ def test_table_data_dedupes(multi_filings):
         "duration": FactTable(schema=duration_schema, period_type="duration"),
     }
     table_data, _stats = table_data_from_instances(
-        instances=instances,
+        instance_builders=instance_builders,
         table_defs=taxonomy,
     )
 

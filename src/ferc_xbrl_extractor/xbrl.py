@@ -14,7 +14,7 @@ from lxml.etree import XMLSyntaxError  # nosec: B410
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
-from ferc_xbrl_extractor.instance import Instance, get_instances
+from ferc_xbrl_extractor.instance import Instance, InstanceBuilder, get_instances
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 ExtractOutput = namedtuple(
@@ -53,7 +53,6 @@ def extract(
         workers: max number of workers to use.
         batch_size: max number of instances to parse for each worker.
     """
-    logger = get_logger(__name__)
     table_defs = get_fact_tables(
         taxonomy_source=taxonomy_source,
         form_number=form_number,
@@ -63,14 +62,7 @@ def extract(
         metadata_path=metadata_path,
     )
 
-    instances = []
-    for instance_builder in get_instances(instance_path):
-        try:
-            instances.append(instance_builder.parse())
-        except XMLSyntaxError:
-            logger.info(f"XBRL filing {instance_builder.name} is empty. Skipping.")
-            continue
-
+    instances = get_instances(instance_path)
     table_data, stats = table_data_from_instances(
         instances,
         table_defs,
@@ -104,7 +96,7 @@ def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.Da
 
 
 def table_data_from_instances(
-    instances: list[Instance],
+    instance_builders: list[InstanceBuilder],
     table_defs: dict[str, FactTable],
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
@@ -127,7 +119,7 @@ def table_data_from_instances(
     """
     logger = get_logger(__name__)
 
-    num_instances = len(instances)
+    num_instances = len(instance_builders)
     if not batch_size:
         batch_size = num_instances // workers if workers else num_instances
 
@@ -141,7 +133,7 @@ def table_data_from_instances(
         )
 
         batched_instances = np.array_split(
-            instances, math.ceil(num_instances / batch_size)
+            instance_builders, math.ceil(num_instances / batch_size)
         )
 
         # Use thread pool to extract data from all filings in parallel
@@ -164,7 +156,7 @@ def table_data_from_instances(
 
 
 def process_batch(
-    instances: Iterable[Instance],
+    instance_builders: Iterable[InstanceBuilder],
     table_defs: dict[str, FactTable],
 ) -> tuple[dict[str, pd.DataFrame], set[str]]:
     """Extract data from one batch of instances.
@@ -175,13 +167,19 @@ def process_batch(
     returning to the parent process.
 
     Args:
-        instances: Iterator of instances.
+        instance_builders: Iterator of instance builders which can be parsed into instances.
         table_defs: Dictionary mapping table names to FactTable objects describing table structure.
     """
+    logger = get_logger(__name__)
     dfs: defaultdict[str, list[pd.DataFrame]] = defaultdict(list)
     fact_ids = {}
-    for instance in instances:
+    for instance_builder in instance_builders:
         # Convert XBRL instance to dataframes. Log/skip if file is empty
+        try:
+            instance = instance_builder.parse()
+        except XMLSyntaxError:
+            logger.info(f"XBRL filing {instance_builder.name} is empty. Skipping.")
+            continue
         instance_dfs = process_instance(instance, table_defs)
 
         for key, df in instance_dfs.items():
