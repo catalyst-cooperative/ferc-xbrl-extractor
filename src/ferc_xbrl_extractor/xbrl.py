@@ -14,12 +14,10 @@ from lxml.etree import XMLSyntaxError  # nosec: B410
 
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
-from ferc_xbrl_extractor.instance import Instance, get_instances
+from ferc_xbrl_extractor.instance import Instance, InstanceBuilder, get_instances
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
-ExtractOutput = namedtuple(
-    "ExtractOutput", ["table_defs", "instances", "table_data", "stats"]
-)
+ExtractOutput = namedtuple("ExtractOutput", ["table_defs", "table_data", "stats"])
 
 
 def extract(
@@ -53,7 +51,6 @@ def extract(
         workers: max number of workers to use.
         batch_size: max number of instances to parse for each worker.
     """
-    logger = get_logger(__name__)
     table_defs = get_fact_tables(
         taxonomy_source=taxonomy_source,
         form_number=form_number,
@@ -63,14 +60,7 @@ def extract(
         metadata_path=metadata_path,
     )
 
-    instances = []
-    for instance_builder in get_instances(instance_path):
-        try:
-            instances.append(instance_builder.parse())
-        except XMLSyntaxError:
-            logger.info(f"XBRL filing {instance_builder.name} is empty. Skipping.")
-            continue
-
+    instances = get_instances(instance_path)
     table_data, stats = table_data_from_instances(
         instances,
         table_defs,
@@ -79,9 +69,7 @@ def extract(
         batch_size=batch_size,
     )
 
-    return ExtractOutput(
-        table_defs=table_defs, instances=instances, table_data=table_data, stats=stats
-    )
+    return ExtractOutput(table_defs=table_defs, table_data=table_data, stats=stats)
 
 
 def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.DataFrame:
@@ -104,7 +92,7 @@ def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.Da
 
 
 def table_data_from_instances(
-    instances: list[Instance],
+    instance_builders: list[InstanceBuilder],
     table_defs: dict[str, FactTable],
     requested_tables: set[str] | None = None,
     batch_size: int | None = None,
@@ -127,7 +115,7 @@ def table_data_from_instances(
     """
     logger = get_logger(__name__)
 
-    num_instances = len(instances)
+    num_instances = len(instance_builders)
     if not batch_size:
         batch_size = num_instances // workers if workers else num_instances
 
@@ -141,17 +129,17 @@ def table_data_from_instances(
         )
 
         batched_instances = np.array_split(
-            instances, math.ceil(num_instances / batch_size)
+            instance_builders, math.ceil(num_instances / batch_size)
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = {"dfs": defaultdict(list), "fact_ids": defaultdict(set)}
+        results = {"dfs": defaultdict(list), "metadata": defaultdict(dict)}
         for i, batch in enumerate(executor.map(process_batches, batched_instances)):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
             for key, df in batch["dfs"].items():
                 results["dfs"][key].append(df)
-            for instance_name, fact_ids in batch["fact_ids"].items():
-                results["fact_ids"][instance_name] |= fact_ids
+            for instance_name, fact_ids in batch["metadata"].items():
+                results["metadata"][instance_name] |= fact_ids
 
         filings = {
             table: pd.concat(dfs).pipe(
@@ -159,12 +147,12 @@ def table_data_from_instances(
             )
             for table, dfs in results["dfs"].items()
         }
-        metadata = {"fact_ids": results["fact_ids"]}
+        metadata = results["metadata"]
         return filings, metadata
 
 
 def process_batch(
-    instances: Iterable[Instance],
+    instance_builders: Iterable[InstanceBuilder],
     table_defs: dict[str, FactTable],
 ) -> tuple[dict[str, pd.DataFrame], set[str]]:
     """Extract data from one batch of instances.
@@ -175,22 +163,31 @@ def process_batch(
     returning to the parent process.
 
     Args:
-        instances: Iterator of instances.
+        instance_builders: Iterator of instance builders which can be parsed into instances.
         table_defs: Dictionary mapping table names to FactTable objects describing table structure.
     """
+    logger = get_logger(__name__)
     dfs: defaultdict[str, list[pd.DataFrame]] = defaultdict(list)
-    fact_ids = {}
-    for instance in instances:
+    metadata = {}
+    for instance_builder in instance_builders:
         # Convert XBRL instance to dataframes. Log/skip if file is empty
+        try:
+            instance = instance_builder.parse()
+        except XMLSyntaxError:
+            logger.info(f"XBRL filing {instance_builder.name} is empty. Skipping.")
+            continue
         instance_dfs = process_instance(instance, table_defs)
 
         for key, df in instance_dfs.items():
             dfs[key].append(df)
-        fact_ids[instance.filing_name] = instance.used_fact_ids
+        metadata[instance.filing_name] = {
+            "used_facts": instance.used_fact_ids,
+            "total_facts": instance.total_facts,
+        }
 
     dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
-    return {"dfs": dfs, "fact_ids": fact_ids}
+    return {"dfs": dfs, "metadata": metadata}
 
 
 def process_instance(
