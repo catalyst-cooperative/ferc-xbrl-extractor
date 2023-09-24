@@ -19,7 +19,7 @@ def test_extractor_scripts(script_runner, ep):
 
     The script_runner fixture is provided by the pytest-console-scripts plugin.
     """
-    ret = script_runner.run(ep, "--help", print_result=False)
+    ret = script_runner.run([ep, "--help"], print_result=False)
     assert ret.success  # nosec: B101
 
 
@@ -38,19 +38,21 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
     data_dir = test_dir / "integration" / "data"
 
     ret = script_runner.run(
-        "xbrl_extract",
-        str(data_dir / "ferc1-xbrl-2021.zip"),
-        str(out_db),
-        "--taxonomy",
-        str(data_dir / "taxonomy.zip"),
-        "--entry-point",
-        "taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd",
-        "--metadata-path",
-        str(metadata),
-        "--datapackage-path",
-        str(datapackage),
-        "--logfile",
-        str(log_file),
+        [
+            "xbrl_extract",
+            str(data_dir / "ferc1-xbrl-2021.zip"),
+            str(out_db),
+            "--taxonomy",
+            str(data_dir / "taxonomy.zip"),
+            "--entry-point",
+            "taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd",
+            "--metadata-path",
+            str(metadata),
+            "--datapackage-path",
+            str(datapackage),
+            "--logfile",
+            str(log_file),
+        ]
     )
 
     assert ret.success
@@ -72,15 +74,17 @@ def test_extract_example_filings_no_explicit_taxonomy(
     data_dir = test_dir / "integration" / "data"
 
     ret = script_runner.run(
-        "xbrl_extract",
-        str(data_dir / "ferc1-xbrl-2021.zip"),
-        str(out_db),
-        "--metadata-path",
-        str(metadata),
-        "--datapackage-path",
-        str(datapackage),
-        "--logfile",
-        str(log_file),
+        [
+            "xbrl_extract",
+            str(data_dir / "ferc1-xbrl-2021.zip"),
+            str(out_db),
+            "--metadata-path",
+            str(metadata),
+            "--datapackage-path",
+            str(datapackage),
+            "--logfile",
+            str(log_file),
+        ]
     )
 
     assert ret.success
@@ -100,17 +104,19 @@ def test_extract_example_filings_bad_form(script_runner, tmp_path, test_dir):
     data_dir = test_dir / "integration" / "data"
 
     ret = script_runner.run(
-        "xbrl_extract",
-        str(data_dir / "ferc1-xbrl-2021.zip"),
-        str(out_db),
-        "--form-number",
-        "666",
-        "--metadata-path",
-        str(metadata),
-        "--datapackage-path",
-        str(datapackage),
-        "--logfile",
-        str(log_file),
+        [
+            "xbrl_extract",
+            str(data_dir / "ferc1-xbrl-2021.zip"),
+            str(out_db),
+            "--form-number",
+            "666",
+            "--metadata-path",
+            str(metadata),
+            "--datapackage-path",
+            str(datapackage),
+            "--logfile",
+            str(log_file),
+        ]
     )
 
     assert not ret.success
