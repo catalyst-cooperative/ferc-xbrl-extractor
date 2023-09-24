@@ -84,9 +84,11 @@ def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.Da
     old_index = df.index.names
     return (
         df.reset_index()
+        .sort_values("report_date")
         .groupby(unique_cols)
-        .apply(lambda df: df.sort_values("report_date").ffill().iloc[-1])
+        .last()
         .drop("report_date", axis="columns")
+        .reset_index()
         .set_index(old_index)
     )
 
