@@ -24,7 +24,7 @@ dependencies = [
     "frictionless>=4.4,<5",
     "sqlalchemy>=1.4,<3",
     "pandas>=1.5,<2.2",
-    "stringcase~=1.2.0",
+    "stringcase>=1.2,<2",
     "numpy>=1.16,<2",
     "lxml>=4.9.1,<5",
 ]
@@ -40,13 +40,27 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
 ]
-keywords = ["xbrl", "ferc", "finance", "regulation", "accounting"]
+keywords = [
+    "accounting",
+    "data",
+    "electricity",
+    "energy",
+    "federal energy regulatory commission",
+    "ferc",
+    "finance",
+    "gas",
+    "natural gas",
+    "oil",
+    "regulation",
+    "utility",
+    "xbrl",
+]
 
 [project.urls]
-"Homepage" = "https://github.com/catalyst-cooperative/ferc-xbrl-extract"
-"Source" = "https://github.com/catalyst-cooperative/ferc-xbrl-extract"
+"Homepage" = "https://github.com/catalyst-cooperative/ferc-xbrl-extractor"
+"Source" = "https://github.com/catalyst-cooperative/ferc-xbrl-extractor"
 "Documentation" = "https://catalystcoop-ferc-xbrl-extractor.readthedocs.io"
-"Issue Tracker" = "https://github.com/catalyst-cooperative/ferc-xbrl-extract/issues"
+"Issue Tracker" = "https://github.com/catalyst-cooperative/ferc-xbrl-extractor/issues"
 
 [project.scripts]
 xbrl_extract = "ferc_xbrl_extractor.cli:main"
