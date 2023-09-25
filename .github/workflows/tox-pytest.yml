@@ -23,7 +23,6 @@ jobs:
         with:
           environment-file: environment.yml
           create-args: python=${{ matrix.python-version }}
-          python-version: ${{ matrix.python-version }}
           cache-environment: true
           condarc: |
             channels:
