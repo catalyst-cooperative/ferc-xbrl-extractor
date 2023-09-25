@@ -48,6 +48,7 @@ def _create_schema(instant=True, axes=None):
             *axes,
             Field(name="column_one", title="", description=""),
             Field(name="column_two", title="", description=""),
+            Field(name="null_col", title="", description=""),
         ],
         primary_key=primary_key,
     )
@@ -61,9 +62,9 @@ def _create_schema(instant=True, axes=None):
             "duration",
             pd.read_csv(
                 io.StringIO(
-                    "c_id,entity_id,filing_name,start_date,end_date,column_one,column_two\n"
-                    'cid_1,EID1,filing,2021-01-01,2021-12-31,"value 1","value 2"\n'
-                    'cid_4,EID1,filing,2020-01-01,2020-12-31,"value 3","value 4"\n'
+                    "c_id,entity_id,filing_name,start_date,end_date,column_one,column_two,null_col\n"
+                    'cid_1,EID1,filing,2021-01-01,2021-12-31,"value 1","value 2",\n'
+                    'cid_4,EID1,filing,2020-01-01,2020-12-31,"value 3","value 4",\n'
                 )
             ),
         ),
@@ -72,10 +73,10 @@ def _create_schema(instant=True, axes=None):
             "duration",
             pd.read_csv(
                 io.StringIO(
-                    "c_id,entity_id,filing_name,start_date,end_date,dimension_one_axis,column_one,column_two\n"
-                    'cid_1,EID1,filing,2021-01-01,2021-12-31,total,"value 1","value 2"\n'
-                    'cid_4,EID1,filing,2020-01-01,2020-12-31,total,"value 3","value 4"\n'
-                    'cid_5,EID1,filing,2020-01-01,2020-12-31,"Dim 1 Value","value 9","value 10"\n'
+                    "c_id,entity_id,filing_name,start_date,end_date,dimension_one_axis,column_one,column_two,null_col\n"
+                    'cid_1,EID1,filing,2021-01-01,2021-12-31,total,"value 1","value 2",\n'
+                    'cid_4,EID1,filing,2020-01-01,2020-12-31,total,"value 3","value 4",\n'
+                    'cid_5,EID1,filing,2020-01-01,2020-12-31,"Dim 1 Value","value 9","value 10",\n'
                 )
             ),
         ),
@@ -84,9 +85,9 @@ def _create_schema(instant=True, axes=None):
             "instant",
             pd.read_csv(
                 io.StringIO(
-                    "c_id,entity_id,filing_name,date,dimension_one_axis,dimension_two_axis,column_one,column_two\n"
-                    'cid_2,EID1,filing,2021-12-31,total,total,"value 5","value 6"\n'
-                    'cid_3,EID1,filing,2021-12-31,"Dim 1 Value","ferc:Dimension2Value","value 7","value 8"\n'
+                    "c_id,entity_id,filing_name,date,dimension_one_axis,dimension_two_axis,column_one,column_two,null_col\n"
+                    'cid_2,EID1,filing,2021-12-31,total,total,"value 5","value 6",\n'
+                    'cid_3,EID1,filing,2021-12-31,"Dim 1 Value","ferc:Dimension2Value","value 7","value 8",\n'
                 )
             ),
         ),
