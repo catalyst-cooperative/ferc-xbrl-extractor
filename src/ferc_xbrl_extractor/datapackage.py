@@ -429,7 +429,7 @@ class Datapackage(BaseModel):
                     If None, all possible tables will be extracted.
         """
         if filter_tables:
-            filtered_resources = {r for r in self.resources if r.name in filter_tables}
+            filtered_resources = (r for r in self.resources if r.name in filter_tables)
         else:
             filtered_resources = self.resources
         return {

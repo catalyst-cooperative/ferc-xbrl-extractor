@@ -62,12 +62,8 @@ def extract(
         entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
+        filter_tables=requested_tables,
     )
-    table_defs_to_extract = table_defs
-    if requested_tables:
-        table_defs_to_extract = {
-            tn: td for tn, td in table_defs.items() if tn in requested_tables
-        }
 
     instance_builders = [
         ib
@@ -77,7 +73,7 @@ def extract(
 
     table_data, stats = table_data_from_instances(
         instance_builders,
-        table_defs_to_extract,
+        table_defs,
         workers=workers,
         batch_size=batch_size,
     )
