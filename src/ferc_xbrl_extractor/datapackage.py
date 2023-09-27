@@ -374,6 +374,7 @@ class FactTable:
             .set_index(fact_index)
             .pipe(fuzzy_dedup)["value"]
             .unstack("name")
+            .reindex(columns=self.data_columns)
         )
 
         facts["report_date"] = instance.report_date
