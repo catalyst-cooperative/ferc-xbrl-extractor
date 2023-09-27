@@ -93,6 +93,19 @@ def parse():
     )
     parser.add_argument("--logfile", help="Path to logfile", type=Path, default=None)
 
+    parser.add_argument(
+        "--instance-pattern",
+        help="Regex pattern for filing name - if not provided, defaults to '' which matches all.",
+        default=r"",
+    )
+
+    parser.add_argument(
+        "--requested-tables",
+        help="Table names to extract - if none, will default to all. Includes the _duration/_instant suffix.",
+        nargs="+",
+        default=None,
+    )
+
     return parser.parse_args()
 
 
@@ -109,6 +122,8 @@ def run_main(
     batch_size: int | None,
     loglevel: str,
     logfile: Path | None,
+    requested_tables: list[str] | None = None,
+    instance_pattern: str = None,
 ):
     """Log setup, taxonomy finding, and SQL IO."""
     logger = get_logger("ferc_xbrl_extractor")
@@ -150,6 +165,8 @@ def run_main(
         instance_path=instance_path,
         workers=workers,
         batch_size=batch_size,
+        requested_tables=requested_tables,
+        instance_pattern=instance_pattern,
     )
 
     with engine.begin() as conn:

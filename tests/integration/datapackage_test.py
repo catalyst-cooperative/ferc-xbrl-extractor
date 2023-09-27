@@ -1,5 +1,6 @@
 """Test datapackage descriptor from taxonomy."""
 import io
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -17,16 +18,25 @@ from ferc_xbrl_extractor.instance import InstanceBuilder
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 
-@pytest.mark.parametrize(
-    "taxonomy_url",
-    [
-        "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
-    ],
-)
-def test_datapackage_generation(taxonomy_url):
+def test_datapackage_generation(test_dir):
     """Test that datapackage descriptor is valid."""
-    taxonomy = Taxonomy.from_source(taxonomy_url)
+    taxonomy = Taxonomy.from_source(
+        test_dir / "integration/data/ferc1-2022-taxonomy.zip",
+        entry_point=Path("taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"),
+    )
     datapackage = Datapackage.from_taxonomy(taxonomy, "sqlite:///test_db.sqlite")
+
+    filtered_tables = datapackage.get_fact_tables(
+        filter_tables={"identification_001_duration"}
+    )
+    assert set(filtered_tables.keys()) == {"identification_001_duration"}
+
+    all_tables = datapackage.get_fact_tables()
+
+    # 366 was just the value we had - this assertion is more of a regression
+    # test than a normative statement
+    assert len(all_tables) == 366
+
     assert Package(descriptor=datapackage.dict(by_alias=True)).metadata_valid
 
 

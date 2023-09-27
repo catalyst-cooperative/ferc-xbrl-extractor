@@ -1,6 +1,7 @@
 """XBRL extractor."""
 import io
 import math
+import re
 from collections import defaultdict, namedtuple
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
@@ -29,6 +30,7 @@ def extract(
     datapackage_path: Path | None = None,
     metadata_path: Path | None = None,
     requested_tables: set[str] | None = None,
+    instance_pattern: str = r"",
     workers: int | None = None,
     batch_size: int | None = None,
 ) -> ExtractOutput:
@@ -48,6 +50,8 @@ def extract(
         metadata_path: where to write XBRL metadata to, if at all. Defaults
             to None, i.e., do not write one.
         requested_tables: only attempt to ingest data for these tables.
+        instance_pattern: only ingest data for instances matching this regex.
+            Defaults to empty string which matches all.
         workers: max number of workers to use.
         batch_size: max number of instances to parse for each worker.
     """
@@ -58,13 +62,18 @@ def extract(
         entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
+        filter_tables=requested_tables,
     )
 
-    instances = get_instances(instance_path)
+    instance_builders = [
+        ib
+        for ib in get_instances(instance_path)
+        if re.search(instance_pattern, ib.name)
+    ]
+
     table_data, stats = table_data_from_instances(
-        instances,
+        instance_builders,
         table_defs,
-        requested_tables=requested_tables,
         workers=workers,
         batch_size=batch_size,
     )
@@ -96,7 +105,6 @@ def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.Da
 def table_data_from_instances(
     instance_builders: list[InstanceBuilder],
     table_defs: dict[str, FactTable],
-    requested_tables: set[str] | None = None,
     batch_size: int | None = None,
     workers: int | None = None,
 ) -> tuple[dict[str, pd.DataFrame], dict[str, list]]:
@@ -106,12 +114,9 @@ def table_data_from_instances(
 
     Args:
         instances: A list of Instance objects used for parsing XBRL filings.
-        table_defs: the tables defined in the taxonomy s.t. we can try to match
-            facts to them.
+        table_defs: the tables defined in the taxonomy that we will match facts to.
         archive_path: Path to taxonomy entry point within archive. If not None,
             then `taxonomy` should be a path to zipfile, not a URL.
-        requested_tables: Optionally specify the set of tables to extract.
-            If None, all possible tables will be extracted.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
     """
