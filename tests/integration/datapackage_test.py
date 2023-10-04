@@ -1,4 +1,5 @@
 """Test datapackage descriptor from taxonomy."""
+import datetime
 import io
 from pathlib import Path
 
@@ -105,13 +106,17 @@ def _create_schema(instant=True, axes=None):
 )
 def test_construct_dataframe(table_schema, period, df, in_memory_filing):
     """Test dataframe construction."""
-    instance_builder = InstanceBuilder(in_memory_filing, "filing")
+    instance_builder = InstanceBuilder(
+        in_memory_filing,
+        "filing",
+        publication_time=datetime.datetime(2023, 1, 1, 0, 0, 0),
+    )
     instance = instance_builder.parse()
 
     fact_table = FactTable(table_schema, period)
 
     constructed_df = fact_table.construct_dataframe(instance).drop(
-        "report_date", axis="columns"
+        "publication_time", axis="columns"
     )
     expected_df = df.set_index(table_schema.primary_key).drop("c_id", axis="columns")
     pd.testing.assert_frame_equal(expected_df, constructed_df)

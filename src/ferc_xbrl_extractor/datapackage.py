@@ -358,7 +358,9 @@ class FactTable:
         instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
         if not raw_facts:
-            return pd.DataFrame()
+            return pd.DataFrame(
+                columns=list(self.columns.keys()) + ["publication_time"]
+            ).set_index(self.schema.primary_key)
 
         fact_index = ["c_id", "name"]
         facts = (
@@ -377,7 +379,7 @@ class FactTable:
             .reindex(columns=self.data_columns)
         )
 
-        facts["report_date"] = instance.report_date
+        facts["publication_time"] = instance.publication_time
 
         contexts = facts.index.to_series().apply(
             lambda c_id: pd.Series(

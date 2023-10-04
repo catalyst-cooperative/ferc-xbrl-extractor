@@ -2,6 +2,15 @@
 PACKAGE_NAME Release Notes
 =======================================================================================
 
+.. _release-v1-2-0:
+
+---------------------------------------------------------------------------------------
+1.2.0 (2023-10-06)
+---------------------------------------------------------------------------------------
+
+* Instead of combining multiple filings from one year, we track publication
+  time of each filing and keep all filings. This allows downstream users to
+  deduplicate facts from multiple filings.
 
 .. _release-v1-1-0:
 
