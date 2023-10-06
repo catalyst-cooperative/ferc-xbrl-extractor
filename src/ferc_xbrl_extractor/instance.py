@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 from enum import Enum, auto
 from pathlib import Path
 from typing import BinaryIO
+from zoneinfo import ZoneInfo
 
 import stringcase
 from lxml import etree  # nosec: B410
@@ -244,7 +245,7 @@ class Instance:
         instant_facts: dict[str, list[Fact]],
         duration_facts: dict[str, list[Fact]],
         filing_name: str,
-        publication_time: datetime.datetime | None = None,
+        publication_time: datetime.datetime,
     ):
         """Construct Instance from parsed contexts and facts.
 
@@ -257,6 +258,7 @@ class Instance:
             instant_facts: Dictionary mapping concept name to list of instant facts.
             duration_facts: Dictionary mapping concept name to list of duration facts.
             filing_name: Name of parsed filing.
+            publication_time: the time at which the filing was made available online.
         """
         self.logger = get_logger(__name__)
         self.instant_facts = instant_facts
@@ -435,15 +437,15 @@ def get_filing_name(filing_metadata: dict[str, str | int]) -> str:
 
     This uses the same logic as `pudl_archiver.archivers.ferc.xbrl.archive_year`.
 
-    NOTE: the published time appears to be in EDT. We need to make the
-    archivers explictly use UTC everywhere, but until then we will force UTC-4
+    NOTE: the published time appears to be in America/New_York. We need to make the
+    archivers explictly use UTC everywhere, but until then we will force America/New_York
     in this function.
     """
     # TODO (daz): just put the expected filename in rssfeed also, so we don't
     # have to reconstruct the name generation logic.
     published_time = datetime.datetime.fromisoformat(
         filing_metadata["published_parsed"]
-    ).replace(tzinfo=datetime.timezone(datetime.timedelta(hours=-4)))
+    ).replace(tzinfo=ZoneInfo("America/New_York"))
     return (
         f"{filing_metadata['title']}_"
         f"form{filing_metadata['ferc_formname'].split('_')[-1]}_"
