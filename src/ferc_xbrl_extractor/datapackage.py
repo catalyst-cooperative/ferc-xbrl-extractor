@@ -62,6 +62,16 @@ FILING_NAME = Field(
 Field representing the filing name (Present in all tables).
 """
 
+PUBLICATION_TIME = Field(
+    name="publication_time",
+    title="Publication Time",
+    type="date",
+    description="Time the filing was made available on the FERC RSS feed.",
+)
+"""
+Field representing the publication time (injected into all tables).
+"""
+
 START_DATE = Field(
     name="start_date",
     title="Start Date",
@@ -89,12 +99,12 @@ INSTANT_DATE = Field(
 Field representing an instant date (Present in all instant tables).
 """
 
-DURATION_COLUMNS = [ENTITY_ID, FILING_NAME, START_DATE, END_DATE]
+DURATION_COLUMNS = [ENTITY_ID, FILING_NAME, PUBLICATION_TIME, START_DATE, END_DATE]
 """
 Fields common to all duration tables.
 """
 
-INSTANT_COLUMNS = [ENTITY_ID, FILING_NAME, INSTANT_DATE]
+INSTANT_COLUMNS = [ENTITY_ID, FILING_NAME, PUBLICATION_TIME, INSTANT_DATE]
 """
 Fields common to all instant tables.
 """
@@ -358,9 +368,9 @@ class FactTable:
         instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
         if not raw_facts:
-            return pd.DataFrame(
-                columns=list(self.columns.keys()) + ["publication_time"]
-            ).set_index(self.schema.primary_key)
+            return pd.DataFrame(columns=self.columns.keys()).set_index(
+                self.schema.primary_key
+            )
 
         fact_index = ["c_id", "name"]
         facts = (

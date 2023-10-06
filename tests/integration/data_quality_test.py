@@ -75,7 +75,12 @@ def test_publication_time(extracted):
     table_defs, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
-        assert table_data[table_name].publication_time.notna().all()
+        assert (
+            table_data[table_name]
+            .reset_index(level="publication_time")
+            .publication_time.notna()
+            .all()
+        )
 
 
 def test_all_data_has_corresponding_id(extracted):

@@ -73,10 +73,11 @@ def _create_schema(instant=True, axes=None):
             "duration",
             pd.read_csv(
                 io.StringIO(
-                    "c_id,entity_id,filing_name,start_date,end_date,column_one,column_two,null_col\n"
-                    'cid_1,EID1,filing,2021-01-01,2021-12-31,"value 1","value 2",\n'
-                    'cid_4,EID1,filing,2020-01-01,2020-12-31,"value 3","value 4",\n'
-                )
+                    "c_id,entity_id,filing_name,publication_time,start_date,end_date,column_one,column_two,null_col\n"
+                    'cid_1,EID1,filing,2023-01-01T00:00:01,2021-01-01,2021-12-31,"value 1","value 2",\n'
+                    'cid_4,EID1,filing,2023-01-01T00:00:01,2020-01-01,2020-12-31,"value 3","value 4",\n'
+                ),
+                parse_dates=["publication_time"],
             ),
         ),
         (
@@ -84,11 +85,12 @@ def _create_schema(instant=True, axes=None):
             "duration",
             pd.read_csv(
                 io.StringIO(
-                    "c_id,entity_id,filing_name,start_date,end_date,dimension_one_axis,column_one,column_two,null_col\n"
-                    'cid_1,EID1,filing,2021-01-01,2021-12-31,total,"value 1","value 2",\n'
-                    'cid_4,EID1,filing,2020-01-01,2020-12-31,total,"value 3","value 4",\n'
-                    'cid_5,EID1,filing,2020-01-01,2020-12-31,"Dim 1 Value","value 9","value 10",\n'
-                )
+                    "c_id,entity_id,filing_name,publication_time,start_date,end_date,dimension_one_axis,column_one,column_two,null_col\n"
+                    'cid_1,EID1,filing,2023-01-01T00:00:01,2021-01-01,2021-12-31,total,"value 1","value 2",\n'
+                    'cid_4,EID1,filing,2023-01-01T00:00:01,2020-01-01,2020-12-31,total,"value 3","value 4",\n'
+                    'cid_5,EID1,filing,2023-01-01T00:00:01,2020-01-01,2020-12-31,"Dim 1 Value","value 9","value 10",\n'
+                ),
+                parse_dates=["publication_time"],
             ),
         ),
         (
@@ -96,10 +98,11 @@ def _create_schema(instant=True, axes=None):
             "instant",
             pd.read_csv(
                 io.StringIO(
-                    "c_id,entity_id,filing_name,date,dimension_one_axis,dimension_two_axis,column_one,column_two,null_col\n"
-                    'cid_2,EID1,filing,2021-12-31,total,total,"value 5","value 6",\n'
-                    'cid_3,EID1,filing,2021-12-31,"Dim 1 Value","ferc:Dimension2Value","value 7","value 8",\n'
-                )
+                    "c_id,entity_id,filing_name,publication_time,date,dimension_one_axis,dimension_two_axis,column_one,column_two,null_col\n"
+                    'cid_2,EID1,filing,2023-01-01T00:00:01,2021-12-31,total,total,"value 5","value 6",\n'
+                    'cid_3,EID1,filing,2023-01-01T00:00:01,2021-12-31,"Dim 1 Value","ferc:Dimension2Value","value 7","value 8",\n'
+                ),
+                parse_dates=["publication_time"],
             ),
         ),
     ],
@@ -109,14 +112,18 @@ def test_construct_dataframe(table_schema, period, df, in_memory_filing):
     instance_builder = InstanceBuilder(
         in_memory_filing,
         "filing",
-        publication_time=datetime.datetime(2023, 1, 1, 0, 0, 0),
+        publication_time=datetime.datetime(2023, 1, 1, 0, 0, 1),
     )
     instance = instance_builder.parse()
 
     fact_table = FactTable(table_schema, period)
 
-    constructed_df = fact_table.construct_dataframe(instance).drop(
-        "publication_time", axis="columns"
+    constructed_df = fact_table.construct_dataframe(instance).reset_index()
+    constructed_df = constructed_df.astype({"publication_time": "datetime64[s]"})
+    expected_df = (
+        df.set_index(table_schema.primary_key)
+        .drop("c_id", axis="columns")
+        .reset_index()
     )
-    expected_df = df.set_index(table_schema.primary_key).drop("c_id", axis="columns")
+    expected_df = expected_df.astype({"publication_time": "datetime64[s]"})
     pd.testing.assert_frame_equal(expected_df, constructed_df)
