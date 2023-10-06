@@ -435,15 +435,15 @@ def get_filing_name(filing_metadata: dict[str, str | int]) -> str:
 
     This uses the same logic as `pudl_archiver.archivers.ferc.xbrl.archive_year`.
 
-    NOTE: the published time appears to be in EDT. This doesn't matter for our
-    use case, which is generating a relative ordering of the filings, but it is
-    confusing.
+    NOTE: the published time appears to be in EDT. We need to make the
+    archivers explictly use UTC everywhere, but until then we will force UTC-4
+    in this function.
     """
     # TODO (daz): just put the expected filename in rssfeed also, so we don't
     # have to reconstruct the name generation logic.
     published_time = datetime.datetime.fromisoformat(
         filing_metadata["published_parsed"]
-    )
+    ).replace(tzinfo=datetime.timezone(datetime.timedelta(hours=-4)))
     return (
         f"{filing_metadata['title']}_"
         f"form{filing_metadata['ferc_formname'].split('_')[-1]}_"
