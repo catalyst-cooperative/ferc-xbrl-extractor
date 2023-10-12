@@ -123,7 +123,7 @@ def run_main(
     loglevel: str,
     logfile: Path | None,
     requested_tables: list[str] | None = None,
-    instance_pattern: str = None,
+    instance_pattern: str = r"",
 ):
     """Log setup, taxonomy finding, and SQL IO."""
     logger = get_logger("ferc_xbrl_extractor")

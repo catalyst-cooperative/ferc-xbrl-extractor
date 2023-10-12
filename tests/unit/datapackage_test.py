@@ -93,6 +93,7 @@ logger = logging.getLogger(__name__)
             {
                 "entity_id",
                 "filing_name",
+                "publication_time",
                 "start_date",
                 "end_date",
                 "test_axis",
@@ -102,6 +103,7 @@ logger = logging.getLogger(__name__)
             {
                 "entity_id",
                 "filing_name",
+                "publication_time",
                 "date",
                 "test_axis",
                 "instant_concept",

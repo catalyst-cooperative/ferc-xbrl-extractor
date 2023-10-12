@@ -13,6 +13,7 @@ from ferc_xbrl_extractor.instance import (
     Instance,
     InstanceBuilder,
     Period,
+    get_filing_name,
     get_instances,
 )
 
@@ -90,6 +91,23 @@ def test_context_ids(test_context):
     assert context_ids.get("end_date") == test_context.period.end_date
 
 
+def test_get_name_from_metadata():
+    filing_metadata = {
+        "entry_id": "35ae264c-dc13-471c-933a-23f39cc2a1ee",
+        "title": "Evergy Metro, Inc.",
+        "download_url": "https://eCollection.ferc.gov/api/DownloadDocument/174968/1?filename=wk-20221231.xml",
+        "published_parsed": "2023-04-18 23:02:39",
+        "ferc_formname": "FercForm.FORM_1",
+        "ferc_year": 2022,
+        "ferc_period": "Q4",
+    }
+
+    assert (
+        get_filing_name(filing_metadata)
+        == "Evergy_Metro,_Inc._form1_Q4_1681873359.xbrl"
+    )
+
+
 @pytest.mark.parametrize(
     "file_fixture",
     [
@@ -101,7 +119,9 @@ def test_parse_instance(file_fixture, request):
     """Test instance parsing."""
     file = request.getfixturevalue(file_fixture)
 
-    instance_builder = InstanceBuilder(file, "filing")
+    instance_builder = InstanceBuilder(
+        file, "filing", publication_time=datetime.datetime(2023, 10, 6, 0, 0, 0)
+    )
     instance = instance_builder.parse()
 
     expected_instant_facts = {
@@ -186,6 +206,7 @@ def test_all_fact_ids():
         instant_facts=instant_facts,
         duration_facts=duration_facts,
         filing_name="test_instance",
+        publication_time=datetime.datetime(2023, 10, 20, 0, 1, 2),
     )
 
     assert instance.fact_id_counts == Counter(
@@ -206,7 +227,12 @@ def test_get_instances_wrong_path(tmp_path):
 
 def test_instances_with_dates(multi_filings):
     instance_builders = [
-        InstanceBuilder(f, name=f"instance_{i}") for i, f in enumerate(multi_filings)
+        InstanceBuilder(
+            f,
+            name=f"instance_{i}",
+            publication_time=datetime.datetime(2023, 10, 6, 0, 0, 0),
+        )
+        for i, f in enumerate(multi_filings)
     ]
     instances = [ib.parse() for ib in instance_builders]
 

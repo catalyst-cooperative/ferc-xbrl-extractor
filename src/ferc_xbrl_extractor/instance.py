@@ -2,11 +2,13 @@
 import datetime
 import io
 import itertools
+import json
 import zipfile
 from collections import Counter, defaultdict
 from enum import Enum, auto
 from pathlib import Path
 from typing import BinaryIO
+from zoneinfo import ZoneInfo
 
 import stringcase
 from lxml import etree  # nosec: B410
@@ -243,6 +245,7 @@ class Instance:
         instant_facts: dict[str, list[Fact]],
         duration_facts: dict[str, list[Fact]],
         filing_name: str,
+        publication_time: datetime.datetime,
     ):
         """Construct Instance from parsed contexts and facts.
 
@@ -255,6 +258,7 @@ class Instance:
             instant_facts: Dictionary mapping concept name to list of instant facts.
             duration_facts: Dictionary mapping concept name to list of duration facts.
             filing_name: Name of parsed filing.
+            publication_time: the time at which the filing was made available online.
         """
         self.logger = get_logger(__name__)
         self.instant_facts = instant_facts
@@ -290,6 +294,7 @@ class Instance:
             self.report_date = datetime.date.fromisoformat(
                 duration_facts["certifying_official_date"][0].value
             )
+        self.publication_time = publication_time
 
     def get_facts(
         self, instant: bool, concept_names: list[str], primary_key: list[str]
@@ -316,15 +321,22 @@ class Instance:
 class InstanceBuilder:
     """Class to manage parsing XBRL filings."""
 
-    def __init__(self, file_info: str | BinaryIO, name: str):
+    def __init__(
+        self,
+        file_info: str | BinaryIO,
+        name: str,
+        publication_time: datetime.datetime,
+    ):
         """Construct InstanceBuilder class.
 
         Args:
             file_info: Either path to filing, or file data.
             name: Name of filing.
+            publication_time: Time this filing was published.
         """
         self.name = name
         self.file = file_info
+        self.publication_time = publication_time
 
     def parse(self, fact_prefix: str = "ferc") -> Instance:
         """Parse a single XBRL instance using XML library directly.
@@ -377,7 +389,13 @@ class InstanceBuilder:
                 else:
                     duration_facts[new_fact.name].append(new_fact)
 
-        return Instance(context_dict, instant_facts, duration_facts, self.name)
+        return Instance(
+            context_dict,
+            instant_facts,
+            duration_facts,
+            self.name,
+            publication_time=self.publication_time,
+        )
 
 
 def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
@@ -390,14 +408,50 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
 
     archive = zipfile.ZipFile(instance_path)
 
+    with archive.open("rssfeed") as f:
+        filings_metadata = json.loads(f.read())
+
+    publication_times = {
+        get_filing_name(metadata): datetime.datetime.fromisoformat(
+            metadata["published_parsed"]
+        )
+        for metadata in itertools.chain.from_iterable(
+            e.values() for e in filings_metadata.values()
+        )
+    }
+
     # Read files into in memory buffers to parse
     return [
         InstanceBuilder(
-            io.BytesIO(archive.open(filename).read()), filename.split(".")[0]
+            io.BytesIO(archive.open(filename).read()),
+            Path(filename).stem,
+            publication_time=publication_times[filename],
         )
         for filename in archive.namelist()
         if Path(filename).suffix in allowable_suffixes
     ]
+
+
+def get_filing_name(filing_metadata: dict[str, str | int]) -> str:
+    """Generate the filing filename based on its metadata, as seen in `rssfeed`.
+
+    This uses the same logic as `pudl_archiver.archivers.ferc.xbrl.archive_year`.
+
+    NOTE: the published time appears to be in America/New_York. We need to make the
+    archivers explictly use UTC everywhere, but until then we will force America/New_York
+    in this function.
+    """
+    # TODO (daz): just put the expected filename in rssfeed also, so we don't
+    # have to reconstruct the name generation logic.
+    published_time = datetime.datetime.fromisoformat(
+        filing_metadata["published_parsed"]
+    ).replace(tzinfo=ZoneInfo("America/New_York"))
+    return (
+        f"{filing_metadata['title']}_"
+        f"form{filing_metadata['ferc_formname'].split('_')[-1]}_"
+        f"{filing_metadata['ferc_period']}_"
+        f"{round(published_time.timestamp())}.xbrl".replace(" ", "_")
+    )
 
 
 def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:

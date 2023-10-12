@@ -81,27 +81,6 @@ def extract(
     return ExtractOutput(table_defs=table_defs, table_data=table_data, stats=stats)
 
 
-def _dedupe_newer_report_wins(df: pd.DataFrame, primary_key: list[str]) -> pd.DataFrame:
-    """Collapse all facts for a primary key into one row.
-
-    If a primary key corresponds to multiple rows of data from different
-    filings, treat the newer filings as updates to the older ones.
-    """
-    if df.empty:
-        return df
-    unique_cols = [col for col in primary_key if col != "filing_name"]
-    old_index = df.index.names
-    return (
-        df.reset_index()
-        .sort_values("report_date")
-        .groupby(unique_cols)
-        .last()
-        .drop("report_date", axis="columns")
-        .reset_index()
-        .set_index(old_index)
-    )
-
-
 def table_data_from_instances(
     instance_builders: list[InstanceBuilder],
     table_defs: dict[str, FactTable],
@@ -148,12 +127,7 @@ def table_data_from_instances(
             for instance_name, fact_ids in batch["metadata"].items():
                 results["metadata"][instance_name] |= fact_ids
 
-        filings = {
-            table: pd.concat(dfs).pipe(
-                _dedupe_newer_report_wins, table_defs[table].schema.primary_key
-            )
-            for table, dfs in results["dfs"].items()
-        }
+        filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
         metadata = results["metadata"]
         return filings, metadata
 

@@ -54,11 +54,11 @@ def test_lost_facts_pct(extracted, request):
         # We have unallocated data for Form 6 for some reason.
         total_threshold = 0.9
         per_filing_threshold = 0.8
-        # Assert that this is < 0.95 so we remember to fix this test once we
+        # Assert that this is < 0.96 so we remember to fix this test once we
         # fix the bug. We don't use xfail here because the parametrization is
         # at the *fixture* level, and only the lost facts tests should fail
         # for form 6.
-        assert used_fact_ratio > total_threshold and used_fact_ratio <= 0.95
+        assert used_fact_ratio > total_threshold and used_fact_ratio <= 0.96
     else:
         total_threshold = 0.99
         per_filing_threshold = 0.95
@@ -71,17 +71,38 @@ def test_lost_facts_pct(extracted, request):
         assert instance_used_ratio > per_filing_threshold and instance_used_ratio <= 1
 
 
-def test_deduplication(extracted):
+def test_publication_time(extracted):
     table_defs, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
-        date_cols = ["date"] if table.instant else ["start_date", "end_date"]
-        # we want to make sure that any fact only comes from one filing, so we
-        # don't want to include filing_name in the unique_cols
-        if (df := table_data[table_name]).empty:
-            continue
-        unique_cols = ["entity_id"] + date_cols + table.axes
-        assert not df.reset_index().duplicated(unique_cols).any()
+        assert (
+            table_data[table_name]
+            .reset_index(level="publication_time")
+            .publication_time.notna()
+            .all()
+        )
+
+
+def test_all_data_has_corresponding_id(extracted):
+    table_defs, table_data, _stats = extracted
+
+    [id_table_name] = [
+        name
+        for name in table_defs
+        if name.startswith("ident") and name.endswith("_duration")
+    ]
+    id_table = table_data[id_table_name].reset_index()
+
+    for table_name, table in table_defs.items():
+        data_table = table_data[table_name]
+        data_table = data_table.reset_index()
+        merged = data_table.merge(
+            id_table,
+            how="left",
+            on=["entity_id", "filing_name"],
+            indicator=True,
+        )
+        assert (merged._merge != "left_only").all()
 
 
 def test_null_values(extracted):
