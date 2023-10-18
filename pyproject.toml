@@ -14,7 +14,7 @@ authors = [
     {name = "Catalyst Cooperative", email = "pudl@catalyst.coop"},
     {name = "Zach Schira", email = "zach.schira@catalyst.coop"}
 ]
-requires-python = ">=3.10,<3.12"
+requires-python = ">=3.10,<3.13"
 dynamic = ["version"]
 license = {file = "LICENSE.txt"}
 dependencies = [
@@ -39,6 +39,7 @@ classifiers = [
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 keywords = [
     "accounting",
@@ -107,7 +108,7 @@ where = ["src"]
 
 [tool.black]
 line-length = 88
-target-version = ["py310", "py311"]
+target-version = ["py310", "py311", "py312"]
 include = "\\.pyi?$"
 
 [tool.ruff]
@@ -156,7 +157,7 @@ ignore = [
 ]
 
 # Assume Python 3.11
-target-version = "py310"
+target-version = "py312"
 line-length = 88
 
 # Don't automatically concatenate strings -- sometimes we forget a comma!
