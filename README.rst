@@ -10,7 +10,7 @@ FERC XBRL Extractor
    :alt: Project Status: Active
 
 .. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/workflows/tox-pytest/badge.svg
-   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions?query=workflow%3Atox-pytest
+   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml
    :alt: Tox-PyTest Status
 
 .. image:: https://img.shields.io/codecov/c/github/catalyst-cooperative/ferc-xbrl-extractor?style=flat&logo=codecov
@@ -40,6 +40,10 @@ FERC XBRL Extractor
 .. image:: https://results.pre-commit.ci/badge/github/catalyst-cooperative/ferc-xbrl-extractor/main.svg
    :target: https://results.pre-commit.ci/latest/github/catalyst-cooperative/ferc-xbrl-extractor/main
    :alt: pre-commit CI
+
+.. image:: https://zenodo.org/badge/471019769.svg
+  :target: https://zenodo.org/doi/10.5281/zenodo.10020145
+   :alt: Zenodo DOI
 
 The Federal Energy Regulatory Commission (FERC) has moved to collecting and distributing
 data using `XBRL <https://en.wikipedia.org/wiki/XBRL>`__. XBRL is primarily designed for
