@@ -90,7 +90,7 @@ tests = [
     "pytest>=6.2,<7.5",  # Our testing framework
     "pytest-console-scripts>=1.1,<1.5",  # Allow automatic testing of scripts
     "pytest-cov>=2.10,<4.2",  # Pytest plugin for working with coverage
-    "pytest-mock>=3.0,<3.12",
+    "pytest-mock>=3.0,<3.13",
     "ruff>=0.1,<0.2",  # A very fast linter and autofixer
     "tox>=4.0,<4.12",  # Python test environment manager
 ]
