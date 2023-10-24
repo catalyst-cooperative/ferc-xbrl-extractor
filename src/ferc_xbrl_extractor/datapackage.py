@@ -391,6 +391,11 @@ class FactTable:
 
         facts["publication_time"] = instance.publication_time
 
+        # Add null columns for fields where no facts were found
+        if not facts.empty:
+            missing_columns = list(set(self.data_columns) - set(facts.columns))
+            facts[missing_columns] = None
+
         contexts = facts.index.to_series().apply(
             lambda c_id: pd.Series(
                 instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)
