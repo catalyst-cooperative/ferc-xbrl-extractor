@@ -68,7 +68,6 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 
 [project.optional-dependencies]
 dev = [
-    "black>=22.0,<23.12",  # A deterministic code formatter
     "build>=1.0,<1.1",
     "ruff>=0.1,<0.2",  # A very fast linter and autofixer
     "tox>=4.0,<4.12",  # Python test environment manager
@@ -105,11 +104,6 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools_scm]
-
-[tool.black]
-line-length = 88
-target-version = ["py310", "py311", "py312"]
-include = "\\.pyi?$"
 
 [tool.ruff]
 select = [
@@ -156,7 +150,7 @@ ignore = [
     "S101",   # Use of assert
 ]
 
-# Assume Python 3.11
+# Assume Python 3.12
 target-version = "py312"
 line-length = 88
 
