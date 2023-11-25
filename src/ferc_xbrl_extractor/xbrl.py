@@ -2,6 +2,7 @@
 import io
 import math
 import re
+import warnings
 from collections import defaultdict, namedtuple
 from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
@@ -166,7 +167,14 @@ def process_batch(
             "total_facts": instance.total_facts,
         }
 
-    dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            action="once",
+            module="ferc_xbrl_extractor.xbrl",
+            category=FutureWarning,
+            message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated.",
+        )
+        dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
     return {"dfs": dfs, "metadata": metadata}
 
@@ -242,7 +250,7 @@ def get_fact_tables(
 
     if datapackage_path:
         # Verify that datapackage descriptor is valid before outputting
-        frictionless_package = Package(descriptor=datapackage.dict(by_alias=True))
+        frictionless_package = Package(descriptor=datapackage.model_dump(by_alias=True))
         if not frictionless_package.metadata_valid:
             raise RuntimeError(
                 f"Generated datapackage is invalid - {frictionless_package.metadata_errors}"
@@ -250,6 +258,6 @@ def get_fact_tables(
 
         # Write to JSON file
         with Path(datapackage_path).open(mode="w") as f:
-            f.write(datapackage.json(by_alias=True))
+            f.write(datapackage.model_dump_json(by_alias=True))
 
     return datapackage.get_fact_tables(filter_tables=filter_tables)

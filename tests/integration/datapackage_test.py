@@ -38,7 +38,7 @@ def test_datapackage_generation(test_dir):
     # test than a normative statement
     assert len(all_tables) == 366
 
-    assert Package(descriptor=datapackage.dict(by_alias=True)).metadata_valid
+    assert Package(descriptor=datapackage.model_dump(by_alias=True)).metadata_valid
 
 
 def _create_schema(instant=True, axes=None):

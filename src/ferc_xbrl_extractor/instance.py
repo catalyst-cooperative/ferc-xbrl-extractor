@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 import stringcase
 from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 from ferc_xbrl_extractor.helpers import get_logger
 
@@ -70,8 +70,9 @@ class Axis(BaseModel):
     value: str = ""
     dimension_type: DimensionType
 
-    @validator("name", pre=True)
-    def strip_prefix(cls, name: str):  # noqa: N805
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_prefix(cls, name: str) -> str:
         """Strip XML prefix from name."""
         return name.split(":")[1] if ":" in name else name
 
@@ -203,7 +204,7 @@ class Fact(BaseModel):
 
     name: str
     c_id: str
-    value: str | None
+    value: str | None = None
 
     @classmethod
     def from_xml(cls, elem: Element) -> "Fact":

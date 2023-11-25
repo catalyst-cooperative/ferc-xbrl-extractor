@@ -18,7 +18,7 @@ requires-python = ">=3.10,<3.13"
 dynamic = ["version"]
 license = {file = "LICENSE.txt"}
 dependencies = [
-    "pydantic>=1.9,<3",
+    "pydantic>=2,<3",
     "coloredlogs>=14.0,<15.1",
     "arelle-release>=2.3,<3",
     "frictionless>=4.4,<5",
@@ -194,6 +194,8 @@ testpaths = "./"
 filterwarnings = [
     "ignore:distutils Version classes are deprecated:DeprecationWarning",
     "ignore:Creating a LegacyVersion:DeprecationWarning:pkg_resources[.*]",
+    "ignore:The `update_forward_refs` method is deprecated:pydantic.PydanticDeprecatedSince20:pydantic.main",
+    "ignore:datetime.datetime.utcfromtimestamp\\(\\) is deprecated:DeprecationWarning:dateutil.tz",
 ]
 
 addopts = "--verbose"
