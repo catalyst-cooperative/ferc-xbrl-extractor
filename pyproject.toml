@@ -167,10 +167,6 @@ unfixable = ["ISC"]
 "__init__.py" = ["F401"]    # Ignore unused imports
 "tests/*" = ["D"]
 
-[tool.ruff.pep8-naming]
-# Allow Pydantic's `@validator` decorator to trigger class method treatment.
-classmethod-decorators = ["pydantic.validator", "pydantic.root_validator"]
-
 [tool.ruff.isort]
 known-first-party = ["ferc_xbrl_extractor"]
 
@@ -184,6 +180,9 @@ max-complexity = 10
 docstring-quotes = "double"
 inline-quotes = "double"
 multiline-quotes = "double"
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.doc8]
 max-line-length = 88
