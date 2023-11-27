@@ -146,12 +146,12 @@ class Concept(BaseModel):
         # If concept is leaf node return metadata
         else:
             if period_type == self.period_type:
-                metadata[self.name] = self.metadata.dict()
+                metadata[self.name] = self.metadata.model_dump()
 
         return metadata
 
 
-Concept.update_forward_refs()
+Concept.model_rebuild()
 
 
 class LinkRole(BaseModel):
