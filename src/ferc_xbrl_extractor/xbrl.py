@@ -128,7 +128,13 @@ def table_data_from_instances(
             for instance_name, fact_ids in batch["metadata"].items():
                 results["metadata"][instance_name] |= fact_ids
 
-        filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                action="ignore",
+                category=FutureWarning,
+                message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated",
+            )
+            filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
         metadata = results["metadata"]
         return filings, metadata
 
@@ -169,8 +175,7 @@ def process_batch(
 
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            action="once",
-            module="ferc_xbrl_extractor.xbrl",
+            action="ignore",
             category=FutureWarning,
             message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated.",
         )
