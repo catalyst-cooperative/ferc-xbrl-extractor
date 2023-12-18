@@ -6,6 +6,7 @@ import json
 import zipfile
 from collections import Counter, defaultdict
 from enum import Enum, auto
+from functools import cached_property
 from pathlib import Path
 from typing import BinaryIO
 from zoneinfo import ZoneInfo
@@ -121,12 +122,16 @@ class Entity(BaseModel):
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
+    @cached_property
+    def snakecase_dimensions(self) -> list[str]:
+        """Return list of dimension names in snakecase."""
+        return [stringcase.snakecase(dim.name) for dim in self.dimensions]
+
     def check_dimensions(self, primary_key: list[str]) -> bool:
         """Check if Context has extra axes not defined in primary key."""
-        for dim in self.dimensions:
-            if stringcase.snakecase(dim.name) not in primary_key:
-                return False
-        return True
+        return all(
+            snake_dim in primary_key for snake_dim in self.snakecase_dimensions
+        )
 
 
 class Context(BaseModel):
