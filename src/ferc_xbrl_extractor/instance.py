@@ -129,9 +129,7 @@ class Entity(BaseModel):
 
     def check_dimensions(self, primary_key: list[str]) -> bool:
         """Check if Context has extra axes not defined in primary key."""
-        return all(
-            snake_dim in primary_key for snake_dim in self.snakecase_dimensions
-        )
+        return all(snake_dim in primary_key for snake_dim in self.snakecase_dimensions)
 
 
 class Context(BaseModel):
