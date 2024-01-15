@@ -70,7 +70,7 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 dev = [
     "build>=1.0,<1.1",
     "ruff>=0.1,<0.2",  # A very fast linter and autofixer
-    "tox>=4.0,<4.12",  # Python test environment manager
+    "tox>=4.0,<4.13",  # Python test environment manager
     "twine>=3.3,<4.1",  # Used to make releases to PyPI
 ]
 docs = [
@@ -91,7 +91,7 @@ tests = [
     "pytest-cov>=2.10,<4.2",  # Pytest plugin for working with coverage
     "pytest-mock>=3.0,<3.13",
     "ruff>=0.1,<0.2",  # A very fast linter and autofixer
-    "tox>=4.0,<4.12",  # Python test environment manager
+    "tox>=4.0,<4.13",  # Python test environment manager
 ]
 types = [
     "types-setuptools",
