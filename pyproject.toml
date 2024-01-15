@@ -20,8 +20,8 @@ license = {file = "LICENSE.txt"}
 dependencies = [
     "pydantic>=2,<3",
     "coloredlogs>=14.0,<15.1",
+    "frictionless>=4.4,<6",
     "arelle-release>=2.3,<3",
-    "frictionless>=4.4,<5",
     "sqlalchemy>=1.4,<3",
     "pandas>=1.5,<2.2",
     "stringcase>=1.2,<2",
