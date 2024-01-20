@@ -1,32 +1,29 @@
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-    "setuptools>=66,<69",
-    "setuptools_scm[toml]>=3.5.0",
-    "wheel",
-]
+requires = ["setuptools>=66", "setuptools_scm[toml]>=3.5.0", "wheel"]
 
 [project]
 name = "catalystcoop.ferc_xbrl_extractor"
 description = "A tool for extracting data from FERC XBRL Filings."
-readme = {file = "README.rst", content-type = "text/x-rst"}
+readme = { file = "README.rst", content-type = "text/x-rst" }
 authors = [
-    {name = "Catalyst Cooperative", email = "pudl@catalyst.coop"},
-    {name = "Zach Schira", email = "zach.schira@catalyst.coop"}
+    { name = "Catalyst Cooperative", email = "pudl@catalyst.coop" },
+    { name = "Zach Schira", email = "zach.schira@catalyst.coop" },
 ]
 requires-python = ">=3.10,<3.13"
 dynamic = ["version"]
-license = {file = "LICENSE.txt"}
+license = { file = "LICENSE.txt" }
 dependencies = [
-    "pydantic>=2,<3",
-    "coloredlogs>=14.0,<15.1",
     "arelle-release>=2.3,<3",
+    "coloredlogs>=14.0,<15.1",
     "frictionless>=4.4,<5",
-    "sqlalchemy>=1.4,<3",
-    "pandas>=1.5,<2.2",
-    "stringcase>=1.2,<2",
-    "numpy>=1.16,<2",
     "lxml>=4.9.1,<6",
+    "numpy>=1.16,<2",
+    "pandas>=1.5,<3",
+    "pyarrow>=14.0.1", # required starting in pandas 3.0
+    "pydantic>=2,<3",
+    "sqlalchemy>=1.4,<3",
+    "stringcase>=1.2,<2",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -69,33 +66,31 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 [project.optional-dependencies]
 dev = [
     "build>=1.0,<1.1",
-    "ruff>=0.1,<0.2",  # A very fast linter and autofixer
-    "tox>=4.0,<4.13",  # Python test environment manager
-    "twine>=3.3,<4.1",  # Used to make releases to PyPI
+    "ruff>=0.1,<0.2", # A very fast linter and autofixer
+    "tox>=4.0,<4.13", # Python test environment manager
+    "twine>=3.3,<4.1", # Used to make releases to PyPI
 ]
 docs = [
-    "doc8>=1.0,<1.2",  # Ensures clean documentation formatting
+    "doc8>=1.0,<1.2", # Ensures clean documentation formatting
     "furo>=2022.4.7",
-    "sphinx>=4,!=5.1.0,<7.3",  # The default Python documentation engine
-    "sphinx-autoapi>=3.0,<4",  # Generates documentation from docstrings
-    "sphinx-issues>=1.2,<3.1",  # Allows references to GitHub issues
+    "sphinx>=4,!=5.1.0,<7.3", # The default Python documentation engine
+    "sphinx-autoapi>=3.0,<4", # Generates documentation from docstrings
+    "sphinx-issues>=1.2,<3.1", # Allows references to GitHub issues
 ]
 tests = [
-    "coverage>=5.3,<7.5",  # Lets us track what code is being tested
-    "doc8>=1.0,<1.2",  # Ensures clean documentation formatting
-    "mypy>=1.0,<1.9",  # Static type checking
-    "pre-commit>=2.9,<3.7",  # Allow us to run pre-commit hooks in testing
-    "pydocstyle>=5.1,<6.4",  # Style guidelines for Python documentation
-    "pytest>=6.2,<7.5",  # Our testing framework
-    "pytest-console-scripts>=1.1,<1.5",  # Allow automatic testing of scripts
-    "pytest-cov>=2.10,<4.2",  # Pytest plugin for working with coverage
+    "coverage>=5.3,<7.5", # Lets us track what code is being tested
+    "doc8>=1.0,<1.2", # Ensures clean documentation formatting
+    "mypy>=1.0,<1.9", # Static type checking
+    "pre-commit>=2.9,<3.7", # Allow us to run pre-commit hooks in testing
+    "pydocstyle>=5.1,<6.4", # Style guidelines for Python documentation
+    "pytest>=6.2,<7.5", # Our testing framework
+    "pytest-console-scripts>=1.1,<1.5", # Allow automatic testing of scripts
+    "pytest-cov>=2.10,<4.2", # Pytest plugin for working with coverage
     "pytest-mock>=3.0,<3.13",
-    "ruff>=0.1,<0.2",  # A very fast linter and autofixer
-    "tox>=4.0,<4.13",  # Python test environment manager
+    "ruff>=0.1,<0.2", # A very fast linter and autofixer
+    "tox>=4.0,<4.13", # Python test environment manager
 ]
-types = [
-    "types-setuptools",
-]
+types = ["types-setuptools"]
 
 [tool.setuptools]
 include-package-data = true
@@ -110,44 +105,44 @@ select = [
     "A", # flake8-builtins
     # "ARG", # unused arguments
     # "B",  # flake8-bugbear
-    "C",   # Limit cyclomatic complexity using mccabe
-    "D",   # pydocstyle errors
-    "E",   # pycodestyle errors
+    "C", # Limit cyclomatic complexity using mccabe
+    "D", # pydocstyle errors
+    "E", # pycodestyle errors
     "EXE", # executable file issues
     # "ERA", # eradicate: find commented out code
-    "F",   # pyflakes
-    "I",   # isort
+    "F", # pyflakes
+    "I", # isort
     "ISC", # implicit string concatenation
-    "N",   # pep8-naming
+    "N", # pep8-naming
     "NPY", # NumPy specific checks
-    "PD",  # pandas checks
+    "PD", # pandas checks
     "PGH", # pygrep-hooks
     # "PL",  # pylint
     # "PT",  # pytest style
     "PTH", # use pathlib
-    "Q",   # flake8-quotes
+    "Q", # flake8-quotes
     "RET", # check return values
     "RSE", # unnecessary parenthises on raised exceptions
-    "S",   # flake8-bandit
+    "S", # flake8-bandit
     "SIM", # flake8-simplify
     # "T",   # print statements found
     "UP", # pyupgrade (use modern python syntax)
-    "W",  # pycodestyle warnings
+    "W", # pycodestyle warnings
 ]
 ignore = [
-    "D401",   # Require imperative mood in docstrings.
+    "D401", # Require imperative mood in docstrings.
     "D417",
-    "E501",   # Overlong lines.
-    "E203",   # Space before ':' (black recommends to ignore)
-    "PD003",  # Use of isna rather than isnull
-    "PD004",  # Use of notna rather than notnull
-    "PD008",  # Use of df.at[] rather than df.loc[]
-    "PD010",  # Use of df.stack()
-    "PD013",  # Use of df.unstack()
-    "PD015",  # Use of pd.merge() rather than df.merge()
-    "PD901",  # df as variable name
+    "E501", # Overlong lines.
+    "E203", # Space before ':' (black recommends to ignore)
+    "PD003", # Use of isna rather than isnull
+    "PD004", # Use of notna rather than notnull
+    "PD008", # Use of df.at[] rather than df.loc[]
+    "PD010", # Use of df.stack()
+    "PD013", # Use of df.unstack()
+    "PD015", # Use of pd.merge() rather than df.merge()
+    "PD901", # df as variable name
     "RET504", # Ignore unnecessary assignment before return
-    "S101",   # Use of assert
+    "S101", # Use of assert
 ]
 
 # Assume Python 3.12
@@ -158,7 +153,7 @@ line-length = 88
 unfixable = ["ISC"]
 
 [tool.ruff.per-file-ignores]
-"__init__.py" = ["F401"]    # Ignore unused imports
+"__init__.py" = ["F401"] # Ignore unused imports
 "tests/*" = ["D"]
 
 [tool.ruff.isort]
@@ -196,8 +191,4 @@ log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
 log_cli = "true"
 log_cli_level = "INFO"
-doctest_optionflags = [
-    "NORMALIZE_WHITESPACE",
-    "IGNORE_EXCEPTION_DETAIL",
-    "ELLIPSIS",
-]
+doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL", "ELLIPSIS"]
