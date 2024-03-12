@@ -1,4 +1,5 @@
 """A command line interface (CLI) to the xbrl extractor."""
+
 import argparse
 import io
 import logging

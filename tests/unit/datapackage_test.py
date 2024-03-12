@@ -1,4 +1,5 @@
 """Test XBRL extraction interface."""
+
 import logging
 
 import pandas as pd

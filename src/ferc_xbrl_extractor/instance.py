@@ -1,4 +1,5 @@
 """Parse a single instance."""
+
 import datetime
 import io
 import itertools
