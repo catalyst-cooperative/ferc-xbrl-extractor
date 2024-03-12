@@ -1,4 +1,5 @@
 """Test XBRL instance interface."""
+
 import datetime
 import logging
 from collections import Counter

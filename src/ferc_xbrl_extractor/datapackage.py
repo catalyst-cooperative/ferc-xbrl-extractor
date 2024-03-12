@@ -1,4 +1,5 @@
 """Define structures for creating a datapackage descriptor."""
+
 import re
 from collections.abc import Callable
 from typing import Any

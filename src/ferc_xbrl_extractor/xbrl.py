@@ -1,4 +1,5 @@
 """XBRL extractor."""
+
 import io
 import math
 import re

@@ -1,4 +1,5 @@
 """Test datapackage descriptor from taxonomy."""
+
 import datetime
 import io
 from pathlib import Path

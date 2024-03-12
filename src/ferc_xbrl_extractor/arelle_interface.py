@@ -1,4 +1,5 @@
 """Abstract away interface to Arelle XBRL Library."""
+
 import io
 from pathlib import Path
 from typing import Literal
