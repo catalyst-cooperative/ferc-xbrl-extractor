@@ -1,6 +1,7 @@
 """Abstract away interface to Arelle XBRL Library."""
 
 import io
+import time
 from pathlib import Path
 from typing import Literal
 
@@ -12,12 +13,22 @@ from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 from pydantic import BaseModel
 
 
-def _taxonomy_view(taxonomy_source: str | FileSource.FileSource):
+def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: int = 7):
     """Actually use Arelle to get a taxonomy and its relationships."""
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)
-    taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
+    for try_count in range(max_retries):
+        try:
+            cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")
+            taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
+            continue
+        except FileExistsError as e:
+            if (try_count + 1) == max_retries:
+                raise e
+            backoff = 2 ** (try_count + 1)
+            cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")
+            time.sleep(backoff)
 
     view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
     view.view(XbrlConst.parentChild, None, None, None)
