@@ -1,7 +1,6 @@
 name: ferc-xbrl-extractor
 channels:
   - conda-forge
-  - defaults
 dependencies:
   # Packages required for setting up the environment
   - pip>=21.0
