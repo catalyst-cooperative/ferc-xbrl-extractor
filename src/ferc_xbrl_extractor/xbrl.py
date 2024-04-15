@@ -256,11 +256,10 @@ def get_fact_tables(
 
     if datapackage_path:
         # Verify that datapackage descriptor is valid before outputting
-        frictionless_package = Package(descriptor=datapackage.model_dump(by_alias=True))
-        if not frictionless_package.metadata_valid:
-            raise RuntimeError(
-                f"Generated datapackage is invalid - {frictionless_package.metadata_errors}"
-            )
+        report = Package.validate_descriptor(datapackage.model_dump(by_alias=True))
+
+        if not report.valid:
+            raise RuntimeError(f"Generated datapackage is invalid - {report.errors}")
 
         # Write to JSON file
         with Path(datapackage_path).open(mode="w") as f:
