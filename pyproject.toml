@@ -75,7 +75,7 @@ docs = [
     "furo>=2022.4.7",
     "sphinx>=4,!=5.1.0,<7.3", # The default Python documentation engine
     "sphinx-autoapi>=3.0,<4", # Generates documentation from docstrings
-    "sphinx-issues>=1.2,<4.1", # Allows references to GitHub issues
+    "sphinx-issues>=1.2,<4.2", # Allows references to GitHub issues
 ]
 tests = [
     "coverage>=5.3,<7.5", # Lets us track what code is being tested
