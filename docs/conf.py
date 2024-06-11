@@ -9,10 +9,9 @@
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
 import datetime
+import importlib.metadata
 import shutil
 from pathlib import Path
-
-import pkg_resources
 
 DOCS_DIR = Path(__file__).parent.resolve()
 
@@ -23,7 +22,7 @@ DOCS_DIR = Path(__file__).parent.resolve()
 # importable path.
 
 # The full version, including alpha/beta/rc tags
-release = pkg_resources.get_distribution("catalystcoop.ferc_xbrl_extractor").version
+release = importlib.metadata.version("catalystcoop.ferc_xbrl_extractor")
 
 # -- Project information -----------------------------------------------------
 
