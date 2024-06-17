@@ -9,7 +9,7 @@ FERC XBRL Extractor
    :target: https://www.repostatus.org/#active
    :alt: Project Status: Active
 
-.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/workflows/tox-pytest/badge.svg
+.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml/badge.svg
    :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml
    :alt: Tox-PyTest Status
 
