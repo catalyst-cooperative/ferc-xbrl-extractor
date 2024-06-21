@@ -1,7 +1,6 @@
 """XBRL prototype structures."""
 
 import io
-import json
 from pathlib import Path
 from typing import Any, Literal
 
@@ -262,15 +261,12 @@ class Taxonomy(BaseModel):
 
         return cls(roles=roles)
 
-    def save_metadata(self, filename: Path):
-        """Write taxonomy metadata to file.
+    def get_metadata(self):
+        """Get dictionary of taxonomy metadata.
 
         XBRL taxonomies contain metadata that can be useful for interpreting reported
         data. This method will write some of this metadata to a json file for later
         use. For more information on the metadata being extracted, see :class:`Metadata`.
-
-        Args:
-            filename: Path to output JSON file.
         """
         from ferc_xbrl_extractor.datapackage import clean_table_names
 
@@ -290,8 +286,4 @@ class Taxonomy(BaseModel):
             for role in self.roles
         }
 
-        metadata = {**duration_metadata, **instant_metadata}
-
-        # Write to JSON file
-        with Path(filename).open(mode="w") as f:
-            json.dump(metadata, f, indent=4)
+        return {**duration_metadata, **instant_metadata}

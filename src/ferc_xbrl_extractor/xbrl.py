@@ -1,6 +1,7 @@
 """XBRL extractor."""
 
 import io
+import json
 import math
 import re
 import warnings
@@ -237,6 +238,7 @@ def get_fact_tables(
         Dictionary mapping to table names to structure.
     """
     parsed_taxonomies = {}
+    metadata = {}
     with ZipFile(taxonomy_source, "r") as taxonomy_archive:
         for taxonomy_version in taxonomy_archive.namelist():
             logger = get_logger(__name__)
@@ -250,7 +252,7 @@ def get_fact_tables(
                 taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
 
             # Save taxonomy metadata
-            taxonomy.save_metadata(metadata_path)
+            metadata[taxonomy_version] = taxonomy.get_metadata()
 
             datapackage = Datapackage.from_taxonomy(
                 taxonomy, db_uri, form_number=form_number
@@ -274,4 +276,11 @@ def get_fact_tables(
             parsed_taxonomies[taxonomy_version.replace(".zip", "")] = (
                 datapackage.get_fact_tables(filter_tables=filter_tables)
             )
+
+    if metadata_path is not None:
+        # Write to JSON file
+        filename = Path(metadata_path) / f"{taxonomy_version}.json"
+        with Path(filename).open(mode="w") as f:
+            json.dump(metadata, f, indent=4)
+
     return parsed_taxonomies

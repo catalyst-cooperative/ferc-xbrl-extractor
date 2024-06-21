@@ -14,7 +14,6 @@ from ferc_xbrl_extractor.instance import (
     Instance,
     InstanceBuilder,
     Period,
-    get_filing_name,
     get_instances,
 )
 
@@ -90,23 +89,6 @@ def test_context_ids(test_context):
 
     assert context_ids.get("start_date") == test_context.period.start_date
     assert context_ids.get("end_date") == test_context.period.end_date
-
-
-def test_get_name_from_metadata():
-    filing_metadata = {
-        "entry_id": "35ae264c-dc13-471c-933a-23f39cc2a1ee",
-        "title": "Evergy Metro, Inc.",
-        "download_url": "https://eCollection.ferc.gov/api/DownloadDocument/174968/1?filename=wk-20221231.xml",
-        "published_parsed": "2023-04-18 23:02:39",
-        "ferc_formname": "FercForm.FORM_1",
-        "ferc_year": 2022,
-        "ferc_period": "Q4",
-    }
-
-    assert (
-        get_filing_name(filing_metadata)
-        == "Evergy_Metro,_Inc._form1_Q4_1681873359.xbrl"
-    )
 
 
 @pytest.mark.parametrize(
