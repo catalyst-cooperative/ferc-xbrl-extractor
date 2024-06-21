@@ -207,6 +207,7 @@ def test_all_fact_ids():
         instant_facts=instant_facts,
         duration_facts=duration_facts,
         filing_name="test_instance",
+        taxonomy_version="form-1_2022-01-01",
         publication_time=datetime.datetime(2023, 10, 20, 0, 1, 2),
     )
 

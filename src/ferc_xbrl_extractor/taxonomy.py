@@ -12,7 +12,6 @@ from pydantic import AnyHttpUrl, BaseModel
 
 from ferc_xbrl_extractor.arelle_interface import (
     Metadata,
-    load_taxonomy,
     load_taxonomy_from_archive,
 )
 
@@ -247,13 +246,10 @@ class Taxonomy(BaseModel):
             entry_point: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         """
-        if not entry_point:
-            taxonomy, view = load_taxonomy(taxonomy_source)
-        else:
-            if isinstance(taxonomy_source, Path):
-                taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
+        if isinstance(taxonomy_source, Path):
+            taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
 
-            taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
+        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {

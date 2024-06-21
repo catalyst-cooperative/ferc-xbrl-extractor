@@ -4,6 +4,7 @@ import datetime
 import io
 import itertools
 import json
+import re
 import zipfile
 from collections import Counter, defaultdict
 from enum import Enum, auto
@@ -20,6 +21,7 @@ from pydantic import BaseModel, field_validator
 from ferc_xbrl_extractor.helpers import get_logger
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
+XBRL_LINK = "http://www.xbrl.org/2003/linkbase"
 
 
 class Period(BaseModel):
@@ -251,6 +253,7 @@ class Instance:
         duration_facts: dict[str, list[Fact]],
         filing_name: str,
         publication_time: datetime.datetime,
+        taxonomy_version: str,
     ):
         """Construct Instance from parsed contexts and facts.
 
@@ -266,6 +269,7 @@ class Instance:
             publication_time: the time at which the filing was made available online.
         """
         self.logger = get_logger(__name__)
+        self.taxonomy_version = taxonomy_version
         self.instant_facts = instant_facts
         self.duration_facts = duration_facts
         self.fact_id_counts = Counter(
@@ -364,6 +368,12 @@ class InstanceBuilder:
         tree = etree.parse(self.file, parser=parser)  # noqa: S320
         root = tree.getroot()
 
+        # Get taxonomy used by instance
+        taxonomy = root.find(f"{{{XBRL_LINK}}}schemaRef").get(
+            "{http://www.w3.org/1999/xlink}href"
+        )
+        taxonomy_version = re.search(r"form-\d_\d{4}-\d{2}-\d{2}", taxonomy).group(0)
+
         # Dictionary mapping context ID's to context structures
         context_dict = {}
 
@@ -395,11 +405,12 @@ class InstanceBuilder:
                     duration_facts[new_fact.name].append(new_fact)
 
         return Instance(
-            context_dict,
-            instant_facts,
-            duration_facts,
-            self.name,
+            contexts=context_dict,
+            instant_facts=instant_facts,
+            duration_facts=duration_facts,
+            filing_name=self.name,
             publication_time=self.publication_time,
+            taxonomy_version=taxonomy_version,
         )
 
 
