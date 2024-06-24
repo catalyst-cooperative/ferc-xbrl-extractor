@@ -26,7 +26,7 @@ ExtractOutput = namedtuple("ExtractOutput", ["table_defs", "table_data", "stats"
 
 
 def extract(
-    instance_path: Path,
+    filings: list[Path] | list[io.BytesIO],
     taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
@@ -40,7 +40,7 @@ def extract(
     """Extract fact tables from instance documents as Pandas dataframes.
 
     Args:
-        instance_path: where to find instance documents.
+        filings: list of filings or zip files with filings.
         taxonomy_source: either a URL/path to taxonomy or in memory archive of
             taxonomy.
         form_number: the FERC form number (1, 2, 6, 60, 714).
@@ -66,7 +66,8 @@ def extract(
 
     instance_builders = [
         ib
-        for ib in get_instances(instance_path)
+        for filing_path in filings
+        for ib in get_instances(filing_path)
         if re.search(instance_pattern, ib.name)
     ]
 
@@ -237,7 +238,8 @@ def get_fact_tables(
     Returns:
         Dictionary mapping to table names to structure.
     """
-    parsed_taxonomies = {}
+    taxonomies = []
+    fact_tables = {}
     metadata = {}
     with ZipFile(taxonomy_source, "r") as taxonomy_archive:
         for taxonomy_version in taxonomy_archive.namelist():
@@ -250,9 +252,7 @@ def get_fact_tables(
 
                 taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
                 taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
-
-            # Save taxonomy metadata
-            metadata = get_metadata_from_taxonomies(parsed_taxonomies.values())
+                taxonomies.append(taxonomy)
 
             datapackage = Datapackage.from_taxonomy(
                 taxonomy, db_uri, form_number=form_number
@@ -273,9 +273,12 @@ def get_fact_tables(
                 with Path(datapackage_path).open(mode="w") as f:
                     f.write(datapackage.model_dump_json(by_alias=True))
 
-            parsed_taxonomies[taxonomy_version.replace(".zip", "")] = (
+            fact_tables[taxonomy_version.replace(".zip", "")] = (
                 datapackage.get_fact_tables(filter_tables=filter_tables)
             )
+
+    # Save taxonomy metadata
+    metadata = get_metadata_from_taxonomies(taxonomies)
 
     if metadata_path is not None:
         # Write to JSON file
@@ -283,4 +286,4 @@ def get_fact_tables(
         with Path(filename).open(mode="w") as f:
             json.dump(metadata, f, indent=4)
 
-    return parsed_taxonomies
+    return fact_tables

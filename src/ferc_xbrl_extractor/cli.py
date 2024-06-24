@@ -17,12 +17,16 @@ def parse():
     """Process base commands from the CLI."""
     parser = argparse.ArgumentParser(description="Extract data from XBRL filings")
     parser.add_argument(
-        "instance_path",
+        "filings",
+        nargs="+",
         help="Path to a single xbrl filing, or a directory of xbrl filings",
         type=Path,
     )
     parser.add_argument(
-        "sql_path", help="Store data in sqlite database specified in argument"
+        "-d",
+        "--db_path",
+        default="ferc-xbrl.sqlite",
+        help="Store data in sqlite database specified in argument",
     )
     parser.add_argument(
         "-s",
@@ -96,8 +100,8 @@ def parse():
 
 
 def run_main(
-    instance_path: Path | io.BytesIO,
-    sql_path: Path,
+    filings: list[Path] | list[io.BytesIO],
+    db_path: Path,
     clobber: bool,
     taxonomy: str | Path | io.BytesIO,
     form_number: int | None,
@@ -121,7 +125,7 @@ def run_main(
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
-    db_uri = f"sqlite:///{sql_path}"
+    db_uri = f"sqlite:///{db_path}"
     engine = create_engine(db_uri)
 
     if clobber:
@@ -133,7 +137,7 @@ def run_main(
         db_uri=db_uri,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
-        instance_path=instance_path,
+        filings=filings,
         workers=workers,
         batch_size=batch_size,
         requested_tables=requested_tables,
