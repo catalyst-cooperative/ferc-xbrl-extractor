@@ -118,37 +118,19 @@ can be used to drop all existing data before performing the extraction.
 
     $ xbrl_extract {path_to_filings} {path_to_database}
 
-This repo contains a small selection of FERC Form 1 filings from 2021 in the
-``examples`` directory. To test the tool on these filings, use the command
-
-.. code-block:: console
-
-    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite
-
-By default, the CLI will use the 2022 version of the FERC Form 1 Taxonomy to create
-the structure of the output database, and it will obtain the taxonomy directly from
-the FERC web server. To specify a different taxonomy use the ``--taxonomy`` option. This
-can be either a URL pointing to a taxonomy entry point, or a path to a local zipfile.
-The following command demonstrates this option using the same URL that would be used by
-default.
+This repo contains a small selection of FERC Form 1 filings from 2021, along with
+an archive of taxonomies in the ``examples`` directory. To test the tool on these
+filings, use the command:
 
 .. code-block:: console
 
     $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
-        --taxonomy https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd
+        --taxonomy examples/ferc1-xbrl-taxonomies.zip
 
-When using the ``--taxonomy`` option to read the taxonomy from a zipfile, the
-``--archive-path`` option is also required. This option is used to indicate the path to
-the taxonomy entry point within the zipfile. NOTE: This will likely change in the future
-to automatically detect the entry point as this interface is clunky. To demonstrate, the
-FERC Form 1 2021 taxonomy is included in the examples directory. This can be used with
-the following command.
-
-.. code-block:: console
-
-    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
-        --taxonomy examples/taxonomy.zip \
-        --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd
+The tool expects the ``--taxonomy`` option to point to a zipfile containing archived
+taxonomies produced by the `pudl-archiver <https://github.com/catalyst-cooperative/pudl-archiver>`__.
+The extractor will parse all taxonomies in the archive, then use the taxonomy referenced
+in each filing while parsing it.
 
 Parsing XBRL filings can be a time consuming and CPU heavy task, so this tool
 implements some basic multiprocessing to speed this up. It uses a
@@ -163,6 +145,7 @@ batches of 50 filings at a time.
 .. code-block:: console
 
     $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+        --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --workers 5 \
         --batch-size 50
 
@@ -178,7 +161,6 @@ filings and taxonomy, run the following command.
 .. code-block:: console
 
     $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
-        --taxonomy examples/taxonomy.zip \
-        --archive-path taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd \
+        --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --metadata-path metadata.json \
         --datapackage-path datapackage.json
