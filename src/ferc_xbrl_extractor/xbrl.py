@@ -20,7 +20,7 @@ from lxml.etree import XMLSyntaxError  # nosec: B410
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance, InstanceBuilder, get_instances
-from ferc_xbrl_extractor.taxonomy import Taxonomy
+from ferc_xbrl_extractor.taxonomy import Taxonomy, get_metadata_from_taxonomies
 
 ExtractOutput = namedtuple("ExtractOutput", ["table_defs", "table_data", "stats"])
 
@@ -252,7 +252,7 @@ def get_fact_tables(
                 taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
 
             # Save taxonomy metadata
-            metadata[taxonomy_version] = taxonomy.get_metadata()
+            metadata = get_metadata_from_taxonomies(parsed_taxonomies.values())
 
             datapackage = Datapackage.from_taxonomy(
                 taxonomy, db_uri, form_number=form_number

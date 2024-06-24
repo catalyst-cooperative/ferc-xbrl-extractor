@@ -261,29 +261,37 @@ class Taxonomy(BaseModel):
 
         return cls(roles=roles)
 
-    def get_metadata(self):
-        """Get dictionary of taxonomy metadata.
 
-        XBRL taxonomies contain metadata that can be useful for interpreting reported
-        data. This method will write some of this metadata to a json file for later
-        use. For more information on the metadata being extracted, see :class:`Metadata`.
-        """
-        from ferc_xbrl_extractor.datapackage import clean_table_names
+def get_metadata_from_taxonomies(taxonomies: list[Taxonomy]) -> dict:
+    """Get dictionary of taxonomy metadata.
 
+    XBRL taxonomies contain metadata that can be useful for interpreting reported
+    data. This method will write some of this metadata to a json file for later
+    use. For more information on the metadata being extracted, see :class:`Metadata`.
+    """
+    from ferc_xbrl_extractor.datapackage import clean_table_names
+
+    duration_metadata = {}
+    instant_metadata = {}
+    for taxonomy in taxonomies:
         # Get metadata for duration tables
-        duration_metadata = {
-            f"{clean_table_names(role.definition)}_duration": role.get_metadata(
-                "duration"
-            )
-            for role in self.roles
-        }
+        duration_metadata.update(
+            {
+                f"{clean_table_names(role.definition)}_duration": role.get_metadata(
+                    "duration"
+                )
+                for role in taxonomy.roles
+            }
+        )
 
         # Get metadata for instant tables
-        instant_metadata = {
-            f"{clean_table_names(role.definition)}_instant": role.get_metadata(
-                "instant"
-            )
-            for role in self.roles
-        }
+        instant_metadata.update(
+            {
+                f"{clean_table_names(role.definition)}_instant": role.get_metadata(
+                    "instant"
+                )
+                for role in taxonomy.roles
+            }
+        )
 
-        return {**duration_metadata, **instant_metadata}
+    return {**duration_metadata, **instant_metadata}
