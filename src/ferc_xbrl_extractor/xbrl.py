@@ -282,8 +282,7 @@ def get_fact_tables(
 
     if metadata_path is not None:
         # Write to JSON file
-        filename = Path(metadata_path) / f"{taxonomy_version}.json"
-        with Path(filename).open(mode="w") as f:
+        with Path(metadata_path).open(mode="w") as f:
             json.dump(metadata, f, indent=4)
 
     return fact_tables
