@@ -35,6 +35,11 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture(scope="session")
+def data_dir(request) -> Path:
+    return request.config.getoption("--integration-data-dir")
+
+
+@pytest.fixture(scope="session")
 def test_dir():
     """Return the path to the top-level directory containing the tests.
 

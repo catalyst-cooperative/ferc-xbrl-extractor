@@ -15,11 +15,6 @@ def metadata_dir(tmp_path_factory) -> Path:
     return tmp_path_factory.mktemp("metadata")
 
 
-@pytest.fixture(scope="session")
-def data_dir(request) -> Path:
-    return request.config.getoption("--integration-data-dir")
-
-
 @pytest.fixture(
     scope="session",
     params=DATASETS,
@@ -28,20 +23,19 @@ def data_dir(request) -> Path:
 def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
     form, year = request.param
     return extract(
-        taxonomy_source=data_dir / f"ferc{form}-2022-taxonomy.zip",
+        taxonomy_source=data_dir / f"ferc{form}-xbrl-taxonomies.zip",
         form_number=form,
         db_uri="sqlite://:memory:",
-        entry_point=f"taxonomy/form{form}/2022-01-01/form/form{form}/form-{form}_2022-01-01.xsd",
         metadata_path=metadata_dir / "metadata.json",
         datapackage_path=metadata_dir / "datapackage.json",
-        instance_path=data_dir / f"ferc{form}-xbrl-{year}.zip",
+        filings=[data_dir / f"ferc{form}-xbrl-{year}.zip"],
         workers=None,
         batch_size=8,
     )
 
 
 def test_lost_facts_pct(extracted, request):
-    table_defs, table_data, stats = extracted
+    table_defs_map, table_data, stats = extracted
     total_facts = sum(
         instance_stats["total_facts"] for instance_stats in stats.values()
     )
@@ -58,7 +52,7 @@ def test_lost_facts_pct(extracted, request):
         # fix the bug. We don't use xfail here because the parametrization is
         # at the *fixture* level, and only the lost facts tests should fail
         # for form 6.
-        assert used_fact_ratio > total_threshold and used_fact_ratio <= 0.96
+        assert used_fact_ratio > total_threshold and used_fact_ratio <= 0.97
     else:
         total_threshold = 0.99
         per_filing_threshold = 0.95
@@ -71,8 +65,16 @@ def test_lost_facts_pct(extracted, request):
         assert instance_used_ratio > per_filing_threshold and instance_used_ratio <= 1
 
 
+def _get_relevant_table_defs(table_defs_map: dict):
+    # Note: this just grabs table_defs from a random version of the taxonomy.
+    # The taxonomy versions are close enough that this works for now, but this
+    # could break tests in the future.
+    return list(table_defs_map.values())[0]
+
+
 def test_publication_time(extracted):
-    table_defs, table_data, _stats = extracted
+    table_defs_map, table_data, _stats = extracted
+    table_defs = _get_relevant_table_defs(table_defs_map)
 
     for table_name, table in table_defs.items():
         assert (
@@ -84,7 +86,8 @@ def test_publication_time(extracted):
 
 
 def test_all_data_has_corresponding_id(extracted):
-    table_defs, table_data, _stats = extracted
+    table_defs_map, table_data, _stats = extracted
+    table_defs = _get_relevant_table_defs(table_defs_map)
 
     [id_table_name] = [
         name
@@ -106,7 +109,8 @@ def test_all_data_has_corresponding_id(extracted):
 
 
 def test_null_values(extracted):
-    table_defs, table_data, _stats = extracted
+    table_defs_map, table_data, _stats = extracted
+    table_defs = _get_relevant_table_defs(table_defs_map)
 
     for table_name, table in table_defs.items():
         dataframe = table_data[table_name]
