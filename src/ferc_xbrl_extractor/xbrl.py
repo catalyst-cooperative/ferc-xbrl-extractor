@@ -273,8 +273,8 @@ def get_fact_tables(
                 with Path(datapackage_path).open(mode="w") as f:
                     f.write(datapackage.model_dump_json(by_alias=True))
 
-            fact_tables[taxonomy_version.replace(".zip", "")] = (
-                datapackage.get_fact_tables(filter_tables=filter_tables)
+            fact_tables[taxonomy_version] = datapackage.get_fact_tables(
+                filter_tables=filter_tables
             )
 
     # Save taxonomy metadata

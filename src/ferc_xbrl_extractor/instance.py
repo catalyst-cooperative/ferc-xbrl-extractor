@@ -4,7 +4,6 @@ import datetime
 import io
 import itertools
 import json
-import re
 import zipfile
 from collections import Counter, defaultdict
 from enum import Enum, auto
@@ -334,6 +333,7 @@ class InstanceBuilder:
         file_info: str | BinaryIO,
         name: str,
         publication_time: datetime.datetime,
+        taxonomy_version: str,
     ):
         """Construct InstanceBuilder class.
 
@@ -345,6 +345,7 @@ class InstanceBuilder:
         self.name = name
         self.file = file_info
         self.publication_time = publication_time
+        self.taxonomy_version = taxonomy_version
 
     def parse(self, fact_prefix: str = "ferc") -> Instance:
         """Parse a single XBRL instance using XML library directly.
@@ -366,12 +367,6 @@ class InstanceBuilder:
         # Check if instance contains path to file or file data and parse accordingly
         tree = etree.parse(self.file, parser=parser)  # noqa: S320
         root = tree.getroot()
-
-        # Get taxonomy used by instance
-        taxonomy = root.find(f"{{{XBRL_LINK}}}schemaRef").get(
-            "{http://www.w3.org/1999/xlink}href"
-        )
-        taxonomy_version = re.search(r"form-\d_\d{4}-\d{2}-\d{2}", taxonomy).group(0)
 
         # Dictionary mapping context ID's to context structures
         context_dict = {}
@@ -409,7 +404,7 @@ class InstanceBuilder:
             duration_facts=duration_facts,
             filing_name=self.name,
             publication_time=self.publication_time,
-            taxonomy_version=taxonomy_version,
+            taxonomy_version=self.taxonomy_version,
         )
 
 
@@ -427,10 +422,16 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
         filings_metadata = json.loads(f.read())
 
     publication_times = {
-        filename: datetime.datetime.fromisoformat(metadata["published_parsed"])
-        for filename, metadata in itertools.chain.from_iterable(
-            e.items() for e in filings_metadata.values()
+        filing["filename"]: datetime.datetime.fromisoformat(
+            filing["rss_metadata"]["published_parsed"]
         )
+        for filers_metadata in filings_metadata.values()
+        for filing in filers_metadata
+    }
+    taxonomy_versions = {
+        filing["filename"]: filing["taxonomy_zip_name"]
+        for filers_metadata in filings_metadata.values()
+        for filing in filers_metadata
     }
 
     # Read files into in memory buffers to parse
@@ -439,6 +440,7 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
             io.BytesIO(archive.open(filename).read()),
             Path(filename).stem,
             publication_time=publication_times[filename],
+            taxonomy_version=taxonomy_versions[filename],
         )
         for filename in archive.namelist()
         if Path(filename).suffix in allowable_suffixes

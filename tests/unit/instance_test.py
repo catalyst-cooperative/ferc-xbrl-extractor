@@ -103,7 +103,10 @@ def test_parse_instance(file_fixture, request):
     file = request.getfixturevalue(file_fixture)
 
     instance_builder = InstanceBuilder(
-        file, "filing", publication_time=datetime.datetime(2023, 10, 6, 0, 0, 0)
+        file,
+        "filing",
+        publication_time=datetime.datetime(2023, 10, 6, 0, 0, 0),
+        taxonomy_version="form-1-2022-01-01.zip",
     )
     instance = instance_builder.parse()
 
@@ -215,6 +218,7 @@ def test_instances_with_dates(multi_filings):
             f,
             name=f"instance_{i}",
             publication_time=datetime.datetime(2023, 10, 6, 0, 0, 0),
+            taxonomy_version="form-1-2022-01-01.zip",
         )
         for i, f in enumerate(multi_filings)
     ]
