@@ -226,7 +226,7 @@ def get_fact_tables(
     Data-Package descriptor describing the output database if requested.
 
     Args:
-        taxonomy_path: Zipfile with archived taxonomies for form.
+        taxonomy_source: Zipfile with archived taxonomies for form.
         form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_uri: URI of database used for constructing datapackage descriptor.
         filter_tables: Optionally specify the set of tables to extract.

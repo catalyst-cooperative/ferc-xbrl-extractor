@@ -48,7 +48,7 @@ def test_lost_facts_pct(extracted, request):
         # We have unallocated data for Form 6 for some reason.
         total_threshold = 0.9
         per_filing_threshold = 0.8
-        # Assert that this is < 0.96 so we remember to fix this test once we
+        # Assert that this is < 0.97 so we remember to fix this test once we
         # fix the bug. We don't use xfail here because the parametrization is
         # at the *fixture* level, and only the lost facts tests should fail
         # for form 6.
