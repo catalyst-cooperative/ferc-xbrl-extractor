@@ -2,6 +2,7 @@
 
 import datetime
 import io
+import zipfile
 from pathlib import Path
 
 import pandas as pd
@@ -20,12 +21,18 @@ from ferc_xbrl_extractor.instance import InstanceBuilder
 from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 
-def test_datapackage_generation(test_dir):
+def test_datapackage_generation(test_dir, data_dir):
     """Test that datapackage descriptor is valid."""
-    taxonomy = Taxonomy.from_source(
-        test_dir / "integration/data/ferc1-2022-taxonomy.zip",
-        entry_point=Path("taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"),
-    )
+    with (
+        zipfile.ZipFile(data_dir / "ferc1-xbrl-taxonomies.zip") as archive,
+        archive.open("form-1-2022-01-01.zip", mode="r") as f,
+    ):
+        taxonomy = Taxonomy.from_source(
+            f,
+            entry_point=Path(
+                "taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
+            ),
+        )
     datapackage = Datapackage.from_taxonomy(taxonomy, "sqlite:///test_db.sqlite")
 
     filtered_tables = datapackage.get_fact_tables(
@@ -114,6 +121,7 @@ def test_construct_dataframe(table_schema, period, df, in_memory_filing):
         in_memory_filing,
         "filing",
         publication_time=datetime.datetime(2023, 1, 1, 0, 0, 1),
+        taxonomy_version="form-1-2022-01-01.zip",
     )
     instance = instance_builder.parse()
 

@@ -10,7 +10,6 @@ from enum import Enum, auto
 from functools import cached_property
 from pathlib import Path
 from typing import BinaryIO
-from zoneinfo import ZoneInfo
 
 import stringcase
 from lxml import etree  # nosec: B410
@@ -20,6 +19,7 @@ from pydantic import BaseModel, field_validator
 from ferc_xbrl_extractor.helpers import get_logger
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
+XBRL_LINK = "http://www.xbrl.org/2003/linkbase"
 
 
 class Period(BaseModel):
@@ -251,6 +251,7 @@ class Instance:
         duration_facts: dict[str, list[Fact]],
         filing_name: str,
         publication_time: datetime.datetime,
+        taxonomy_version: str,
     ):
         """Construct Instance from parsed contexts and facts.
 
@@ -266,6 +267,7 @@ class Instance:
             publication_time: the time at which the filing was made available online.
         """
         self.logger = get_logger(__name__)
+        self.taxonomy_version = taxonomy_version
         self.instant_facts = instant_facts
         self.duration_facts = duration_facts
         self.fact_id_counts = Counter(
@@ -331,6 +333,7 @@ class InstanceBuilder:
         file_info: str | BinaryIO,
         name: str,
         publication_time: datetime.datetime,
+        taxonomy_version: str,
     ):
         """Construct InstanceBuilder class.
 
@@ -342,6 +345,7 @@ class InstanceBuilder:
         self.name = name
         self.file = file_info
         self.publication_time = publication_time
+        self.taxonomy_version = taxonomy_version
 
     def parse(self, fact_prefix: str = "ferc") -> Instance:
         """Parse a single XBRL instance using XML library directly.
@@ -395,11 +399,12 @@ class InstanceBuilder:
                     duration_facts[new_fact.name].append(new_fact)
 
         return Instance(
-            context_dict,
-            instant_facts,
-            duration_facts,
-            self.name,
+            contexts=context_dict,
+            instant_facts=instant_facts,
+            duration_facts=duration_facts,
+            filing_name=self.name,
             publication_time=self.publication_time,
+            taxonomy_version=self.taxonomy_version,
         )
 
 
@@ -417,12 +422,16 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
         filings_metadata = json.loads(f.read())
 
     publication_times = {
-        get_filing_name(metadata): datetime.datetime.fromisoformat(
-            metadata["published_parsed"]
+        filing["filename"]: datetime.datetime.fromisoformat(
+            filing["rss_metadata"]["published_parsed"]
         )
-        for metadata in itertools.chain.from_iterable(
-            e.values() for e in filings_metadata.values()
-        )
+        for filers_metadata in filings_metadata.values()
+        for filing in filers_metadata
+    }
+    taxonomy_versions = {
+        filing["filename"]: filing["taxonomy_zip_name"]
+        for filers_metadata in filings_metadata.values()
+        for filing in filers_metadata
     }
 
     # Read files into in memory buffers to parse
@@ -431,32 +440,11 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
             io.BytesIO(archive.open(filename).read()),
             Path(filename).stem,
             publication_time=publication_times[filename],
+            taxonomy_version=taxonomy_versions[filename],
         )
         for filename in archive.namelist()
         if Path(filename).suffix in allowable_suffixes
     ]
-
-
-def get_filing_name(filing_metadata: dict[str, str | int]) -> str:
-    """Generate the filing filename based on its metadata, as seen in `rssfeed`.
-
-    This uses the same logic as `pudl_archiver.archivers.ferc.xbrl.archive_year`.
-
-    NOTE: the published time appears to be in America/New_York. We need to make the
-    archivers explictly use UTC everywhere, but until then we will force America/New_York
-    in this function.
-    """
-    # TODO (daz): just put the expected filename in rssfeed also, so we don't
-    # have to reconstruct the name generation logic.
-    published_time = datetime.datetime.fromisoformat(
-        filing_metadata["published_parsed"]
-    ).replace(tzinfo=ZoneInfo("America/New_York"))
-    return (
-        f"{filing_metadata['title']}_"
-        f"form{filing_metadata['ferc_formname'].split('_')[-1]}_"
-        f"{filing_metadata['ferc_period']}_"
-        f"{round(published_time.timestamp())}.xbrl".replace(" ", "_")
-    )
 
 
 def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:

@@ -1,7 +1,6 @@
 """XBRL prototype structures."""
 
 import io
-import json
 from pathlib import Path
 from typing import Any, Literal
 
@@ -12,7 +11,6 @@ from pydantic import AnyHttpUrl, BaseModel
 
 from ferc_xbrl_extractor.arelle_interface import (
     Metadata,
-    load_taxonomy,
     load_taxonomy_from_archive,
 )
 
@@ -247,13 +245,10 @@ class Taxonomy(BaseModel):
             entry_point: Path to taxonomy entry point within archive. If not None,
                 then `taxonomy` should be a path to zipfile, not a URL.
         """
-        if not entry_point:
-            taxonomy, view = load_taxonomy(taxonomy_source)
-        else:
-            if isinstance(taxonomy_source, Path):
-                taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
+        if isinstance(taxonomy_source, Path):
+            taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
 
-            taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
+        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {
@@ -266,36 +261,37 @@ class Taxonomy(BaseModel):
 
         return cls(roles=roles)
 
-    def save_metadata(self, filename: Path):
-        """Write taxonomy metadata to file.
 
-        XBRL taxonomies contain metadata that can be useful for interpreting reported
-        data. This method will write some of this metadata to a json file for later
-        use. For more information on the metadata being extracted, see :class:`Metadata`.
+def get_metadata_from_taxonomies(taxonomies: list[Taxonomy]) -> dict:
+    """Get dictionary of taxonomy metadata.
 
-        Args:
-            filename: Path to output JSON file.
-        """
-        from ferc_xbrl_extractor.datapackage import clean_table_names
+    XBRL taxonomies contain metadata that can be useful for interpreting reported
+    data. This method will write some of this metadata to a json file for later
+    use. For more information on the metadata being extracted, see :class:`Metadata`.
+    """
+    from ferc_xbrl_extractor.datapackage import clean_table_names
 
+    duration_metadata = {}
+    instant_metadata = {}
+    for taxonomy in taxonomies:
         # Get metadata for duration tables
-        duration_metadata = {
-            f"{clean_table_names(role.definition)}_duration": role.get_metadata(
-                "duration"
-            )
-            for role in self.roles
-        }
+        duration_metadata.update(
+            {
+                f"{clean_table_names(role.definition)}_duration": role.get_metadata(
+                    "duration"
+                )
+                for role in taxonomy.roles
+            }
+        )
 
         # Get metadata for instant tables
-        instant_metadata = {
-            f"{clean_table_names(role.definition)}_instant": role.get_metadata(
-                "instant"
-            )
-            for role in self.roles
-        }
+        instant_metadata.update(
+            {
+                f"{clean_table_names(role.definition)}_instant": role.get_metadata(
+                    "instant"
+                )
+                for role in taxonomy.roles
+            }
+        )
 
-        metadata = {**duration_metadata, **instant_metadata}
-
-        # Write to JSON file
-        with Path(filename).open(mode="w") as f:
-            json.dump(metadata, f, indent=4)
+    return {**duration_metadata, **instant_metadata}

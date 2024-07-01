@@ -1,6 +1,7 @@
 """XBRL extractor."""
 
 import io
+import json
 import math
 import re
 import warnings
@@ -9,6 +10,7 @@ from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
 from pathlib import Path
+from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
@@ -18,17 +20,16 @@ from lxml.etree import XMLSyntaxError  # nosec: B410
 from ferc_xbrl_extractor.datapackage import Datapackage, FactTable
 from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance, InstanceBuilder, get_instances
-from ferc_xbrl_extractor.taxonomy import Taxonomy
+from ferc_xbrl_extractor.taxonomy import Taxonomy, get_metadata_from_taxonomies
 
 ExtractOutput = namedtuple("ExtractOutput", ["table_defs", "table_data", "stats"])
 
 
 def extract(
-    instance_path: Path,
+    filings: list[Path] | list[io.BytesIO],
     taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
-    entry_point: Path | None = None,
     datapackage_path: Path | None = None,
     metadata_path: Path | None = None,
     requested_tables: set[str] | None = None,
@@ -39,14 +40,11 @@ def extract(
     """Extract fact tables from instance documents as Pandas dataframes.
 
     Args:
-        instance_path: where to find instance documents.
+        filings: list of filings or zip files with filings.
         taxonomy_source: either a URL/path to taxonomy or in memory archive of
             taxonomy.
         form_number: the FERC form number (1, 2, 6, 60, 714).
         db_uri: the location of the database we are writing this form out to.
-        entry_point: if taxonomy_path is a ZIP archive, this is a Path to the
-            relevant taxonomy file within the archive. Otherwise, this should
-            be None.
         datapackage_path: where to write a Frictionless datapackage descriptor
             to, if at all. Defaults to None, i.e., do not write one.
         metadata_path: where to write XBRL metadata to, if at all. Defaults
@@ -61,7 +59,6 @@ def extract(
         taxonomy_source=taxonomy_source,
         form_number=form_number,
         db_uri=db_uri,
-        entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
         filter_tables=requested_tables,
@@ -69,7 +66,8 @@ def extract(
 
     instance_builders = [
         ib
-        for ib in get_instances(instance_path)
+        for filing_path in filings
+        for ib in get_instances(filing_path)
         if re.search(instance_pattern, ib.name)
     ]
 
@@ -85,7 +83,7 @@ def extract(
 
 def table_data_from_instances(
     instance_builders: list[InstanceBuilder],
-    table_defs: dict[str, FactTable],
+    table_defs: dict[str, dict[str, FactTable]],
     batch_size: int | None = None,
     workers: int | None = None,
 ) -> tuple[dict[str, pd.DataFrame], dict[str, list]]:
@@ -96,8 +94,6 @@ def table_data_from_instances(
     Args:
         instances: A list of Instance objects used for parsing XBRL filings.
         table_defs: the tables defined in the taxonomy that we will match facts to.
-        archive_path: Path to taxonomy entry point within archive. If not None,
-            then `taxonomy` should be a path to zipfile, not a URL.
         batch_size: Number of filings to process before writing to DB.
         workers: Number of threads to create for parsing filings.
     """
@@ -204,7 +200,7 @@ def process_instance(
     logger.info(f"Extracting {instance.filing_name}")
 
     dfs = {}
-    for key, table_def in table_defs.items():
+    for key, table_def in table_defs[instance.taxonomy_version].items():
         dfs[key] = table_def.construct_dataframe(instance)
 
     return dfs
@@ -214,11 +210,10 @@ def get_fact_tables(
     taxonomy_source: Path | io.BytesIO,
     form_number: int,
     db_uri: str,
-    entry_point: Path | None = None,
     filter_tables: set[str] | None = None,
     datapackage_path: str | None = None,
     metadata_path: str | None = None,
-) -> dict[str, FactTable]:
+) -> dict[str, dict[str, FactTable]]:
     """Parse taxonomy from URL.
 
     XBRL defines 'fact tables' that groups related facts. These fact
@@ -231,11 +226,9 @@ def get_fact_tables(
     Data-Package descriptor describing the output database if requested.
 
     Args:
-        taxonomy_path: URL of taxonomy.
+        taxonomy_source: Zipfile with archived taxonomies for form.
         form_number: FERC Form number (can be 1, 2, 6, 60, 714).
         db_uri: URI of database used for constructing datapackage descriptor.
-        archive_path: Path to taxonomy entry point within archive. If not None,
-            then `taxonomy` should be a path to zipfile, not a URL.
         filter_tables: Optionally specify the set of tables to extract.
             If None, all possible tables will be extracted.
         datapackage_path: Create frictionless datapackage and write to specified path
@@ -245,24 +238,51 @@ def get_fact_tables(
     Returns:
         Dictionary mapping to table names to structure.
     """
-    logger = get_logger(__name__)
-    logger.info(f"Parsing taxonomy from {taxonomy_source}")
-    taxonomy = Taxonomy.from_source(taxonomy_source, entry_point=entry_point)
+    taxonomies = []
+    fact_tables = {}
+    metadata = {}
+    with ZipFile(taxonomy_source, "r") as taxonomy_archive:
+        for taxonomy_version in taxonomy_archive.namelist():
+            logger = get_logger(__name__)
+            logger.info(f"Parsing taxonomy from {taxonomy_version}")
+            with taxonomy_archive.open(taxonomy_version, mode="r") as f:
+                taxonomy_date = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version).group(
+                    0
+                )
+
+                taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
+                taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
+                taxonomies.append(taxonomy)
+
+            datapackage = Datapackage.from_taxonomy(
+                taxonomy, db_uri, form_number=form_number
+            )
+
+            if datapackage_path:
+                # Verify that datapackage descriptor is valid before outputting
+                report = Package.validate_descriptor(
+                    datapackage.model_dump(by_alias=True)
+                )
+
+                if not report.valid:
+                    raise RuntimeError(
+                        f"Generated datapackage is invalid - {report.errors}"
+                    )
+
+                # Write to JSON file
+                with Path(datapackage_path).open(mode="w") as f:
+                    f.write(datapackage.model_dump_json(by_alias=True))
+
+            fact_tables[taxonomy_version] = datapackage.get_fact_tables(
+                filter_tables=filter_tables
+            )
 
     # Save taxonomy metadata
-    taxonomy.save_metadata(metadata_path)
+    metadata = get_metadata_from_taxonomies(taxonomies)
 
-    datapackage = Datapackage.from_taxonomy(taxonomy, db_uri, form_number=form_number)
-
-    if datapackage_path:
-        # Verify that datapackage descriptor is valid before outputting
-        report = Package.validate_descriptor(datapackage.model_dump(by_alias=True))
-
-        if not report.valid:
-            raise RuntimeError(f"Generated datapackage is invalid - {report.errors}")
-
+    if metadata_path is not None:
         # Write to JSON file
-        with Path(datapackage_path).open(mode="w") as f:
-            f.write(datapackage.model_dump_json(by_alias=True))
+        with Path(metadata_path).open(mode="w") as f:
+            json.dump(metadata, f, indent=4)
 
-    return datapackage.get_fact_tables(filter_tables=filter_tables)
+    return fact_tables

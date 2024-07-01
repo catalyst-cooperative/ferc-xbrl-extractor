@@ -12,25 +12,21 @@ from sqlalchemy import create_engine
 from ferc_xbrl_extractor import helpers, xbrl
 from ferc_xbrl_extractor.helpers import get_logger
 
-TAXONOMY_MAP = {
-    1: "https://eCollection.ferc.gov/taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd",
-    2: "https://eCollection.ferc.gov/taxonomy/form2/2022-01-01/form/form2/form-2_2022-01-01.xsd",
-    6: "https://eCollection.ferc.gov/taxonomy/form6/2022-01-01/form/form6/form-6_2022-01-01.xsd",
-    60: "https://eCollection.ferc.gov/taxonomy/form60/2022-01-01/form/form60/form-60_2022-01-01.xsd",
-    714: "https://eCollection.ferc.gov/taxonomy/form714/2022-01-01/form/form714/form-714_2022-01-01.xsd",
-}
-
 
 def parse():
     """Process base commands from the CLI."""
     parser = argparse.ArgumentParser(description="Extract data from XBRL filings")
     parser.add_argument(
-        "instance_path",
+        "filings",
+        nargs="+",
         help="Path to a single xbrl filing, or a directory of xbrl filings",
         type=Path,
     )
     parser.add_argument(
-        "sql_path", help="Store data in sqlite database specified in argument"
+        "-d",
+        "--db_path",
+        default="ferc-xbrl.sqlite",
+        help="Store data in sqlite database specified in argument",
     )
     parser.add_argument(
         "-s",
@@ -64,7 +60,7 @@ def parse():
         "-t",
         "--taxonomy",
         default=None,
-        help="Specify taxonomy used create structure of final database",
+        help="Specify path to archive of all taxonomies.",
     )
     parser.add_argument(
         "-f",
@@ -72,13 +68,6 @@ def parse():
         default=1,
         type=int,
         help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
-    )
-    parser.add_argument(
-        "-a",
-        "--entry-point",
-        default=None,
-        type=Path,
-        help="Specify path to taxonomy entry point within a zipfile archive. This is a relative path within the taxonomy. If specified, `taxonomy` must be set to point to the zipfile location on the local file system.",
     )
     parser.add_argument(
         "-m",
@@ -111,11 +100,10 @@ def parse():
 
 
 def run_main(
-    instance_path: Path | io.BytesIO,
-    sql_path: Path,
+    filings: list[Path] | list[io.BytesIO],
+    db_path: Path,
     clobber: bool,
-    taxonomy: Path | io.BytesIO | None,
-    entry_point: Path,
+    taxonomy: str | Path | io.BytesIO,
     form_number: int | None,
     metadata_path: Path | None,
     datapackage_path: Path | None,
@@ -137,33 +125,19 @@ def run_main(
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
-    db_uri = f"sqlite:///{sql_path}"
+    db_uri = f"sqlite:///{db_path}"
     engine = create_engine(db_uri)
 
     if clobber:
         helpers.drop_tables(engine)
 
-    # Verify taxonomy is set if archive_path is set
-    if entry_point and not taxonomy:
-        raise ValueError("taxonomy must be set if archive_path is given.")
-
-    # Get taxonomy URL
-    if taxonomy is None:
-        if form_number not in TAXONOMY_MAP:
-            raise ValueError(
-                f"Form number {form_number} is not valid. Supported form numbers include {list(TAXONOMY_MAP.keys())}"
-            )
-        # Get most recent taxonomy for specified form number
-        taxonomy = TAXONOMY_MAP[form_number]
-
     extracted = xbrl.extract(
         taxonomy_source=taxonomy,
         form_number=form_number,
         db_uri=db_uri,
-        entry_point=entry_point,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
-        instance_path=instance_path,
+        filings=filings,
         workers=workers,
         batch_size=batch_size,
         requested_tables=requested_tables,

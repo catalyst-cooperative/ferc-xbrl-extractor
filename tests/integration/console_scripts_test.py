@@ -41,43 +41,10 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
         [
             "xbrl_extract",
             str(data_dir / "ferc1-xbrl-2021.zip"),
+            "--db_path",
             str(out_db),
             "--taxonomy",
-            str(data_dir / "taxonomy.zip"),
-            "--entry-point",
-            "taxonomy/form1/2021-01-01/form/form1/form-1_2021-01-01.xsd",
-            "--metadata-path",
-            str(metadata),
-            "--datapackage-path",
-            str(datapackage),
-            "--logfile",
-            str(log_file),
-        ]
-    )
-
-    assert ret.success
-
-
-@pytest.mark.script_launch_mode("inprocess")
-def test_extract_example_filings_no_explicit_taxonomy(
-    script_runner, tmp_path, test_dir
-):
-    """Test the XBRL extraction on the example filings.
-
-    Same as above, but should look up the taxonomy using the TAXONOMY_MAP.
-
-    """
-    out_db = tmp_path / "ferc1-2021-sample.sqlite"
-    metadata = tmp_path / "metadata.json"
-    datapackage = tmp_path / "datapackage.json"
-    log_file = tmp_path / "log.log"
-    data_dir = test_dir / "integration" / "data"
-
-    ret = script_runner.run(
-        [
-            "xbrl_extract",
-            str(data_dir / "ferc1-xbrl-2021.zip"),
-            str(out_db),
+            str(data_dir / "ferc1-xbrl-taxonomies.zip"),
             "--metadata-path",
             str(metadata),
             "--datapackage-path",
