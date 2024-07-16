@@ -13,6 +13,8 @@ from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance
 from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
+logger = get_logger(__name__)
+
 
 class Field(BaseModel):
     """A generic field descriptor, as per Frictionless Data specs.
@@ -332,6 +334,36 @@ class Resource(BaseModel):
         period_type = "instant" if "date" in self.schema_.primary_key else "duration"
         return period_type
 
+    def merge_resources(self, other: "Resource", other_version: str) -> "Resource":
+        """Merge same resource from multiple taxonomies."""
+        if self.schema_.primary_key != other.schema_.primary_key:
+            raise RuntimeError(
+                f"Can't merge resource {self.name} when versions have incompatible schemas"
+            )
+        original_fields = {field.name for field in self.schema_.fields}
+        other_fields = {field.name for field in other.schema_.fields}
+
+        if missing_fields := original_fields - other_fields:
+            logger.warning(
+                f"The following fields were removed from table {self.name}"
+                f"in taxonomy version {other_version}: {missing_fields}"
+            )
+
+        fields = self.schema_.fields
+        if new_fields := other_fields - original_fields:
+            logger.warning(
+                f"The following fields were added to table {self.name}"
+                f"in taxonomy version {other_version}: {new_fields}"
+            )
+            fields += [
+                field for field in other.schema_.fields if field.name in new_fields
+            ]
+        return self.model_copy(
+            update={
+                "schema": Schema(primary_key=self.schema_.primary_key, fields=fields)
+            }
+        )
+
 
 class FactTable:
     """Class to handle constructing a dataframe from an XBRL fact table.
@@ -355,7 +387,6 @@ class FactTable:
             if field.name not in schema.primary_key
         ]
         self.instant = period_type == "instant"
-        self.logger = get_logger(__name__)
 
     def construct_dataframe(self, instance: Instance) -> pd.DataFrame:
         """Construct dataframe from a parsed XBRL instance.
@@ -413,8 +444,8 @@ class Datapackage(BaseModel):
     resources: list[Resource]
 
     @classmethod
-    def from_taxonomy(
-        cls, taxonomy: Taxonomy, db_uri: str, form_number: int = 1
+    def from_taxonomies(
+        cls, taxonomies: dict[str, Taxonomy], db_uri: str, form_number: int = 1
     ) -> "Datapackage":
         """Construct a Datapackage from an XBRL Taxonomy.
 
@@ -423,14 +454,27 @@ class Datapackage(BaseModel):
             db_uri: Path to database required for a Frictionless resource.
             form_number: FERC form number used for datapackage name.
         """
-        resources = []
-        for role in taxonomy.roles:
-            for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type, db_uri)
-                if resource:
-                    resources.append(resource)
+        resources = {}
+        logger.info("Attempting to merge taxonomies into a single datapackage.")
+        for i, (taxonomy_version, taxonomy) in enumerate(sorted(taxonomies.items())):
+            for role in taxonomy.roles:
+                for period_type in ["duration", "instant"]:
+                    resource = Resource.from_link_role(role, period_type, db_uri)
+                    if resource:
+                        if resource.name not in resources:
+                            if i > 0:
+                                logger.warning(
+                                    f"Resource {resource.name} is new in {taxonomy_version}"
+                                )
+                            resources[resource.name] = resource
+                        else:
+                            resources[resource.name] = resources[
+                                resource.name
+                            ].merge_resources(resource, taxonomy_version)
 
-        return cls(resources=resources, name=f"ferc{form_number}-extracted-xbrl")
+        return cls(
+            resources=list(resources.values()), name=f"ferc{form_number}-extracted-xbrl"
+        )
 
     def get_fact_tables(
         self, filter_tables: set[str] | None = None
@@ -439,7 +483,7 @@ class Datapackage(BaseModel):
 
         Args:
             filter_tables: Optionally specify the set of tables to extract.
-                    If None, all possible tables will be extracted.
+                If None, all possible tables will be extracted.
         """
         if filter_tables:
             filtered_resources = (r for r in self.resources if r.name in filter_tables)

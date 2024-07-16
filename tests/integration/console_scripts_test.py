@@ -41,7 +41,7 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
         [
             "xbrl_extract",
             str(data_dir / "ferc1-xbrl-2021.zip"),
-            "--db_path",
+            "--db-path",
             str(out_db),
             "--taxonomy",
             str(data_dir / "ferc1-xbrl-taxonomies.zip"),

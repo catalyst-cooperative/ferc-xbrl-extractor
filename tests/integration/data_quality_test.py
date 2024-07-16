@@ -35,7 +35,7 @@ def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
 
 
 def test_lost_facts_pct(extracted, request):
-    table_defs_map, table_data, stats = extracted
+    table_defs, table_data, stats = extracted
     total_facts = sum(
         instance_stats["total_facts"] for instance_stats in stats.values()
     )
@@ -65,16 +65,8 @@ def test_lost_facts_pct(extracted, request):
         assert instance_used_ratio > per_filing_threshold and instance_used_ratio <= 1
 
 
-def _get_relevant_table_defs(table_defs_map: dict):
-    # Note: this just grabs table_defs from a random version of the taxonomy.
-    # The taxonomy versions are close enough that this works for now, but this
-    # could break tests in the future.
-    return list(table_defs_map.values())[0]
-
-
 def test_publication_time(extracted):
-    table_defs_map, table_data, _stats = extracted
-    table_defs = _get_relevant_table_defs(table_defs_map)
+    table_defs, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
         assert (
@@ -86,8 +78,7 @@ def test_publication_time(extracted):
 
 
 def test_all_data_has_corresponding_id(extracted):
-    table_defs_map, table_data, _stats = extracted
-    table_defs = _get_relevant_table_defs(table_defs_map)
+    table_defs, table_data, _stats = extracted
 
     [id_table_name] = [
         name
@@ -109,8 +100,7 @@ def test_all_data_has_corresponding_id(extracted):
 
 
 def test_null_values(extracted):
-    table_defs_map, table_data, _stats = extracted
-    table_defs = _get_relevant_table_defs(table_defs_map)
+    table_defs, table_data, _stats = extracted
 
     for table_name, table in table_defs.items():
         dataframe = table_data[table_name]
