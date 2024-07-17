@@ -354,14 +354,14 @@ class Resource(BaseModel):
 
         if missing_fields := original_fields - other_fields:
             logger.warning(
-                f"The following fields were removed from table {self.name}"
+                f"The following fields were removed from table {self.name} "
                 f"in taxonomy version {other_version}: {missing_fields}"
             )
 
         fields = self.schema_.fields
         if new_fields := other_fields - original_fields:
             logger.warning(
-                f"The following fields were added to table {self.name}"
+                f"The following fields were added to table {self.name} "
                 f"in taxonomy version {other_version}: {new_fields}"
             )
             # Add new fields to schema
