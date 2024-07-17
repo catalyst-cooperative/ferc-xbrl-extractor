@@ -13,6 +13,8 @@ from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance
 from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
+logger = get_logger(__name__)
+
 
 class Field(BaseModel):
     """A generic field descriptor, as per Frictionless Data specs.
@@ -332,6 +334,47 @@ class Resource(BaseModel):
         period_type = "instant" if "date" in self.schema_.primary_key else "duration"
         return period_type
 
+    def merge_resources(self, other: "Resource", other_version: str) -> "Resource":
+        """Merge same resource from multiple taxonomies.
+
+        This method attempts to merge resource definitions from multiple taxonomies
+        creating a unified schema for the table in question. It does this by first
+        comparing the primary keys of the two tables. If the primary keys aren't
+        exactly the same it will raise an error. For the remaining columns, this
+        method will check if there are any that are new or missing in ``other``.
+        New columns will be added to the tables schema, and missing columns will
+        be logged, but remain in the schema.
+        """
+        if self.schema_.primary_key != other.schema_.primary_key:
+            raise RuntimeError(
+                f"Can't merge resource {self.name} when versions have incompatible schemas"
+            )
+        original_fields = {field.name for field in self.schema_.fields}
+        other_fields = {field.name for field in other.schema_.fields}
+
+        if missing_fields := original_fields - other_fields:
+            logger.warning(
+                f"The following fields were removed from table {self.name} "
+                f"in taxonomy version {other_version}: {missing_fields}"
+            )
+
+        fields = self.schema_.fields
+        if new_fields := other_fields - original_fields:
+            logger.warning(
+                f"The following fields were added to table {self.name} "
+                f"in taxonomy version {other_version}: {new_fields}"
+            )
+            # Add new fields to schema
+            fields += [
+                field for field in other.schema_.fields if field.name in new_fields
+            ]
+        # Return resource with updated schema
+        return self.model_copy(
+            update={
+                "schema": Schema(primary_key=self.schema_.primary_key, fields=fields)
+            }
+        )
+
 
 class FactTable:
     """Class to handle constructing a dataframe from an XBRL fact table.
@@ -355,7 +398,6 @@ class FactTable:
             if field.name not in schema.primary_key
         ]
         self.instant = period_type == "instant"
-        self.logger = get_logger(__name__)
 
     def construct_dataframe(self, instance: Instance) -> pd.DataFrame:
         """Construct dataframe from a parsed XBRL instance.
@@ -413,24 +455,60 @@ class Datapackage(BaseModel):
     resources: list[Resource]
 
     @classmethod
-    def from_taxonomy(
-        cls, taxonomy: Taxonomy, db_uri: str, form_number: int = 1
+    def from_taxonomies(
+        cls, taxonomies: dict[str, Taxonomy], db_uri: str, form_number: int = 1
     ) -> "Datapackage":
-        """Construct a Datapackage from an XBRL Taxonomy.
+        """Construct a Datapackage from parsed XBRL taxonomies.
+
+        FERC regularly releases new versions of their XBRL taxonomies, meaning
+        data from different years conforms to slightly different structures. This
+        method will attempt to merge these taxonomy versions into a single unified
+        schema defined in a Datapackage descriptor.
+
+        The exact logic for merging taxonomies is as follows. First, the oldest
+        available taxonomy is used to construct a baseline datapackage descriptor.
+        Next, it will parse subsequent versions and compare the set of tables
+        found with the baseline. New tables will be added to the schema, removed
+        tables will simply be logged but remain in the schema, and tables in both
+        versions will do a deeper column level comparison. For more info on the table
+        comparison, see ``Resource.merge_resources``.
 
         Args:
-            taxonomy: XBRL taxonomy which defines the structure of the database.
+            taxonomies: List of taxonomies to merge into a Datapackage.
             db_uri: Path to database required for a Frictionless resource.
             form_number: FERC form number used for datapackage name.
         """
-        resources = []
-        for role in taxonomy.roles:
-            for period_type in ["duration", "instant"]:
-                resource = Resource.from_link_role(role, period_type, db_uri)
-                if resource:
-                    resources.append(resource)
+        resources = {}
+        logger.info("Attempting to merge taxonomies into a single datapackage.")
+        # Iterate through taxonomies in order of release and attempt to merge
+        for i, (taxonomy_version, taxonomy) in enumerate(sorted(taxonomies.items())):
+            baseline_resources = set(resources.keys())
+            new_resources = set()
+            for role in taxonomy.roles:
+                for period_type in ["duration", "instant"]:
+                    if resource := Resource.from_link_role(role, period_type, db_uri):
+                        new_resources.add(resource.name)
+                        if resource.name not in resources:
+                            # All resources will be new when parsing first taxonomy
+                            if i > 0:
+                                logger.warning(
+                                    f"Resource {resource.name} is new in {taxonomy_version}"
+                                )
+                            # Add new table to schema
+                            resources[resource.name] = resource
+                        else:
+                            # Merge tables in both versions of taxonomy
+                            resources[resource.name] = resources[
+                                resource.name
+                            ].merge_resources(resource, taxonomy_version)
+            if missing_resources := baseline_resources - new_resources:
+                logger.warning(
+                    f"The following resources were removed in {taxonomy_version}: {missing_resources}"
+                )
 
-        return cls(resources=resources, name=f"ferc{form_number}-extracted-xbrl")
+        return cls(
+            resources=list(resources.values()), name=f"ferc{form_number}-extracted-xbrl"
+        )
 
     def get_fact_tables(
         self, filter_tables: set[str] | None = None
@@ -439,7 +517,7 @@ class Datapackage(BaseModel):
 
         Args:
             filter_tables: Optionally specify the set of tables to extract.
-                    If None, all possible tables will be extracted.
+                If None, all possible tables will be extracted.
         """
         if filter_tables:
             filtered_resources = (r for r in self.resources if r.name in filter_tables)

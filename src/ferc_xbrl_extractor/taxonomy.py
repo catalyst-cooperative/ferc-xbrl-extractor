@@ -262,7 +262,7 @@ class Taxonomy(BaseModel):
         return cls(roles=roles)
 
 
-def get_metadata_from_taxonomies(taxonomies: list[Taxonomy]) -> dict:
+def get_metadata_from_taxonomies(taxonomies: dict[str, Taxonomy]) -> dict:
     """Get dictionary of taxonomy metadata.
 
     XBRL taxonomies contain metadata that can be useful for interpreting reported
@@ -273,7 +273,7 @@ def get_metadata_from_taxonomies(taxonomies: list[Taxonomy]) -> dict:
 
     duration_metadata = {}
     instant_metadata = {}
-    for taxonomy in taxonomies:
+    for taxonomy in taxonomies.values():
         # Get metadata for duration tables
         duration_metadata.update(
             {

@@ -83,7 +83,7 @@ def extract(
 
 def table_data_from_instances(
     instance_builders: list[InstanceBuilder],
-    table_defs: dict[str, dict[str, FactTable]],
+    table_defs: dict[str, FactTable],
     batch_size: int | None = None,
     workers: int | None = None,
 ) -> tuple[dict[str, pd.DataFrame], dict[str, list]]:
@@ -200,7 +200,7 @@ def process_instance(
     logger.info(f"Extracting {instance.filing_name}")
 
     dfs = {}
-    for key, table_def in table_defs[instance.taxonomy_version].items():
+    for key, table_def in table_defs.items():
         dfs[key] = table_def.construct_dataframe(instance)
 
     return dfs
@@ -213,7 +213,7 @@ def get_fact_tables(
     filter_tables: set[str] | None = None,
     datapackage_path: str | None = None,
     metadata_path: str | None = None,
-) -> dict[str, dict[str, FactTable]]:
+) -> dict[str, FactTable]:
     """Parse taxonomy from URL.
 
     XBRL defines 'fact tables' that groups related facts. These fact
@@ -238,7 +238,7 @@ def get_fact_tables(
     Returns:
         Dictionary mapping to table names to structure.
     """
-    taxonomies = []
+    taxonomies = {}
     fact_tables = {}
     metadata = {}
     with ZipFile(taxonomy_source, "r") as taxonomy_archive:
@@ -252,30 +252,24 @@ def get_fact_tables(
 
                 taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
                 taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
-                taxonomies.append(taxonomy)
+                taxonomies[taxonomy_version] = taxonomy
 
-            datapackage = Datapackage.from_taxonomy(
-                taxonomy, db_uri, form_number=form_number
-            )
+    datapackage = Datapackage.from_taxonomies(
+        taxonomies, db_uri, form_number=form_number
+    )
 
-            if datapackage_path:
-                # Verify that datapackage descriptor is valid before outputting
-                report = Package.validate_descriptor(
-                    datapackage.model_dump(by_alias=True)
-                )
+    if datapackage_path:
+        # Verify that datapackage descriptor is valid before outputting
+        report = Package.validate_descriptor(datapackage.model_dump(by_alias=True))
 
-                if not report.valid:
-                    raise RuntimeError(
-                        f"Generated datapackage is invalid - {report.errors}"
-                    )
+        if not report.valid:
+            raise RuntimeError(f"Generated datapackage is invalid - {report.errors}")
 
-                # Write to JSON file
-                with Path(datapackage_path).open(mode="w") as f:
-                    f.write(datapackage.model_dump_json(by_alias=True))
+        # Write to JSON file
+        with Path(datapackage_path).open(mode="w") as f:
+            f.write(datapackage.model_dump_json(by_alias=True, indent=2))
 
-            fact_tables[taxonomy_version] = datapackage.get_fact_tables(
-                filter_tables=filter_tables
-            )
+    fact_tables = datapackage.get_fact_tables(filter_tables=filter_tables)
 
     # Save taxonomy metadata
     metadata = get_metadata_from_taxonomies(taxonomies)

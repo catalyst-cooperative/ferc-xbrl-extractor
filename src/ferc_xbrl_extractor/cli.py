@@ -24,7 +24,7 @@ def parse():
     )
     parser.add_argument(
         "-d",
-        "--db_path",
+        "--db-path",
         default="ferc-xbrl.sqlite",
         help="Store data in sqlite database specified in argument",
     )

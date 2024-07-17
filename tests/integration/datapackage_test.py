@@ -23,28 +23,39 @@ from ferc_xbrl_extractor.taxonomy import Taxonomy
 
 def test_datapackage_generation(test_dir, data_dir):
     """Test that datapackage descriptor is valid."""
-    with (
-        zipfile.ZipFile(data_dir / "ferc1-xbrl-taxonomies.zip") as archive,
-        archive.open("form-1-2022-01-01.zip", mode="r") as f,
-    ):
-        taxonomy = Taxonomy.from_source(
-            f,
-            entry_point=Path(
-                "taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"
-            ),
-        )
-    datapackage = Datapackage.from_taxonomy(taxonomy, "sqlite:///test_db.sqlite")
+    taxonomies = {}
+    for version, entry_point in [
+        (
+            "form-1-2022-01-01.zip",
+            "taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd",
+        ),
+        (
+            "form-1-2023-11-01.zip",
+            "taxonomy/form1/2023-11-01/form/form1/form-1_2023-11-01.xsd",
+        ),
+    ]:
+        with (
+            zipfile.ZipFile(data_dir / "ferc1-xbrl-taxonomies.zip") as archive,
+            archive.open(version, mode="r") as f,
+        ):
+            taxonomies[version] = Taxonomy.from_source(
+                f,
+                entry_point=Path(entry_point),
+            )
+    datapackage = Datapackage.from_taxonomies(taxonomies, "sqlite:///test_db.sqlite")
 
-    filtered_tables = datapackage.get_fact_tables(
-        filter_tables={"identification_001_duration"}
-    )
-    assert set(filtered_tables.keys()) == {"identification_001_duration"}
+    filter_tables = {
+        "identification_001_duration",
+        "energy_storage_operations_small_plants_419_duration",
+    }
+    filtered_tables = datapackage.get_fact_tables(filter_tables=filter_tables)
+    assert set(filtered_tables.keys()) == filter_tables
 
     all_tables = datapackage.get_fact_tables()
 
     # 366 was just the value we had - this assertion is more of a regression
     # test than a normative statement
-    assert len(all_tables) == 366
+    assert len(all_tables) == 370
 
     assert Package.validate_descriptor(datapackage.model_dump(by_alias=True))
 
