@@ -124,7 +124,7 @@ filings, use the command:
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+    $ xbrl_extract examples/ferc1-2021-sample.zip --db-path ./ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
 
 The tool expects the ``--taxonomy`` option to point to a zipfile containing archived
@@ -144,7 +144,7 @@ batches of 50 filings at a time.
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+    $ xbrl_extract examples/ferc1-2021-sample.zip .--db-path /ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --workers 5 \
         --batch-size 50
@@ -160,7 +160,7 @@ filings and taxonomy, run the following command.
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip ./ferc1-2021-sample.sqlite \
+    $ xbrl_extract examples/ferc1-2021-sample.zip .--db-path /ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --metadata-path metadata.json \
         --datapackage-path datapackage.json
