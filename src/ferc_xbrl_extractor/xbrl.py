@@ -267,7 +267,7 @@ def get_fact_tables(
 
         # Write to JSON file
         with Path(datapackage_path).open(mode="w") as f:
-            f.write(datapackage.model_dump_json(by_alias=True))
+            f.write(datapackage.model_dump_json(by_alias=True, indent=2))
 
     fact_tables = datapackage.get_fact_tables(filter_tables=filter_tables)
 
