@@ -461,7 +461,7 @@ class Datapackage(BaseModel):
         """Construct a Datapackage from parsed XBRL taxonomies.
 
         FERC regularly releases new versions of their XBRL taxonomies, meaning
-        data from different years coforms to slightly different structures. This
+        data from different years conforms to slightly different structures. This
         method will attempt to merge these taxonomy versions into a single unified
         schema defined in a Datapackage descriptor.
 
