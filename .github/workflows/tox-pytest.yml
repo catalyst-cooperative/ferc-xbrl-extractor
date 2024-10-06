@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 2
 
       - name: Install Conda environment using mamba
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: environment.yml
           create-args: python=${{ matrix.python-version }}
@@ -27,7 +27,6 @@ jobs:
           condarc: |
             channels:
             - conda-forge
-            - defaults
             channel_priority: strict
 
       - name: Log environment details
