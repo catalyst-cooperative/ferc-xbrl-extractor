@@ -164,3 +164,14 @@ filings and taxonomy, run the following command.
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --metadata-path metadata.json \
         --datapackage-path datapackage.json
+
+PUDL Sustainers
+---------------
+
+This package is part of the `Public Utility Data Liberation (PUDL) project
+<https://github.com/catalyst-cooperative/pudl>`__.
+
+The PUDL Sustainers provide ongoing financial support to ensure the open data keeps
+flowing, and the project is sustainable long term. They're also involved in our
+quarterly planning process. To learn more see `the PUDL Project on Open Collective
+<https://opencollective.com/pudl>`__.
