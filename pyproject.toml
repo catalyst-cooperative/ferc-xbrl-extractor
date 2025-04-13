@@ -10,7 +10,7 @@ authors = [
     { name = "Catalyst Cooperative", email = "pudl@catalyst.coop" },
     { name = "Zach Schira", email = "zach.schira@catalyst.coop" },
 ]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 dynamic = ["version"]
 license = { file = "LICENSE.txt" }
 dependencies = [
@@ -37,6 +37,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 keywords = [
     "accounting",
@@ -102,7 +103,7 @@ where = ["src"]
 
 [tool.ruff]
 # Configurations that apply to both the `format` and `lint` subcommands.
-target-version = "py312"
+target-version = "py313"
 line-length = 88
 indent-width = 4
 
