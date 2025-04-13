@@ -3,9 +3,9 @@ channels:
   - conda-forge
 dependencies:
   # Packages required for setting up the environment
-  - pip>=21.0
-  - python>=3.10,<3.13
-  - setuptools>=66
+  - pip>=25.0
+  - python>=3.10,<3.14
+  - setuptools>=75
 
   # XBRL parsing library
   - pip:
