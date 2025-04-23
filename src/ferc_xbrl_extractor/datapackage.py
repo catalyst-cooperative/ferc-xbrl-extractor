@@ -139,7 +139,7 @@ CONVERT_DTYPES: dict[str, Callable] = {
 Map callables to schema field type to convert parsed values (Data Package `field.type`).
 """
 
-TABLE_NAME_PATTERN = re.compile("(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I)  # noqa: W605, FS003
+TABLE_NAME_PATTERN = re.compile("(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I)  # noqa: W605
 """
 Simple regex pattern used to clean up table names.
 """
@@ -226,6 +226,9 @@ def clean_table_names(name: str) -> str | None:
     name = _lowercase_words(name)
     m = TABLE_NAME_PATTERN.match(name)
     if not m:
+        # Some taxnomies have a table that lists deprecated items. Ignore these tables
+        if "Deprecated" in name:
+            return None
         raise RuntimeError(f"Error could not parse table name: '{name}'.")
 
     # Rearrange name to be {table_name}_{page_number}

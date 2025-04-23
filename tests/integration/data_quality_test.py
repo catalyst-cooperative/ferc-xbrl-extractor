@@ -44,19 +44,9 @@ def test_lost_facts_pct(extracted, request):
     )
     used_fact_ratio = total_used_facts / total_facts
 
-    if "form6_" in request.node.name:
-        # We have unallocated data for Form 6 for some reason.
-        total_threshold = 0.9
-        per_filing_threshold = 0.8
-        # Assert that this is < 0.97 so we remember to fix this test once we
-        # fix the bug. We don't use xfail here because the parametrization is
-        # at the *fixture* level, and only the lost facts tests should fail
-        # for form 6.
-        assert used_fact_ratio > total_threshold and used_fact_ratio <= 0.97
-    else:
-        total_threshold = 0.99
-        per_filing_threshold = 0.95
-        assert used_fact_ratio > total_threshold and used_fact_ratio <= 1
+    total_threshold = 0.99
+    per_filing_threshold = 0.95
+    assert used_fact_ratio > total_threshold and used_fact_ratio <= 1
 
     for instance_stats in stats.values():
         instance_used_ratio = (
