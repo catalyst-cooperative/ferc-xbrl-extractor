@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import pytest
 
-from ferc_xbrl_extractor.datapackage import Resource, fuzzy_dedup
+from ferc_xbrl_extractor.datapackage import Resource, clean_table_names, fuzzy_dedup
 from ferc_xbrl_extractor.taxonomy import LinkRole
 
 logger = logging.getLogger(__name__)
@@ -190,3 +190,26 @@ def test_fuzzy_dedup_failed_to_resolve():
         ValueError, match=r"Fact a:job has values.*'accountant'.*'pringle'.*"
     ):
         fuzzy_dedup(df)
+
+
+@pytest.mark.parametrize(
+    "input_name,cleaned_name,is_bad",
+    [
+        ("001 - Schedule - Test Table Name", "test_table_name_001", False),
+        ("002 - schedule - Lowercase Table Name", "lowercase_table_name_002", False),
+        (
+            "003 -    Schedule  - Weird Space Table Name",
+            "weird_space_table_name_003",
+            False,
+        ),
+        ("004 - Deprecated - Deprecated Table Name", None, False),
+        ("005 - Bad - Bad Table Name", None, True),
+    ],
+)
+def test_clean_table_names(input_name: str, cleaned_name: str | None, is_bad: bool):
+    """Test clean_table_names method."""
+    if is_bad:
+        with pytest.raises(RuntimeError):
+            clean_table_names(input_name)
+    else:
+        assert clean_table_names(input_name) == cleaned_name
