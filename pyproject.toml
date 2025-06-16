@@ -72,7 +72,7 @@ dev = [
     "twine>=3.3,<6.2", # Used to make releases to PyPI
 ]
 docs = [
-    "doc8>=1.0,<1.2", # Ensures clean documentation formatting
+    "doc8>=1.0,<2.1", # Ensures clean documentation formatting
     "furo>=2022.4.7",
     "sphinx>=4,!=5.1.0,<8.3", # The default Python documentation engine
     "sphinx-autoapi>=3.1.2,<3.7", # Generates documentation from docstrings
@@ -80,7 +80,7 @@ docs = [
 ]
 tests = [
     "coverage>=5.3,<7.10", # Lets us track what code is being tested
-    "doc8>=1.0,<1.2", # Ensures clean documentation formatting
+    "doc8>=1.0,<2.1", # Ensures clean documentation formatting
     "mypy>=1.0,<1.17", # Static type checking
     "pre-commit>=4,<5", # Allow us to run pre-commit hooks in testing
     "pydocstyle>=5.1,<6.4", # Style guidelines for Python documentation
