@@ -66,7 +66,7 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 
 [project.optional-dependencies]
 dev = [
-    "build>=1.0,<1.3",
+    "build>=1.0,<1.4",
     "ruff>=0.5.0,<0.13", # A very fast linter and autofixer
     "tox>=4.16.0,<4.29", # Python test environment manager
     "twine>=3.3,<6.2", # Used to make releases to PyPI
