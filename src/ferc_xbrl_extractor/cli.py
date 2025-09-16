@@ -27,13 +27,13 @@ def parse():
         "--sqlite-path",
         default="ferc-xbrl.sqlite",
         help="Path to SQLite DB to write extracted XBRL data.",
-        type=str,
+        type=Path,
     )
     parser.add_argument(
         "--duckdb-path",
         default=None,
         help="Path to duckdb DB to write extracted XBRL data.",
-        type=str,
+        type=Path,
     )
     parser.add_argument(
         "-s",
@@ -109,7 +109,7 @@ def parse():
 def load_extracted(
     extracted: xbrl.ExtractOutput,
     sqlite_uri: str,
-    duckdb_uri: str | None,
+    duckdb_path: str | None,
     clobber: bool,
 ) -> None:
     """Write extracted data to SQLite/Duckdb databases."""
@@ -125,8 +125,8 @@ def load_extracted(
                 data.to_sql(table_name, sqlite_conn, if_exists="append")
 
             # Write to duckdb if passed a path to duckdb
-            if duckdb_uri is not None:
-                with duckdb.connect(duckdb_uri) as duckdb_conn:
+            if duckdb_path is not None:
+                with duckdb.connect(duckdb_path) as duckdb_conn:
                     duckdb_conn.execute(
                         f"CREATE TABLE {table_name} AS SELECT * FROM data"  # noqa: S608
                     )
@@ -134,9 +134,9 @@ def load_extracted(
 
 def run_main(
     filings: list[Path] | list[io.BytesIO],
-    sqlite_path: str,
     taxonomy: str | Path | io.BytesIO,
-    duckdb_path: str | None,
+    sqlite_path: Path,
+    duckdb_path: Path | None,
     clobber: bool,
     form_number: int | None,
     metadata_path: Path | None,
@@ -154,8 +154,7 @@ def run_main(
     log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
     coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
-    sqlite_uri = f"sqlite:///{sqlite_path}"
-    duckdb_uri = f"sqlite:///{duckdb_path}" if duckdb_path else None
+    sqlite_uri = f"sqlite:///{sqlite_path.absolute()}"
 
     if logfile:
         file_logger = logging.FileHandler(logfile)
@@ -175,7 +174,7 @@ def run_main(
         instance_pattern=instance_pattern,
     )
     # Save extracted data in SQLite/duckdb
-    load_extracted(extracted, sqlite_uri, duckdb_uri, clobber)
+    load_extracted(extracted, sqlite_uri, duckdb_path, clobber)
 
 
 def main():

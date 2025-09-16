@@ -31,7 +31,8 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
     with the example filings and taxonomy in the ``examples/`` directory, and verify
     that it returns successfully.
     """
-    out_db = tmp_path / "ferc1-2021-sample.sqlite"
+    sqlite_path = tmp_path / "ferc1-2021-sample.sqlite"
+    duckdb_path = tmp_path / "ferc1-2021-sample.duckdb"
     metadata = tmp_path / "metadata.json"
     datapackage = tmp_path / "datapackage.json"
     log_file = tmp_path / "log.log"
@@ -41,8 +42,10 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
         [
             "xbrl_extract",
             str(data_dir / "ferc1-xbrl-2021.zip"),
-            "--db-path",
-            str(out_db),
+            "--sqlite-path",
+            str(sqlite_path),
+            "--duckdb-path",
+            str(duckdb_path),
             "--taxonomy",
             str(data_dir / "ferc1-xbrl-taxonomies.zip"),
             "--metadata-path",
