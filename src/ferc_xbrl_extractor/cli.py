@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import coloredlogs
+import duckdb
 from sqlalchemy import create_engine
 
 from ferc_xbrl_extractor import helpers, xbrl
@@ -23,10 +24,16 @@ def parse():
         type=Path,
     )
     parser.add_argument(
-        "-d",
-        "--db-path",
+        "--sqlite-path",
         default="ferc-xbrl.sqlite",
-        help="Store data in sqlite database specified in argument",
+        help="Path to SQLite DB to write extracted XBRL data.",
+        type=str,
+    )
+    parser.add_argument(
+        "--duckdb-path",
+        default=None,
+        help="Path to duckdb DB to write extracted XBRL data.",
+        type=str,
     )
     parser.add_argument(
         "-s",
@@ -99,11 +106,38 @@ def parse():
     return parser.parse_args()
 
 
+def load_extracted(
+    extracted: xbrl.ExtractOutput,
+    sqlite_uri: str,
+    duckdb_uri: str | None,
+    clobber: bool,
+) -> None:
+    """Write extracted data to SQLite/Duckdb databases."""
+    engine = create_engine(sqlite_uri)
+    if clobber:
+        helpers.drop_tables(engine)
+
+    for table_name, data in extracted.table_data.items():
+        # Loop through tables and write to database
+        if not data.empty:
+            # Write to SQLite
+            with engine.begin() as sqlite_conn:
+                data.to_sql(table_name, sqlite_conn, if_exists="append")
+
+            # Write to duckdb if passed a path to duckdb
+            if duckdb_uri is not None:
+                with duckdb.connect(duckdb_uri) as duckdb_conn:
+                    duckdb_conn.execute(
+                        f"CREATE TABLE {table_name} AS SELECT * FROM data"  # noqa: S608
+                    )
+
+
 def run_main(
     filings: list[Path] | list[io.BytesIO],
-    db_path: Path,
-    clobber: bool,
+    sqlite_path: str,
     taxonomy: str | Path | io.BytesIO,
+    duckdb_path: str | None,
+    clobber: bool,
     form_number: int | None,
     metadata_path: Path | None,
     datapackage_path: Path | None,
@@ -120,21 +154,18 @@ def run_main(
     log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
     coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
+    sqlite_uri = f"sqlite:///{sqlite_path}"
+    duckdb_uri = f"sqlite:///{duckdb_path}" if duckdb_path else None
+
     if logfile:
         file_logger = logging.FileHandler(logfile)
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
-    db_uri = f"sqlite:///{db_path}"
-    engine = create_engine(db_uri)
-
-    if clobber:
-        helpers.drop_tables(engine)
-
     extracted = xbrl.extract(
         taxonomy_source=taxonomy,
         form_number=form_number,
-        db_uri=db_uri,
+        db_uri=sqlite_uri,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
         filings=filings,
@@ -143,12 +174,8 @@ def run_main(
         requested_tables=requested_tables,
         instance_pattern=instance_pattern,
     )
-
-    with engine.begin() as conn:
-        for table_name, data in extracted.table_data.items():
-            # Loop through tables and write to database
-            if not data.empty:
-                data.to_sql(table_name, conn, if_exists="append")
+    # Save extracted data in SQLite/duckdb
+    load_extracted(extracted, sqlite_uri, duckdb_uri, clobber)
 
 
 def main():
