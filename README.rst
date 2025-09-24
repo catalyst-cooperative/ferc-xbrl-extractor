@@ -110,13 +110,12 @@ This tool can be used as a library, as it is in `PUDL <https://github.com/cataly
 or there is a CLI provided for interacting with XBRL data. The only required options
 for the CLI are a path to the filings to be extracted, and a path to the output
 SQLite database. The path to the filings can point to a directory full of XBRL
-Filings, a single XBRL filing, or a zipfile with XBRL filings. If
-the path to the database points to an existing database, the ``--clobber`` option
-can be used to drop all existing data before performing the extraction.
+Filings, a single XBRL filing, or a zipfile with XBRL filings. If the specified
+SQLite database already exists, it will be overwritten by this command.
 
 .. code-block:: console
 
-    $ xbrl_extract {path_to_filings} {path_to_database}
+    $ xbrl_extract {path_to_filings} --sqlite-path {path_to_database}
 
 This repo contains a small selection of FERC Form 1 filings from 2021, along with
 an archive of taxonomies in the ``examples`` directory. To test the tool on these
@@ -124,7 +123,7 @@ filings, use the command:
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip --db-path ./ferc1-2021-sample.sqlite \
+    $ xbrl_extract examples/ferc1-2021-sample.zip --sqlite-path ./ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
 
 The tool expects the ``--taxonomy`` option to point to a zipfile containing archived
@@ -144,7 +143,7 @@ batches of 50 filings at a time.
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip .--db-path /ferc1-2021-sample.sqlite \
+    $ xbrl_extract examples/ferc1-2021-sample.zip .--sqlite-path /ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --workers 5 \
         --batch-size 50
@@ -160,7 +159,7 @@ filings and taxonomy, run the following command.
 
 .. code-block:: console
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip .--db-path /ferc1-2021-sample.sqlite \
+    $ xbrl_extract examples/ferc1-2021-sample.zip .--sqlite-path /ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
         --metadata-path metadata.json \
         --datapackage-path datapackage.json
