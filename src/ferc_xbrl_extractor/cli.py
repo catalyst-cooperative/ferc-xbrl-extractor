@@ -8,9 +8,11 @@ from pathlib import Path
 
 import coloredlogs
 import duckdb
+import pandas as pd
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 
-from ferc_xbrl_extractor import helpers, xbrl
+from ferc_xbrl_extractor import xbrl
 from ferc_xbrl_extractor.helpers import get_logger
 
 
@@ -41,13 +43,6 @@ def parse():
         default=None,
         type=Path,
         help="Generate frictionless datapackage descriptor, and write to JSON file at specified path.",
-    )
-    parser.add_argument(
-        "-c",
-        "--clobber",
-        action="store_true",
-        default=False,
-        help="Clobber existing outputs if they exist",
     )
     parser.add_argument(
         "-b",
@@ -106,30 +101,36 @@ def parse():
     return parser.parse_args()
 
 
+def write_to_sqlite(sqlite_engine: Engine, table_name: str, table_data: pd.DataFrame):
+    """Write one table to a SQLite database."""
+    # Write to SQLite
+    with sqlite_engine.begin() as sqlite_conn:
+        table_data.to_sql(table_name, sqlite_conn, if_exists="replace")
+
+
+def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame):
+    """Write one table to a duckdb database."""
+    with duckdb.connect(duckdb_path) as duckdb_conn:
+        duckdb_conn.execute(
+            f"CREATE TABLE OR REPLACE {table_name} AS SELECT * FROM table_data"  # noqa: S608
+        )
+
+
 def load_extracted(
     extracted: xbrl.ExtractOutput,
     sqlite_uri: str,
     duckdb_path: str | None,
-    clobber: bool,
 ) -> None:
     """Write extracted data to SQLite/Duckdb databases."""
     engine = create_engine(sqlite_uri)
-    if clobber:
-        helpers.drop_tables(engine)
-
     for table_name, data in extracted.table_data.items():
         # Loop through tables and write to database
         if not data.empty:
-            # Write to SQLite
-            with engine.begin() as sqlite_conn:
-                data.to_sql(table_name, sqlite_conn, if_exists="append")
+            write_to_sqlite(engine, table_name, data)
 
             # Write to duckdb if passed a path to duckdb
             if duckdb_path is not None:
-                with duckdb.connect(duckdb_path) as duckdb_conn:
-                    duckdb_conn.execute(
-                        f"CREATE TABLE {table_name} AS SELECT * FROM data"  # noqa: S608
-                    )
+                write_to_duckdb(duckdb_path, table_name, data)
 
 
 def run_main(
@@ -137,7 +138,6 @@ def run_main(
     taxonomy: str | Path | io.BytesIO,
     sqlite_path: Path,
     duckdb_path: Path | None,
-    clobber: bool,
     form_number: int | None,
     metadata_path: Path | None,
     datapackage_path: Path | None,
@@ -174,7 +174,7 @@ def run_main(
         instance_pattern=instance_pattern,
     )
     # Save extracted data in SQLite/duckdb
-    load_extracted(extracted, sqlite_uri, duckdb_path, clobber)
+    load_extracted(extracted, sqlite_uri, duckdb_path)
 
 
 def main():
