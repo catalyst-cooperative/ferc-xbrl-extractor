@@ -2,7 +2,10 @@
 
 from importlib.metadata import entry_points
 
+import duckdb
 import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Connection
 
 # Obtain a list of all deployed entry point scripts to test:
 ENTRY_POINTS = [
@@ -21,6 +24,38 @@ def test_extractor_scripts(script_runner, ep):
     """
     ret = script_runner.run([ep, "--help"], print_result=False)
     assert ret.success  # nosec: B101
+
+
+def _get_sqlite_tables(sqlite_conn) -> set[str]:
+    """Return set of all tables in SQLITE db."""
+    tables = sqlite_conn.execute(
+        text(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND name NOT LIKE 'sqlite_%';"
+        )
+    ).fetchall()
+    return {table_name for (table_name,) in tables}
+
+
+def _get_duckdb_tables(duckdb_conn) -> set[str]:
+    """Return set of all tables in duckdb."""
+    tables = duckdb_conn.execute(
+        "SELECT table_name FROM information_schema.tables"
+    ).fetchall()
+    return {table_name for (table_name,) in tables}
+
+
+def _find_empty_tables(db_conn, tables: set[str]) -> list[str]:
+    """Loop through tables and identify any that are empty."""
+    empty_tables = []
+    for table_name in tables:
+        query = f"SELECT COUNT(*) FROM '{table_name}';"  # noqa: S608
+        if isinstance(db_conn, Connection):
+            query = text(query)
+
+        if db_conn.execute(query).fetchone()[0] == 0:
+            empty_tables.append(table_name)
+    return empty_tables
 
 
 @pytest.mark.script_launch_mode("inprocess")
@@ -58,6 +93,30 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
     )
 
     assert ret.success
+
+    # Sanity check the sqlite/duckdb outputs
+    sqlite_uri = f"sqlite:///{sqlite_path.absolute()}"
+    sqlite_engine = create_engine(sqlite_uri)
+    with (
+        sqlite_engine.begin() as sqlite_conn,
+        duckdb.connect(duckdb_path) as duckdb_conn,
+    ):
+        # Check for tables that only exist in either sqlite/duckdb but not both
+        sqlite_tables = _get_sqlite_tables(sqlite_conn)
+        duckdb_tables = _get_duckdb_tables(duckdb_conn)
+
+        extra_sqlite_tables = sqlite_tables - duckdb_tables
+        extra_duckdb_tables = duckdb_tables - sqlite_tables
+
+        assert extra_sqlite_tables == set()
+        assert extra_duckdb_tables == set()
+
+        # Check for empty tables in either output
+        empty_sqlite_tables = _find_empty_tables(sqlite_conn, sqlite_tables)
+        empty_duckdb_tables = _find_empty_tables(duckdb_conn, duckdb_tables)
+
+        assert empty_sqlite_tables == []
+        assert empty_duckdb_tables == []
 
 
 @pytest.mark.script_launch_mode("inprocess")
