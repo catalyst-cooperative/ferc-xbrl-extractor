@@ -112,7 +112,7 @@ def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame)
     """Write one table to a duckdb database."""
     with duckdb.connect(duckdb_path) as duckdb_conn:
         duckdb_conn.execute(
-            f"CREATE TABLE OR REPLACE {table_name} AS SELECT * FROM table_data"  # noqa: S608
+            f"CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM table_data"  # noqa: S608
         )
 
 
