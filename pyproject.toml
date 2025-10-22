@@ -10,7 +10,7 @@ authors = [
     { name = "Catalyst Cooperative", email = "pudl@catalyst.coop" },
     { name = "Zach Schira", email = "zach.schira@catalyst.coop" },
 ]
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.10,<3.15"
 dynamic = ["version"]
 license = { file = "LICENSE.txt" }
 dependencies = [
@@ -39,6 +39,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 keywords = [
     "accounting",
