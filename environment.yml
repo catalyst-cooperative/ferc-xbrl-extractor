@@ -4,7 +4,7 @@ channels:
 dependencies:
   # Packages required for setting up the environment
   - pip>=25.0
-  - python>=3.10,<3.15
+  - python>=3.10,<3.14
   - setuptools>=75
 
   # XBRL parsing library
