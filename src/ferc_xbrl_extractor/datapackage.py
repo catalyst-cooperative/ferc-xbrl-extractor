@@ -139,7 +139,7 @@ CONVERT_DTYPES: dict[str, Callable] = {
 Map callables to schema field type to convert parsed values (Data Package `field.type`).
 """
 
-TABLE_NAME_PATTERN = re.compile("(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I)  # noqa: W605
+TABLE_NAME_PATTERN = re.compile(r"(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I)
 """
 Simple regex pattern used to clean up table names.
 """
