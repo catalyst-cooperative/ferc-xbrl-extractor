@@ -96,6 +96,7 @@ def _create_schema(instant=True, axes=None):
                     'cid_1,EID1,filing,2023-01-01T00:00:01,2021-01-01,2021-12-31,"value 1","value 2",\n'
                     'cid_4,EID1,filing,2023-01-01T00:00:01,2020-01-01,2020-12-31,"value 3","value 4",\n'
                 ),
+                dtype="string",
                 parse_dates=["publication_time"],
             ),
         ),
@@ -109,6 +110,7 @@ def _create_schema(instant=True, axes=None):
                     'cid_4,EID1,filing,2023-01-01T00:00:01,2020-01-01,2020-12-31,total,"value 3","value 4",\n'
                     'cid_5,EID1,filing,2023-01-01T00:00:01,2020-01-01,2020-12-31,"Dim 1 Value","value 9","value 10",\n'
                 ),
+                dtype="string",
                 parse_dates=["publication_time"],
             ),
         ),
@@ -121,6 +123,7 @@ def _create_schema(instant=True, axes=None):
                     'cid_2,EID1,filing,2023-01-01T00:00:01,2021-12-31,total,total,"value 5","value 6",\n'
                     'cid_3,EID1,filing,2023-01-01T00:00:01,2021-12-31,"Dim 1 Value","ferc:Dimension2Value","value 7","value 8",\n'
                 ),
+                dtype="string",
                 parse_dates=["publication_time"],
             ),
         ),
