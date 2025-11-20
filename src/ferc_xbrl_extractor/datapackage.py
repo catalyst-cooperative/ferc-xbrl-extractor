@@ -120,7 +120,7 @@ FIELD_TO_PANDAS: dict[str, str] = {
     "boolean": "boolean",
     "date": "string",
     "duration": "string",
-    "year": "datetime64[ns]",
+    "year": "Int64",
 }
 """
 Pandas data type by schema field type (Data Package `field.type`).
@@ -391,9 +391,7 @@ class FactTable:
         """Create FactTable and prepare for constructing dataframe."""
         self.schema = schema
         # Map column names to function to convert parsed values
-        self.columns = {
-            field.name: CONVERT_DTYPES[field.type_] for field in schema.fields
-        }
+        self.columns = {field.name: field.type_ for field in schema.fields}
         self.axes = [name for name in schema.primary_key if name.endswith("axis")]
         self.data_columns = [
             field.name
@@ -424,7 +422,7 @@ class FactTable:
                 {
                     "c_id": fact.c_id,
                     "name": fact.name,
-                    "value": self.columns[fact.name](fact.value),
+                    "value": CONVERT_DTYPES[self.columns[fact.name]](fact.value),
                 }
                 for fact in raw_facts
             )
@@ -443,7 +441,14 @@ class FactTable:
             )
         )
 
-        return contexts.join(facts).set_index(self.schema.primary_key).dropna(how="all")
+        return (
+            contexts.join(facts)
+            .astype(
+                {name: FIELD_TO_PANDAS[dtype] for name, dtype in self.columns.items()}
+            )
+            .set_index(self.schema.primary_key)
+            .dropna(how="all")
+        )
 
 
 class Datapackage(BaseModel):

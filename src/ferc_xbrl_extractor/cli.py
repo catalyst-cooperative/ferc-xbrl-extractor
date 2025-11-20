@@ -110,6 +110,7 @@ def write_to_sqlite(sqlite_engine: Engine, table_name: str, table_data: pd.DataF
 
 def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame):
     """Write one table to a duckdb database."""
+    table_data = table_data.reset_index()
     with duckdb.connect(duckdb_path) as duckdb_conn:
         duckdb_conn.execute(
             f"CREATE OR REPLACE TABLE {table_name} AS SELECT * FROM table_data"  # noqa: S608
