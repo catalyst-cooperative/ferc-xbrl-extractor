@@ -80,7 +80,7 @@ docs = [
     "sphinx-issues>=1.2,<5.1", # Allows references to GitHub issues
 ]
 tests = [
-    "coverage>=5.3,<7.12", # Lets us track what code is being tested
+    "coverage>=5.3,<7.13", # Lets us track what code is being tested
     "doc8>=1.0,<2.1", # Ensures clean documentation formatting
     "mypy>=1.0,<1.19", # Static type checking
     "pre-commit>=4,<5", # Allow us to run pre-commit hooks in testing
