@@ -421,10 +421,14 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
     with archive.open("rssfeed") as f:
         filings_metadata = json.loads(f.read())
 
+    # Publication time is always published as UTC, but just to be safe convert to UTC
+    # then make timezone naive
     publication_times = {
         filing["filename"]: datetime.datetime.fromisoformat(
             filing["rss_metadata"]["published_parsed"]
         )
+        .astimezone(datetime.UTC)
+        .replace(tzinfo=None)
         for filers_metadata in filings_metadata.values()
         for filing in filers_metadata
     }

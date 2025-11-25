@@ -118,7 +118,7 @@ FIELD_TO_PANDAS: dict[str, str] = {
     "number": "Float64",
     "integer": "Int64",
     "boolean": "boolean",
-    "date": "string",
+    "date": "datetime64[ms]",
     "duration": "string",
     "year": "Int64",
 }
