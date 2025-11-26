@@ -16,7 +16,7 @@ from lxml import etree  # nosec: B410
 from lxml.etree import _Element as Element  # nosec: B410
 from pydantic import BaseModel, field_validator
 
-from ferc_xbrl_extractor.helpers import get_logger
+from ferc_xbrl_extractor.helpers import get_logger, parse_dates
 
 XBRL_INSTANCE = "http://www.xbrl.org/2003/instance"
 XBRL_LINK = "http://www.xbrl.org/2003/linkbase"
@@ -179,12 +179,12 @@ class Context(BaseModel):
 
         # Get date based on period type
         if self.period.instant:
-            date_dict = {"date": self.period.end_date}
+            date_dict = {"date": parse_dates(self.period.end_date)}
         else:
             date_dict = {
                 # Ignore type because start_date will always be str if duration period
-                "start_date": self.period.start_date,
-                "end_date": self.period.end_date,
+                "start_date": parse_dates(self.period.start_date),
+                "end_date": parse_dates(self.period.end_date),
             }
 
         return {
@@ -421,10 +421,14 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
     with archive.open("rssfeed") as f:
         filings_metadata = json.loads(f.read())
 
+    # Publication time is always published as UTC, but just to be safe convert to UTC
+    # then make timezone naive
     publication_times = {
         filing["filename"]: datetime.datetime.fromisoformat(
             filing["rss_metadata"]["published_parsed"]
         )
+        .astimezone(datetime.UTC)
+        .replace(tzinfo=None)
         for filers_metadata in filings_metadata.values()
         for filing in filers_metadata
     }

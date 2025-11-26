@@ -41,6 +41,13 @@ def _find_empty_tables(db_conn, tables: set[str]) -> list[str]:
     return empty_tables
 
 
+def _get_sqlite_df(db_conn, table: str) -> pd.DataFrame:
+    df = db_conn.table(table).df()
+    return df.astype(
+        dict.fromkeys(df.select_dtypes(include=["datetime"]).columns, "datetime64[ms]")
+    )
+
+
 @pytest.mark.script_launch_mode("inprocess")
 def test_extract_example_filings(script_runner, tmp_path, test_dir):
     """Test the XBRL extraction on the example filings.
@@ -103,7 +110,7 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
         # SQLite/duckdb have nuanced dtype differences, so ignore types
         for table in sorted(sqlite_tables):
             pd.testing.assert_frame_equal(
-                sqlite_conn.table(table).df(),
+                _get_sqlite_df(sqlite_conn, table),
                 duckdb_conn.table(table).df(),
                 check_like=True,
                 check_dtype=False,
