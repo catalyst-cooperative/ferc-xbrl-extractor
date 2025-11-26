@@ -4,6 +4,7 @@ import datetime
 import logging
 from collections import Counter
 
+import pandas as pd
 import pytest
 
 from ferc_xbrl_extractor.instance import (
@@ -79,7 +80,7 @@ def test_context_ids(test_context):
 
     assert context_ids.get("entity_id") == test_context.entity.identifier
     assert context_ids.get("filing_name") == "filing_name"
-    assert context_ids.get("date") == test_context.period.end_date
+    assert context_ids.get("date") == pd.to_datetime(test_context.period.end_date)
 
     # Change context to have a duration period, then change
     test_context.period.instant = False
@@ -87,8 +88,10 @@ def test_context_ids(test_context):
 
     context_ids = test_context.as_primary_key("filing_name", axes)
 
-    assert context_ids.get("start_date") == test_context.period.start_date
-    assert context_ids.get("end_date") == test_context.period.end_date
+    assert context_ids.get("start_date") == pd.to_datetime(
+        test_context.period.start_date
+    )
+    assert context_ids.get("end_date") == pd.to_datetime(test_context.period.end_date)
 
 
 @pytest.mark.parametrize(
