@@ -9,7 +9,7 @@ import pydantic
 import stringcase
 from pydantic import BaseModel
 
-from ferc_xbrl_extractor.helpers import get_logger, parse_dates
+from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance
 from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
@@ -118,7 +118,7 @@ FIELD_TO_PANDAS: dict[str, str] = {
     "number": "Float64",
     "integer": "Int64",
     "boolean": "boolean",
-    "date": "datetime64[ms]",
+    "date": "string",
     "duration": "string",
     "year": "Int64",
 }
@@ -133,7 +133,7 @@ CONVERT_DTYPES: dict[str, Callable] = {
     "number": float,
     "boolean": bool,
     "duration": str,
-    "date": parse_dates,
+    "date": str,
 }
 """
 Map callables to schema field type to convert parsed values (Data Package `field.type`).
