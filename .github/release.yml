@@ -1,0 +1,10 @@
+---
+changelog:
+  exclude:
+    authors:
+      - catalyst-workflow-triggerer
+      - dependabot
+      - pre-commit-ci
+      - pudlbot
+    labels:
+      - dependencies
