@@ -87,25 +87,40 @@ jobs:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
+              "text": "CI Workflow Results for ${{ github.repository }}",
               "attachments": [
                 {
                   "color": "${{ needs.test.result == 'success' && needs.lint.result == 'success' && needs.docs-build.result == 'success' && 'good' || 'danger' }}",
-                  "blocks": [
+                  "fields": [
                     {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "*Workflow:* ${{ github.workflow }}\n*Repository:* ${{ github.repository }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.event.head_commit.message }}>\n*Author:* ${{ github.actor }}\n*Tests:* ${{ needs.test.result }}\n*Lint:* ${{ needs.lint.result }}\n*Docs:* ${{ needs.docs-build.result }}"
-                      }
+                      "title": "Workflow",
+                      "value": "${{ github.workflow }}",
+                      "short": true
                     },
                     {
-                      "type": "context",
-                      "elements": [
-                        {
-                          "type": "mrkdwn",
-                          "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
-                        }
-                      ]
+                      "title": "Repository",
+                      "value": "${{ github.repository }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Branch",
+                      "value": "${{ github.ref_name }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Author",
+                      "value": "${{ github.actor }}",
+                      "short": true
+                    },
+                    {
+                      "title": "Test Results",
+                      "value": "Tests: ${{ needs.test.result }} | Lint: ${{ needs.lint.result }} | Docs: ${{ needs.docs-build.result }}",
+                      "short": false
+                    },
+                    {
+                      "title": "Links",
+                      "value": "<${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|View Commit> | <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Workflow>",
+                      "short": false
                     }
                   ]
                 }
