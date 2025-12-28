@@ -108,7 +108,7 @@ description = "Default environment with all development dependencies"
 features = ["dev", "docs", "tests"]
 
 [tool.hatch.envs.test]
-description = "Run tests with pytest"
+description = "Run tests with pytest and collect test coverage"
 features = ["tests"]
 
 [tool.hatch.envs.test.scripts]
