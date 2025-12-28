@@ -1,12 +1,181 @@
 =======================================================================================
-PACKAGE_NAME Release Notes
+Release Notes
 =======================================================================================
 
+.. _release-v1-8-0:
+
 ---------------------------------------------------------------------------------------
-1.2.x
+1.8.0 (TBD)
 ---------------------------------------------------------------------------------------
 
-* Migrate to using Pydantic v2.
+Build System & Tooling Migration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Migrated from tox to Hatch** for environment and task management, providing faster
+  dependency resolution and a more modern Python packaging experience.
+* **Adopted uv** as the package installer.
+* **Modernized build system** from setuptools to hatchling with hatch-vcs for version
+  management from git tags.
+* **Reorganized CI workflows** into parallel jobs for testing, linting, and
+  documentation building, improving CI speed and clarity.
+
+Python Version Support
+^^^^^^^^^^^^^^^^^^^^^^
+
+* Added support for **Python 3.14**.
+
+Documentation & Development
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Consolidated development documentation** from separate CONTRIBUTING.md into
+  README.rst
+* Updated README with instructions for using Hatch and uv.
+* Updated ReadTheDocs configuration to use uv and Hatch.
+
+Dependency Management
+^^^^^^^^^^^^^^^^^^^^^
+
+* **Loosened dependency version constraints** Removed upper bounds where
+  appropriate to reduce dependency conflicts for downstream users.
+
+CI/CD Improvements
+^^^^^^^^^^^^^^^^^^
+
+* **Added build attestations** for supply chain security using GitHub's attestation
+  action.
+* **Adopted OIDC trusted publishing** to PyPI, eliminating the need for API tokens.
+* Removed twine dependency (Hatch validates packages during build).
+* Split pytest workflow into separate test, lint, and docs-build jobs for better
+  parallelization.
+* Fixed Slack notifications to use simpler field-based format, avoiding JSON parsing
+  issues.
+
+Development Workflow
+^^^^^^^^^^^^^^^^^^^^
+
+* Added ``.hatch/`` and ``uv.lock`` to ``.gitignore``.
+* Updated package development status classifier to **Production/Stable**.
+
+.. _release-v1-7-3:
+
+---------------------------------------------------------------------------------------
+1.7.3 (2024-12-15)
+---------------------------------------------------------------------------------------
+
+* **Revert to treating dates as strings**, deferring cleaning until downstream
+  processing.
+
+.. _release-v1-7-2:
+
+---------------------------------------------------------------------------------------
+1.7.2 (2024-12-01)
+---------------------------------------------------------------------------------------
+
+* **Fix datetime type for publication date** to ensure proper handling across database
+  backends.
+
+.. _release-v1-7-1:
+
+---------------------------------------------------------------------------------------
+1.7.1 (2024-11-20)
+---------------------------------------------------------------------------------------
+
+* Improve dtype handling for DuckDB and SQLite outputs.
+* Add integration test to verify DuckDB and SQLite tables are identical.
+
+.. _release-v1-7-0:
+
+---------------------------------------------------------------------------------------
+1.7.0 (2024-11-15)
+---------------------------------------------------------------------------------------
+
+* **Add DuckDB output support** alongside existing SQLite output.
+* **Pin arelle version** to avoid pillow v12.0 compatibility issues.
+
+.. _release-v1-6-0:
+
+---------------------------------------------------------------------------------------
+1.6.0 (2024-10-15)
+---------------------------------------------------------------------------------------
+
+* **Make table name pattern more robust** to handle edge cases in XBRL taxonomy parsing.
+
+.. _release-v1-5-2:
+
+---------------------------------------------------------------------------------------
+1.5.2 (2024-10-01)
+---------------------------------------------------------------------------------------
+
+* **Add Python 3.13 support**.
+
+.. _release-v1-5-1:
+
+---------------------------------------------------------------------------------------
+1.5.1 (2024-08-15)
+---------------------------------------------------------------------------------------
+
+* **Fix datapackage generation from multiple taxonomies**.
+* Improve datapackage formatting.
+* Fix examples in README with updated sample filings.
+* Improve docstrings and comments throughout the codebase.
+
+.. _release-v1-5-0:
+
+---------------------------------------------------------------------------------------
+1.5.0 (2024-07-01)
+---------------------------------------------------------------------------------------
+
+* Minor dependency updates and maintenance release.
+
+.. _release-v1-4-0:
+
+---------------------------------------------------------------------------------------
+1.4.0 (2024-06-01)
+---------------------------------------------------------------------------------------
+
+* **Update to Frictionless v5** and ensure all tests pass with the new version.
+
+.. _release-v1-3-3:
+
+---------------------------------------------------------------------------------------
+1.3.3 (2024-05-15)
+---------------------------------------------------------------------------------------
+
+* **Add retry logic for taxonomy reading** to improve reliability with network issues.
+
+.. _release-v1-3-2:
+
+---------------------------------------------------------------------------------------
+1.3.2 (2024-03-20)
+---------------------------------------------------------------------------------------
+
+* **Add support for pandas 2.2**.
+* Cache dimension snakecase operations for better performance.
+
+.. _release-v1-3-1:
+
+---------------------------------------------------------------------------------------
+1.3.1 (2024-01-10)
+---------------------------------------------------------------------------------------
+
+* Fix warning suppression by using 'ignore' instead of 'once'.
+
+.. _release-v1-3-0:
+
+---------------------------------------------------------------------------------------
+1.3.0 (2023-12-15)
+---------------------------------------------------------------------------------------
+
+* **Update to Pydantic v2** and migrate from Black to Ruff formatting.
+* Add Zenodo DOI badge to README.
+
+.. _release-v1-2-1:
+
+---------------------------------------------------------------------------------------
+1.2.1 (2023-11-15)
+---------------------------------------------------------------------------------------
+
+* Add Python 3.12 support.
 
 .. _release-v1-2-0:
 
