@@ -10,21 +10,21 @@ authors = [
     { name = "Catalyst Cooperative", email = "pudl@catalyst.coop" },
     { name = "Zach Schira", email = "zach.schira@catalyst.coop" },
 ]
-requires-python = ">=3.11,<3.15.0a0"
+requires-python = ">=3.10,<3.15.0a0"
 dynamic = ["version"]
 license = { file = "LICENSE.txt" }
 dependencies = [
-    "arelle-release>=2.32,<3",
-    "coloredlogs>=14.0,<15.1",
+    "arelle-release>=2.32",
+    "coloredlogs>=14.0",
     "duckdb>=1.3.2",
     "frictionless>=5,<6",
-    "lxml>=4.9.1,<7",
+    "lxml>=4.9.1",
     "numpy>=1.16,<3",
-    "pandas>=1.5,<3",
+    "pandas>=1.5",
     "pyarrow>=14.0.1", # required starting in pandas 3.0
     "pydantic>=2,<3",
     "sqlalchemy>=1.4,<3",
-    "stringcase>=1.2,<2",
+    "stringcase>=1.2",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -35,6 +35,7 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -67,28 +68,27 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 
 [project.optional-dependencies]
 dev = [
-    "hatch>=1.13.0",
-    "ruff>=0.5.0,<0.15", # A very fast linter and autofixer
-    "twine>=3.3,<6.3", # Used to make releases to PyPI
+    "hatch>=1.16",
+    "ruff>=0.14", # A very fast linter and autofixer
 ]
 docs = [
-    "doc8>=1.0,<2.1", # Ensures clean documentation formatting
-    "furo>=2022.4.7",
-    "sphinx>=4,!=5.1.0,<9.1", # The default Python documentation engine
-    "sphinx-autoapi>=3.1.2,<3.7", # Generates documentation from docstrings
-    "sphinx-issues>=1.2,<5.1", # Allows references to GitHub issues
+    "doc8>=2", # Ensures clean documentation formatting
+    "furo>=2024",
+    "sphinx>=8", # The default Python documentation engine
+    "sphinx-autoapi>=3", # Generates documentation from docstrings
+    "sphinx-issues>=5", # Allows references to GitHub issues
 ]
 tests = [
-    "coverage>=5.3,<7.14", # Lets us track what code is being tested
-    "doc8>=1.0,<2.1", # Ensures clean documentation formatting
-    "mypy>=1.0,<1.20", # Static type checking
-    "pre-commit>=4,<5", # Allow us to run pre-commit hooks in testing
-    "pydocstyle>=5.1,<6.4", # Style guidelines for Python documentation
-    "pytest>=6.2,<9.1", # Our testing framework
-    "pytest-console-scripts>=1.1,<1.5", # Allow automatic testing of scripts
-    "pytest-cov>=2.10,<7.1", # Pytest plugin for working with coverage
-    "pytest-mock>=3.0,<3.16",
-    "ruff>=0.5.0,<0.15", # A very fast linter and autofixer
+    "coverage>=7", # Lets us track what code is being tested
+    "doc8>=2", # Ensures clean documentation formatting
+    "mypy>=1", # Static type checking
+    "pre-commit>=4", # Allow us to run pre-commit hooks in testing
+    "pydocstyle>=6", # Style guidelines for Python documentation
+    "pytest>=9", # Our testing framework
+    "pytest-console-scripts>=1", # Allow automatic testing of scripts
+    "pytest-cov>=7", # Pytest plugin for working with coverage
+    "pytest-mock>=3",
+    "ruff>=0.14", # A very fast linter and autofixer
 ]
 types = ["types-setuptools"]
 

@@ -22,8 +22,6 @@ jobs:
         run: |
           uv tool install hatch
           uv tool run hatch build
-          uv tool install twine
-          uv tool run twine check --strict dist/*
       - name: Store the distribution packages
         uses: actions/upload-artifact@v6
         with:
