@@ -11,11 +11,6 @@ build:
   os: ubuntu-24.04
   tools:
     python: "3.14"
-  jobs:
-    post_install:
-      - pip install uv
-      - uv tool install hatch
-      - export PATH="$HOME/.local/bin:$PATH"
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
