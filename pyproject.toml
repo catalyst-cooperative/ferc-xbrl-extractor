@@ -168,7 +168,7 @@ where = ["src"]
 
 [tool.ruff]
 # Configurations that apply to both the `format` and `lint` subcommands.
-target-version = "py314"
+target-version = "py313"
 line-length = 88
 indent-width = 4
 extend-exclude = ["src/ferc_xbrl_extractor/_version.py"]
