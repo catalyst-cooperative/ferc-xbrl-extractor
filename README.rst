@@ -113,19 +113,19 @@ using your package manager of choice:
 From PyPI
 ~~~~~~~~~
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ pip install catalystcoop.ferc-xbrl-extractor
-    $ uv pip install catalystcoop.ferc-xbrl-extractor
+    pip install catalystcoop.ferc-xbrl-extractor
+    uv pip install catalystcoop.ferc-xbrl-extractor
 
 From ``conda-forge``
 ~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ conda install catalystcoop.ferc_xbrl_extractor
-    $ mamba install catalystcoop.ferc_xbrl_extractor
-    $ pixi install catalystcoop.ferc_xbrl_extractor
+    conda install catalystcoop.ferc_xbrl_extractor
+    mamba install catalystcoop.ferc_xbrl_extractor
+    pixi install catalystcoop.ferc_xbrl_extractor
 
 Input Data
 ^^^^^^^^^^
@@ -153,17 +153,17 @@ filings can point to a directory full of XBRL Filings, a single XBRL filing, or 
 zipfile with XBRL filings. If the specified output database already exists, it will be
 overwritten.
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract {path_to_filings} --sqlite-path {path_to_database}
+    xbrl_extract {path_to_filings} --sqlite-path {path_to_database}
 
 This repo contains a small selection of FERC Form 1 filings from 2021, along with
 an archive of taxonomies in the ``examples`` directory. To test the tool on these
 filings, use the command:
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip \
+    xbrl_extract examples/ferc1-2021-sample.zip \
         --sqlite-path ./ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
 
@@ -177,9 +177,9 @@ create in the pool. It may take some experimentation to get these options
 optimally configured. The following command will use 5 worker processes to process
 batches of 50 filings at a time. It will also output both SQLite and DuckDB.
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip \
+    xbrl_extract examples/ferc1-2021-sample.zip \
         --sqlite-path ferc1-2021-sample.sqlite \
         --duckdb-path ferc1-2021-sample.duckdb \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip \
@@ -195,9 +195,9 @@ file, grouped by table name. See the ``ferc_xbrl_extractor.arelle_interface`` mo
 for more info on the extracted metadata. To create both of these files using the example
 filings and taxonomy, run the following command.
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip \
+    xbrl_extract examples/ferc1-2021-sample.zip \
         --sqlite-path /ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip \
         --metadata-path metadata.json \
@@ -212,43 +212,43 @@ includes several git pre-commit hooks that help enforce standard coding practice
 To set up the environment for development first ensure you have
 `uv installed <https://docs.astral.sh/uv/getting-started/installation/>`__ and then:
 
-.. code-block:: console
+.. code-block:: bash
 
     # Clone the repository to your local machine
-    $ git clone https://github.com/catalyst-cooperative/ferc-xbrl-extractor.git
-    $ cd ferc-xbrl-extractor
+    git clone https://github.com/catalyst-cooperative/ferc-xbrl-extractor.git
+    cd ferc-xbrl-extractor
     # Create the development environment with hatch
-    $ uv tool install hatch
-    $ hatch env create
+    uv tool install hatch
+    hatch env create
     # Install the pre-commit hooks
-    $ hatch run pre-commit install
+    hatch run pre-commit install
 
 All available development environments and commands can be shown with:
 
-.. code-block:: console
+.. code-block:: bash
 
    $ hatch env show
 
 Some of the available commands:
 
-.. code-block:: console
+.. code-block:: bash
 
     # Run all tests and collect coverage
-    $ hatch run test:all
+    hatch run test:all
     # Run only unit tests
-    $ hatch run test:unit
+    hatch run test:unit
     # Run only integration tests
-    $ hatch run test:integration
+    hatch run test:integration
     # Run linters and formatters
-    $ hatch run lint:all
+    hatch run lint:all
     # Check code without modifying
-    $ hatch run lint:check
+    hatch run lint:check
     # Format code
-    $ hatch run lint:format
+    hatch run lint:format
     # Build documentation
-    $ hatch run docs:build
+    hatch run docs:build
     # Check documentation formatting
-    $ hatch run docs:check
+    hatch run docs:check
 
 Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__ with configuration
 in ``pyproject.toml``.
