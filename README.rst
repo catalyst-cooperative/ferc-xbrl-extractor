@@ -227,7 +227,7 @@ All available development environments and commands can be shown with:
 
 .. code-block:: bash
 
-   $ hatch env show
+   hatch env show
 
 Some of the available commands:
 
