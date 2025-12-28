@@ -94,21 +94,25 @@ jobs:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
-              "text": "Release workflow completed for ${{ github.repository }}",
-              "blocks": [
+              "attachments": [
                 {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Release:* <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|${{ github.ref_name }}>\n*Repository:* ${{ github.repository }}\n*Status:* ${{ needs.github-publish.result }}\n*Triggered by:* ${{ github.actor }}"
-                  }
-                },
-                {
-                  "type": "context",
-                  "elements": [
+                  "color": "${{ needs.github-publish.result == 'success' && 'good' || needs.github-publish.result == 'failure' && 'danger' || 'warning' }}",
+                  "blocks": [
                     {
-                      "type": "mrkdwn",
-                      "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "*Release:* <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|${{ github.ref_name }}>\n*Repository:* ${{ github.repository }}\n*Status:* ${{ needs.github-publish.result }}\n*Triggered by:* ${{ github.actor }}"
+                      }
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+                        }
+                      ]
                     }
                   ]
                 }
