@@ -9,9 +9,9 @@ FERC XBRL Extractor
    :target: https://www.repostatus.org/#active
    :alt: Project Status: Active
 
-.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml/badge.svg
-   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml
-   :alt: Tox-PyTest Status
+.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/test-and-lint.yml/badge.svg
+   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/test-and-lint.yml
+   :alt: Test and Lint Status
 
 .. image:: https://img.shields.io/codecov/c/github/catalyst-cooperative/ferc-xbrl-extractor?style=flat&logo=codecov
    :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
@@ -90,17 +90,61 @@ Usage
 Installation
 ^^^^^^^^^^^^
 
-To install using conda, run the following command, and activate the environment.
+**For Users (via pip):**
 
 .. code-block:: console
 
-    $ conda env create -f environment.yml
+    $ pip install catalystcoop.ferc-xbrl-extractor
 
-Activate:
+**For Developers:**
+
+This project uses `uv <https://docs.astral.sh/uv/>`__ for fast dependency management
+and `Hatch <https://hatch.pypa.io/>`__ for environment and task management.
 
 .. code-block:: console
 
-    $ conda activate ferc-xbrl-extractor
+    $ git clone https://github.com/catalyst-cooperative/ferc-xbrl-extractor.git
+    $ cd ferc-xbrl-extractor
+    $ uv tool install hatch
+    $ hatch env create
+
+Install pre-commit hooks (recommended for development):
+
+.. code-block:: console
+
+    $ hatch run pre-commit install
+
+Available development commands:
+
+.. code-block:: console
+
+    # Run all tests with coverage
+    $ hatch run test:all
+
+    # Run only unit tests
+    $ hatch run test:unit
+
+    # Run only integration tests
+    $ hatch run test:integration
+
+    # Run linters and formatters
+    $ hatch run lint:all
+
+    # Check code without modifying
+    $ hatch run lint:check
+
+    # Format code
+    $ hatch run lint:format
+
+    # Build documentation
+    $ hatch run docs:build
+
+    # Check documentation formatting
+    $ hatch run docs:check
+
+Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__ with configuration
+in ``pyproject.toml``. Please ensure your code passes all linters before submitting
+changes.
 
 
 CLI
