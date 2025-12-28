@@ -106,12 +106,10 @@ packages = ["src/ferc_xbrl_extractor"]
 [tool.hatch.envs.default]
 description = "Default environment with all development dependencies"
 features = ["dev", "docs", "tests"]
-python = "3.14"
 
 [tool.hatch.envs.test]
 description = "Run tests with pytest"
 features = ["tests"]
-python = "3.14"
 
 [tool.hatch.envs.test.scripts]
 coverage-erase = "coverage erase"
@@ -132,7 +130,6 @@ all = [
 description = "Run linters and formatters"
 features = ["tests"]
 detached = true
-python = "3.14"
 
 [tool.hatch.envs.lint.scripts]
 check = [
@@ -151,7 +148,6 @@ all = [
 [tool.hatch.envs.docs]
 description = "Build documentation with Sphinx"
 features = ["docs"]
-python = "3.14"
 
 [tool.hatch.envs.docs.scripts]
 check = "doc8 docs/ README.rst"
