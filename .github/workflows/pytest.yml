@@ -1,4 +1,4 @@
-name: tox-pytest
+name: test-and-lint
 
 on: [push, pull_request]
 
@@ -9,37 +9,44 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
       fail-fast: false
-    defaults:
-      run:
-        shell: bash -l {0}
 
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
-      - name: Install Conda environment using mamba
-        uses: mamba-org/setup-micromamba@v2
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
         with:
-          environment-file: environment.yml
-          create-args: python=${{ matrix.python-version }}
-          cache-environment: true
-          condarc: |
-            channels:
-            - conda-forge
-            channel_priority: strict
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install hatch
+        run: uv tool install hatch
 
       - name: Log environment details
         run: |
-          conda info
-          conda list
-          conda config --show-sources
-          conda config --show
-          printenv | sort
+          uv --version
+          hatch --version
+          python --version
 
-      - name: Run PyTest with Tox
+      - name: Run linters
+        if: matrix.python-version == '3.13'
         run: |
-          tox
+          hatch run lint:all
+
+      - name: Build docs
+        if: matrix.python-version == '3.13'
+        run: |
+          hatch run docs:build
+
+      - name: Run tests with coverage
+        run: |
+          hatch run test:cov
 
       - name: Upload test coverage report to CodeCov
         uses: codecov/codecov-action@v5

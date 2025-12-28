@@ -110,6 +110,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.hatch/
+
+src/ferc_xbrl_extractor/_version.py
 
 # Spyder project settings
 .spyderproject

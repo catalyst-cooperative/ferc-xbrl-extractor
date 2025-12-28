@@ -1,6 +1,6 @@
 [build-system]
-build-backend = "setuptools.build_meta"
-requires = ["setuptools>=66", "setuptools_scm[toml]>=3.5.0", "wheel"]
+build-backend = "hatchling.build"
+requires = ["hatchling", "hatch-vcs"]
 
 [project]
 name = "catalystcoop.ferc_xbrl_extractor"
@@ -66,9 +66,8 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 
 [project.optional-dependencies]
 dev = [
-    "build>=1.0,<1.4",
+    "hatch>=1.13.0",
     "ruff>=0.5.0,<0.15", # A very fast linter and autofixer
-    "tox>=4.16.0,<4.33", # Python test environment manager
     "twine>=3.3,<6.3", # Used to make releases to PyPI
 ]
 docs = [
@@ -89,9 +88,81 @@ tests = [
     "pytest-cov>=2.10,<7.1", # Pytest plugin for working with coverage
     "pytest-mock>=3.0,<3.16",
     "ruff>=0.5.0,<0.15", # A very fast linter and autofixer
-    "tox>=4.16.0,<4.33", # Python test environment manager
 ]
 types = ["types-setuptools"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/ferc_xbrl_extractor/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ferc_xbrl_extractor"]
+
+[tool.hatch.envs.default]
+description = "Default environment with all development dependencies"
+features = ["dev", "docs", "tests"]
+
+[tool.hatch.envs.test]
+description = "Run tests with pytest"
+features = ["tests"]
+
+[tool.hatch.envs.test.scripts]
+coverage-erase = "coverage erase"
+unit = "pytest --cov=src/ferc_xbrl_extractor --cov-append --no-cov-on-fail --doctest-modules src/ferc_xbrl_extractor tests/unit {args}"
+integration = "pytest --cov=src/ferc_xbrl_extractor --cov-append --no-cov-on-fail tests/integration {args}"
+coverage-report = [
+    "coverage report",
+    "coverage xml",
+]
+all = [
+    "coverage-erase",
+    "unit",
+    "integration",
+    "coverage-report",
+]
+
+[tool.hatch.envs.lint]
+description = "Run linters and formatters"
+features = ["tests"]
+detached = true
+
+[tool.hatch.envs.lint.scripts]
+check = [
+    "ruff check ./",
+    "ruff format --check ./",
+]
+format = [
+    "ruff format ./",
+    "ruff check --fix ./",
+]
+hooks = [
+    "pre-commit run --all-files --show-diff-on-failure check-merge-conflict",
+    "pre-commit run --all-files --show-diff-on-failure check-yaml",
+    "pre-commit run --all-files --show-diff-on-failure check-case-conflict",
+    "pre-commit run --all-files --show-diff-on-failure debug-statements",
+    "pre-commit run --all-files --show-diff-on-failure name-tests-test",
+]
+all = [
+    "format",
+    "hooks",
+]
+
+[tool.hatch.envs.docs]
+description = "Build documentation with Sphinx"
+features = ["docs"]
+
+[tool.hatch.envs.docs.scripts]
+check = "doc8 docs/ README.rst"
+clean = "rm -rf docs/_build"
+build = [
+    "check",
+    "sphinx-build -W -b html docs docs/_build/html",
+]
 
 [tool.setuptools]
 include-package-data = true
@@ -106,6 +177,7 @@ where = ["src"]
 target-version = "py313"
 line-length = 88
 indent-width = 4
+extend-exclude = ["src/ferc_xbrl_extractor/_version.py"]
 
 [tool.ruff.format]
 # Configuration specfic to the `format` subcommand.
