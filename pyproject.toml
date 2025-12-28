@@ -141,16 +141,9 @@ format = [
     "ruff format ./",
     "ruff check --fix ./",
 ]
-hooks = [
-    "pre-commit run --all-files --show-diff-on-failure check-merge-conflict",
-    "pre-commit run --all-files --show-diff-on-failure check-yaml",
-    "pre-commit run --all-files --show-diff-on-failure check-case-conflict",
-    "pre-commit run --all-files --show-diff-on-failure debug-statements",
-    "pre-commit run --all-files --show-diff-on-failure name-tests-test",
-]
 all = [
+    "check",
     "format",
-    "hooks",
 ]
 
 [tool.hatch.envs.docs]
@@ -161,6 +154,7 @@ features = ["docs"]
 check = "doc8 docs/ README.rst"
 clean = "rm -rf docs/_build"
 build = [
+    "clean",
     "check",
     "sphinx-build -W -b html docs docs/_build/html",
 ]
