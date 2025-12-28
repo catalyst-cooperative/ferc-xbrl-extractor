@@ -8,6 +8,9 @@ Release Notes
 1.8.0 (2025-12-28)
 ---------------------------------------------------------------------------------------
 
+Modernize build and packaging
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 * **Migrated from tox to Hatch** for environment and task management, providing faster
   dependency resolution and a more modern Python packaging experience.
 * **Adopted uv** as the package installer.
@@ -29,7 +32,7 @@ Release Notes
 * Split pytest workflow into separate test, lint, and docs-build jobs for better
   parallelization.
 
-See :pr:`405`
+See PR :pr:`405`.
 
 .. _release-v1-7-3:
 
@@ -64,6 +67,9 @@ See :pr:`405`
 1.7.0 (2025-11-16)
 ---------------------------------------------------------------------------------------
 
+Support Output to DuckDB
+^^^^^^^^^^^^^^^^^^^^^^^^
+
 * **Add DuckDB output support** alongside existing SQLite output. :pr:`368`
 * **Pin arelle version** to avoid pillow v12.0 compatibility issues. :pr:`382`
 
@@ -89,6 +95,9 @@ See :pr:`405`
 ---------------------------------------------------------------------------------------
 1.5.1 (2024-07-17)
 ---------------------------------------------------------------------------------------
+
+Multi-Taxonomy Support
+^^^^^^^^^^^^^^^^^^^^^^
 
 * **Fix datapackage generation from multiple taxonomies**. :pr:`242`
 * Improve datapackage formatting.
