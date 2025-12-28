@@ -41,12 +41,17 @@ jobs:
       url: https://pypi.org/p/catalystcoop.ferc-xbrl-extractor
     permissions:
       id-token: write
+      attestations: write
     steps:
       - name: Download all the dists
         uses: actions/download-artifact@v7
         with:
           name: python-package-distributions
           path: dist/
+      - name: Generate artifact attestation for sdist and wheel
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/*"
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
 
@@ -83,21 +88,29 @@ jobs:
     if: ${{ always() }}
     steps:
       - name: Inform the Codemonkeys
-        uses: 8398a7/action-slack@v3
-        continue-on-error: true
+        uses: slackapi/slack-github-action@v2
         with:
-          status: custom
-          fields: workflow,job,commit,repo,ref,author,took
-          custom_payload: |
+          webhook-type: incoming-webhook
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          payload: |
             {
-              username: 'action-slack',
-              icon_emoji: ':octocat:',
-              attachments: [{
-                color: '${{ needs.github-publish.result }}' === 'success' ? 'good' : '${{ needs.github-publish.result }}' === 'failure' ? 'danger' : 'warning',
-                text: `${process.env.AS_REPO}@${process.env.AS_REF}\n ${process.env.AS_WORKFLOW} (${process.env.AS_COMMIT})\n by ${process.env.AS_AUTHOR}\n Status: ${{ needs.github-publish.result }}`,
-              }]
+              "text": "Release workflow completed for ${{ github.repository }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Release:* <${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}|${{ github.ref_name }}>\n*Repository:* ${{ github.repository }}\n*Status:* ${{ needs.github-publish.result }}\n*Triggered by:* ${{ github.actor }}"
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+                    }
+                  ]
+                }
+              ]
             }
-        env:
-          GITHUB_TOKEN: ${{ github.token }} # required
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }} # required
-          MATRIX_CONTEXT: ${{ toJson(matrix) }} # required
