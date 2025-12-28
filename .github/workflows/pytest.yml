@@ -46,7 +46,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          hatch run test:coverage
+          hatch run test:all
 
       - name: Upload test coverage report to CodeCov
         uses: codecov/codecov-action@v5
