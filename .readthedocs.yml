@@ -10,11 +10,12 @@ version: 2
 build:
   os: ubuntu-22.04
   tools:
-    python: mambaforge-4.10
-
-# Use conda / mamba to define the python environment
-conda:
-  environment: environment.yml
+    python: "3.13"
+  jobs:
+    post_install:
+      - pip install uv
+      - uv tool install hatch
+      - export PATH="$HOME/.local/bin:$PATH"
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
