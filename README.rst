@@ -69,29 +69,35 @@ least annually, and typically quarterly.
    :header-rows: 1
 
    * - FERC Form
-     - Archived XBRL
+     - Taxonomy
+     - Raw Data
      - SQLite
      - DuckDB
-   * - `Form 1 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-1-electric-utility-annual>`__
-     - https://doi.org/10.5281/zenodo.4127043
-     - `Download SQLite <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc1_xbrl.sqlite.zip>`__
-     - `Download DuckDB <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc1_xbrl.duckdb>`__
-   * - `Form 2 <https://www.ferc.gov/industries-data/natural-gas/industry-forms/form-2-2a-3-q-gas-historical-vfp-data>`__
-     - https://doi.org/10.5281/zenodo.5879542
-     - `Download SQLite <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc2_xbrl.sqlite.zip>`__
-     - `Download DuckDB <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc2_xbrl.duckdb>`__
-   * - `Form 6 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-66-q-overview-orders>`__
-     - https://doi.org/10.5281/zenodo.7126395
-     - `Download SQLite <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc6_xbrl.sqlite.zip>`__
-     - `Download DuckDB <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc6_xbrl.duckdb>`__
-   * - `Form 60 <https://www.ferc.gov/ferc-online/ferc-online/filing-forms/service-companies-filing-forms/form-60-annual-report>`_
-     - https://doi.org/10.5281/zenodo.7126434
-     - `Download SQLite <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc60_xbrl.sqlite.zip>`__
-     - `Download DuckDB <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc60_xbrl.duckdb>`__
-   * - `Form 714 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric>`__
-     - https://doi.org/10.5281/zenodo.4127100
-     - `Download SQLite <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc714_xbrl.sqlite.zip>`__
-     - `Download DuckDB <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc714_xbrl.duckdb>`__
+   * - `Form 1 (Electricity) <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-1-electric-utility-annual>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~8*v~150)!net~(a~143*l~35)!lang~(code~en)!rg~(rg~4*p~1)>`__
+     - `10.5281/zenodo.4127043 <https://doi.org/10.5281/zenodo.4127043>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc1_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc1_xbrl.duckdb>`__
+   * - `Form 2 (Natural Gas) <https://www.ferc.gov/industries-data/natural-gas/industry-forms/form-2-2a-3-q-gas-historical-vfp-data>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~1*v~149)!net~(a~3*l~4)!lang~(code~en)!rg~(rg~5*p~1)>`__
+     - `10.5281/zenodo.5879542 <https://doi.org/10.5281/zenodo.5879542>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc2_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc2_xbrl.duckdb>`__
+   * - `Form 6 (Oil) <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-66-q-overview-orders>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~4*v~148)!net~(a~63*l~19)!lang~(code~en)!rg~(rg~6*p~1)>`__
+     - `10.5281/zenodo.7126395 <https://doi.org/10.5281/zenodo.7126395>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc6_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc6_xbrl.duckdb>`__
+   * - `Form 60 (Service Companies) <https://www.ferc.gov/ferc-online/ferc-online/filing-forms/service-companies-filing-forms/form-60-annual-report>`_
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~6*v~147)!net~(a~103*l~29)!lang~(code~en)!rg~(rg~7*p~1)>`__
+     - `10.5281/zenodo.7126434 <https://doi.org/10.5281/zenodo.7126434>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc60_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc60_xbrl.duckdb>`__
+   * - `Form 714 (Balancing Authorities) <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~7*v~146)!net~(a~123*l~34)!lang~(code~en)!rg~(rg~8*p~1)>`__
+     - `10.5281/zenodo.4127100 <https://doi.org/10.5281/zenodo.4127100>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc714_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc714_xbrl.duckdb>`__
 
 Usage
 -----
