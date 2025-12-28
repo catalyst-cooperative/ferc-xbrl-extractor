@@ -29,7 +29,7 @@ class Field(BaseModel):
     description: str
 
     @classmethod
-    def from_concept(cls, concept: Concept) -> Field:
+    def from_concept(cls, concept: Concept) -> "Field":
         """Construct a Field from an XBRL Concept.
 
         Args:
@@ -256,7 +256,7 @@ class Schema(BaseModel):
     primary_key: list[str]
 
     @classmethod
-    def from_concept_tree(cls, concept: Concept, period_type: str) -> Schema:
+    def from_concept_tree(cls, concept: Concept, period_type: str) -> "Schema":
         """Deduce schema from concept tree.
 
         Traverse Concept tree to get columns that should comprise output table.
@@ -308,7 +308,7 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_uri: str
-    ) -> Resource:
+    ) -> "Resource":
         """Generate a Resource from a fact table (defined by a LinkRole).
 
         Args:
@@ -337,7 +337,7 @@ class Resource(BaseModel):
         period_type = "instant" if "date" in self.schema_.primary_key else "duration"
         return period_type
 
-    def merge_resources(self, other: Resource, other_version: str) -> Resource:
+    def merge_resources(self, other: "Resource", other_version: str) -> "Resource":
         """Merge same resource from multiple taxonomies.
 
         This method attempts to merge resource definitions from multiple taxonomies
@@ -465,7 +465,7 @@ class Datapackage(BaseModel):
     @classmethod
     def from_taxonomies(
         cls, taxonomies: dict[str, Taxonomy], db_uri: str, form_number: int = 1
-    ) -> Datapackage:
+    ) -> "Datapackage":
         """Construct a Datapackage from parsed XBRL taxonomies.
 
         FERC regularly releases new versions of their XBRL taxonomies, meaning

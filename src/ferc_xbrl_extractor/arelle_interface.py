@@ -102,7 +102,7 @@ class Metadata(BaseModel):
     balance: Literal["credit", "debit"] | None = None
 
     @classmethod
-    def from_concept(cls, concept: ModelConcept) -> Metadata:
+    def from_concept(cls, concept: ModelConcept) -> "Metadata":
         """Get metadata for a single XBRL Concept.
 
         This function will create a Metadata object with metadata extracted for
