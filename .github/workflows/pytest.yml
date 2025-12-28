@@ -1,4 +1,4 @@
-name: test-and-lint
+name: pytest
 
 on: [push, pull_request]
 
@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
       fail-fast: false
 
     steps:
@@ -46,7 +46,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          hatch run test:cov
+          hatch run test:coverage
 
       - name: Upload test coverage report to CodeCov
         uses: codecov/codecov-action@v5
