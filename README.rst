@@ -9,9 +9,9 @@ FERC XBRL Extractor
    :target: https://www.repostatus.org/#active
    :alt: Project Status: Active
 
-.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/test-and-lint.yml/badge.svg
-   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/test-and-lint.yml
-   :alt: Test and Lint Status
+.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/pytest.yml/badge.svg
+   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/pytest.yml
+   :alt: pytest status
 
 .. image:: https://img.shields.io/codecov/c/github/catalyst-cooperative/ferc-xbrl-extractor?style=flat&logo=codecov
    :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
