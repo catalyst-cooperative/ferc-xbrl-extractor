@@ -4,5 +4,5 @@ changelog:
     authors:
       - catalyst-workflow-triggerer
       - dependabot
-      - app/pre-commit-ci
+      - pre-commit-ci
       - pudlbot
