@@ -18,11 +18,13 @@ from ferc_xbrl_extractor.helpers import get_logger
 
 def parse():
     """Process base commands from the CLI."""
-    parser = argparse.ArgumentParser(description="Extract data from XBRL filings")
+    parser = argparse.ArgumentParser(
+        description="Extract data from XBRL filings to SQLite or DuckDB."
+    )
     parser.add_argument(
         "filings",
         nargs="+",
-        help="Path to a single xbrl filing, or a directory of xbrl filings",
+        help="Path to a single XBRL filing, a directory of XBRL filings, or a zipfile containing XBRL filings.",
         type=Path,
     )
     parser.add_argument(
@@ -34,7 +36,7 @@ def parse():
     parser.add_argument(
         "--duckdb-path",
         default=None,
-        help="Path to duckdb DB to write extracted XBRL data.",
+        help="Path to DuckDB DB to write extracted XBRL data.",
         type=Path,
     )
     parser.add_argument(
@@ -49,7 +51,7 @@ def parse():
         "--batch-size",
         default=None,
         type=int,
-        help="Specify number of instances to be processed at a time(defaults to one large batch)",
+        help="Specify number of instances to be processed at a time (defaults to one large batch)",
     )
     parser.add_argument(
         "-w",

@@ -2,16 +2,15 @@
 FERC XBRL Extractor
 ===============================================================================
 
-
 .. readme-intro
 
 .. image:: https://www.repostatus.org/badges/latest/active.svg
    :target: https://www.repostatus.org/#active
    :alt: Project Status: Active
 
-.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml/badge.svg
-   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/tox-pytest.yml
-   :alt: Tox-PyTest Status
+.. image:: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/pytest.yml/badge.svg
+   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/pytest.yml
+   :alt: pytest status
 
 .. image:: https://img.shields.io/codecov/c/github/catalyst-cooperative/ferc-xbrl-extractor?style=flat&logo=codecov
    :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
@@ -33,9 +32,9 @@ FERC XBRL Extractor
    :target: https://pypi.org/project/catalystcoop.ferc-xbrl-extractor/
    :alt: Supported Python Versions
 
-.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
-   :target: https://github.com/psf/black
-   :alt: Any color you want, so long as it's black.
+.. :image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+   :target: https://github.com/astral-sh/ruff
+   :alt: Formatted by ruff
 
 .. image:: https://results.pre-commit.ci/badge/github/catalyst-cooperative/ferc-xbrl-extractor/main.svg
    :target: https://results.pre-commit.ci/latest/github/catalyst-cooperative/ferc-xbrl-extractor/main
@@ -50,39 +49,55 @@ data using `XBRL <https://en.wikipedia.org/wiki/XBRL>`__. XBRL is primarily desi
 financial reporting, and has been adopted by regulators in the US and other countries.
 Much of the tooling in the XBRL ecosystem is targeted towards filers, and rendering
 individual filings in a human readable way, but there is very little targeted towards
-accessing and analyzing large collections of filings. This tool is designed to provide
-that functionality for FERC XBRL data. Specifically, it can extract data from a set of
-XBRL filings, and write that data to a SQLite database whose structure is generated from
-an XBRL Taxonomy. While each XBRL instance contains a reference to a taxonomy,
-this tool requires a path to a single taxonomy that will be used to interpret all
-instances being processed. This means even if instances were created from different
-versions of a Taxonomy, the provided taxonomy will be used when processing all of these
+accessing and analyzing large collections of filings.
+
+The FERC XBRL Extractor is designed to provide that functionality for FERC XBRL data.
+The library can extract data from a set of XBRL filings, and write that data to `SQLite
+<https://sqlite.org>`__ or `DuckDB <https://duckdb.org>`__ databases whose structure is
+derived from an XBRL Taxonomy. While each XBRL instance contains a reference to a
+taxonomy, this tool requires a path to a single taxonomy that will be used to interpret
+all instances being processed. This means even if instances were created from different
+versions of a taxonomy, the provided taxonomy will be used when processing all of these
 instances, so the output database will have a consistent structure. For more information
 on the technical details of the XBRL extraction, see the docs.
 
-We are currently using this tool to extract and publish the following FERC data:
+`Catalyst Cooperative <https://github.com/catalyst-cooperative>`__ is currently using
+this tool to extract and publish the following FERC data. These outputs are updatded at
+least annually, and typically quarterly.
 
 .. list-table::
    :header-rows: 1
 
    * - FERC Form
-     - Archived XBRL
-     - SQLite DB
-   * - `Form 1 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-1-electric-utility-annual>`__
-     - https://doi.org/10.5281/zenodo.4127043
-     - https://data.catalyst.coop/ferc1_xbrl
-   * - `Form 2 <https://www.ferc.gov/industries-data/natural-gas/industry-forms/form-2-2a-3-q-gas-historical-vfp-data>`__
-     - https://doi.org/10.5281/zenodo.5879542
-     - https://data.catalyst.coop/ferc2_xbrl
-   * - `Form 6 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-66-q-overview-orders>`__
-     - https://doi.org/10.5281/zenodo.7126395
-     - https://data.catalyst.coop/ferc6_xbrl
-   * - `Form 60 <https://www.ferc.gov/ferc-online/ferc-online/filing-forms/service-companies-filing-forms/form-60-annual-report>`_
-     - https://doi.org/10.5281/zenodo.7126434
-     - https://data.catalyst.coop/ferc60_xbrl
-   * - `Form 714 <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric>`__
-     - https://doi.org/10.5281/zenodo.4127100
-     - https://data.catalyst.coop/ferc714_xbrl
+     - Taxonomy
+     - Raw Data
+     - SQLite
+     - DuckDB
+   * - `Form 1 (Electricity) <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-1-electric-utility-annual>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~8*v~150)!net~(a~143*l~35)!lang~(code~en)!rg~(rg~4*p~1)>`__
+     - `10.5281/zenodo.4127043 <https://doi.org/10.5281/zenodo.4127043>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc1_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc1_xbrl.duckdb>`__
+   * - `Form 2 (Natural Gas) <https://www.ferc.gov/industries-data/natural-gas/industry-forms/form-2-2a-3-q-gas-historical-vfp-data>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~1*v~149)!net~(a~3*l~4)!lang~(code~en)!rg~(rg~5*p~1)>`__
+     - `10.5281/zenodo.5879542 <https://doi.org/10.5281/zenodo.5879542>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc2_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc2_xbrl.duckdb>`__
+   * - `Form 6 (Oil) <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-66-q-overview-orders>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~4*v~148)!net~(a~63*l~19)!lang~(code~en)!rg~(rg~6*p~1)>`__
+     - `10.5281/zenodo.7126395 <https://doi.org/10.5281/zenodo.7126395>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc6_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc6_xbrl.duckdb>`__
+   * - `Form 60 (Service Companies) <https://www.ferc.gov/ferc-online/ferc-online/filing-forms/service-companies-filing-forms/form-60-annual-report>`_
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~6*v~147)!net~(a~103*l~29)!lang~(code~en)!rg~(rg~7*p~1)>`__
+     - `10.5281/zenodo.7126434 <https://doi.org/10.5281/zenodo.7126434>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc60_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc60_xbrl.duckdb>`__
+   * - `Form 714 (Balancing Authorities) <https://www.ferc.gov/industries-data/electric/general-information/electric-industry-forms/form-no-714-annual-electric>`__
+     - `Browse <https://xbrlview.ferc.gov/yeti/resources/yeti-gwt/Yeti.jsp#tax~(id~7*v~146)!net~(a~123*l~34)!lang~(code~en)!rg~(rg~8*p~1)>`__
+     - `10.5281/zenodo.4127100 <https://doi.org/10.5281/zenodo.4127100>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc714_xbrl.sqlite.zip>`__
+     - `Download <https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/ferc714_xbrl.duckdb>`__
 
 Usage
 -----
@@ -90,46 +105,67 @@ Usage
 Installation
 ^^^^^^^^^^^^
 
-To install using conda, run the following command, and activate the environment.
+The package can be installed `from PyPI
+<https://pypi.org/project/catalystcoop.ferc-xbrl-extractor/>`__ or `conda-forge
+<https://anaconda.org/channels/conda-forge/packages/catalystcoop.ferc_xbrl_extractor/overview>`__
+using your package manager of choice:
 
-.. code-block:: console
+From PyPI
+~~~~~~~~~
 
-    $ conda env create -f environment.yml
+.. code-block:: bash
 
-Activate:
+    pip install catalystcoop.ferc-xbrl-extractor
+    uv pip install catalystcoop.ferc-xbrl-extractor
 
-.. code-block:: console
+From ``conda-forge``
+~~~~~~~~~~~~~~~~~~~~
 
-    $ conda activate ferc-xbrl-extractor
+.. code-block:: bash
 
+    conda install catalystcoop.ferc_xbrl_extractor
+    mamba install catalystcoop.ferc_xbrl_extractor
+    pixi install catalystcoop.ferc_xbrl_extractor
+
+Input Data
+^^^^^^^^^^
+
+The FERC XBRL Extractor is generally intended to consume raw XBRL filings and taxonomy
+information from one of the archives Catalyst Cooperative has published on `Zenodo
+<https://zenodo.org>`__. Each supported form has its own archive lineage, with new
+snapshots captured from FERC's XBRL filing RSS feeds on a regular basis (see links in
+the table above). The tool also expects to receive a zipfile containing archived
+taxonomies.
+
+The archived filings and taxonomies are both produced using the `pudl-archiver
+<https://github.com/catalyst-cooperative/pudl-archiver>`__.  The extractor will parse
+all taxonomies in the archive, then use the taxonomy referenced in each filing while
+parsing it.
 
 CLI
 ^^^
 
-This tool can be used as a library, as it is in `PUDL <https://github.com/catalyst-cooperative/pudl>`__,
-or there is a CLI provided for interacting with XBRL data. The only required options
-for the CLI are a path to the filings to be extracted, and a path to the output
-SQLite database. The path to the filings can point to a directory full of XBRL
-Filings, a single XBRL filing, or a zipfile with XBRL filings. If the specified
-SQLite database already exists, it will be overwritten by this command.
+This tool can be used as a library, as it is in `PUDL
+<https://github.com/catalyst-cooperative/pudl>`__. There is also a CLI provided for
+interacting with XBRL data. The only required options for the CLI are a path to the
+filings to be extracted, and a path to the output database. The path to the
+filings can point to a directory full of XBRL Filings, a single XBRL filing, or a
+zipfile with XBRL filings. If the specified output database already exists, it will be
+overwritten.
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract {path_to_filings} --sqlite-path {path_to_database}
+    xbrl_extract {path_to_filings} --sqlite-path {path_to_database}
 
 This repo contains a small selection of FERC Form 1 filings from 2021, along with
 an archive of taxonomies in the ``examples`` directory. To test the tool on these
 filings, use the command:
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip --sqlite-path ./ferc1-2021-sample.sqlite \
+    xbrl_extract examples/ferc1-2021-sample.zip \
+        --sqlite-path ./ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip
-
-The tool expects the ``--taxonomy`` option to point to a zipfile containing archived
-taxonomies produced by the `pudl-archiver <https://github.com/catalyst-cooperative/pudl-archiver>`__.
-The extractor will parse all taxonomies in the archive, then use the taxonomy referenced
-in each filing while parsing it.
 
 Parsing XBRL filings can be a time consuming and CPU heavy task, so this tool
 implements some basic multiprocessing to speed this up. It uses a
@@ -139,12 +175,14 @@ and ``--workers``. The batch size configures how many filings will be processed 
 each child process at a time, and workers specifies how many child processes to
 create in the pool. It may take some experimentation to get these options
 optimally configured. The following command will use 5 worker processes to process
-batches of 50 filings at a time.
+batches of 50 filings at a time. It will also output both SQLite and DuckDB.
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip .--sqlite-path /ferc1-2021-sample.sqlite \
-        --taxonomy examples/ferc1-xbrl-taxonomies.zip
+    xbrl_extract examples/ferc1-2021-sample.zip \
+        --sqlite-path ferc1-2021-sample.sqlite \
+        --duckdb-path ferc1-2021-sample.duckdb \
+        --taxonomy examples/ferc1-xbrl-taxonomies.zip \
         --workers 5 \
         --batch-size 50
 
@@ -157,12 +195,63 @@ file, grouped by table name. See the ``ferc_xbrl_extractor.arelle_interface`` mo
 for more info on the extracted metadata. To create both of these files using the example
 filings and taxonomy, run the following command.
 
-.. code-block:: console
+.. code-block:: bash
 
-    $ xbrl_extract examples/ferc1-2021-sample.zip .--sqlite-path /ferc1-2021-sample.sqlite \
-        --taxonomy examples/ferc1-xbrl-taxonomies.zip
+    xbrl_extract examples/ferc1-2021-sample.zip \
+        --sqlite-path /ferc1-2021-sample.sqlite \
+        --taxonomy examples/ferc1-xbrl-taxonomies.zip \
         --metadata-path metadata.json \
         --datapackage-path datapackage.json
+
+Contributing / Development
+--------------------------
+
+This project uses `uv <https://docs.astral.sh/uv/>`__ for dependency management and
+`Hatch <https://hatch.pypa.io/>`__ for environment and task management. It also
+includes several git pre-commit hooks that help enforce standard coding practices.
+To set up the environment for development first ensure you have
+`uv installed <https://docs.astral.sh/uv/getting-started/installation/>`__ and then:
+
+.. code-block:: bash
+
+    # Clone the repository to your local machine
+    git clone https://github.com/catalyst-cooperative/ferc-xbrl-extractor.git
+    cd ferc-xbrl-extractor
+    # Create the development environment with hatch
+    uv tool install hatch
+    hatch env create
+    # Install the pre-commit hooks
+    hatch run pre-commit install
+
+All available development environments and commands can be shown with:
+
+.. code-block:: bash
+
+   hatch env show
+
+Some of the available commands:
+
+.. code-block:: bash
+
+    # Run all tests and collect coverage
+    hatch run test:all
+    # Run only unit tests
+    hatch run test:unit
+    # Run only integration tests
+    hatch run test:integration
+    # Run linters and formatters
+    hatch run lint:all
+    # Check code without modifying
+    hatch run lint:check
+    # Format code
+    hatch run lint:format
+    # Build documentation
+    hatch run docs:build
+    # Check documentation formatting
+    hatch run docs:check
+
+Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__ with configuration
+in ``pyproject.toml``.
 
 PUDL Sustainers
 ---------------

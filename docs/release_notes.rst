@@ -1,17 +1,173 @@
 =======================================================================================
-PACKAGE_NAME Release Notes
+Release Notes
 =======================================================================================
 
+.. _release-v1-8-0:
+
 ---------------------------------------------------------------------------------------
-1.2.x
+1.8.0 (2025-12-28)
 ---------------------------------------------------------------------------------------
 
-* Migrate to using Pydantic v2.
+Modernize build and packaging
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Migrated from tox to Hatch** for environment and task management, providing faster
+  dependency resolution and a more modern Python packaging experience.
+* **Adopted uv** as the package installer.
+* **Modernized build system** from setuptools to hatchling with hatch-vcs for version
+  management from git tags.
+* **Reorganized CI workflows** into parallel jobs for testing, linting, and
+  documentation building, improving CI speed and clarity.
+* Added support for **Python 3.14**.
+* **Consolidated development documentation** from separate CONTRIBUTING.md into
+  README.rst
+* Updated README with instructions for using Hatch and uv.
+* Updated ReadTheDocs configuration to use uv and Hatch.
+* **Loosened dependency version constraints** Removed upper bounds where
+  appropriate to reduce dependency conflicts for downstream users.
+* **Added build attestations** for supply chain security using GitHub's attestation
+  action.
+* **Adopted OIDC trusted publishing** to PyPI, eliminating the need for API tokens.
+* Removed twine dependency (Hatch validates packages during build).
+* Split pytest workflow into separate test, lint, and docs-build jobs for better
+  parallelization.
+
+See PR :pr:`405`.
+
+.. _release-v1-7-3:
+
+---------------------------------------------------------------------------------------
+1.7.3 (2025-12-03)
+---------------------------------------------------------------------------------------
+
+* **Revert to treating dates as strings**, deferring cleaning until downstream
+  processing. :pr:`396`
+
+.. _release-v1-7-2:
+
+---------------------------------------------------------------------------------------
+1.7.2 (2025-11-26)
+---------------------------------------------------------------------------------------
+
+* **Fix datetime type for publication date** to ensure proper handling across database
+  backends. :pr:`392`
+
+.. _release-v1-7-1:
+
+---------------------------------------------------------------------------------------
+1.7.1 (2025-11-19)
+---------------------------------------------------------------------------------------
+
+* Improve dtype handling for DuckDB and SQLite outputs. :pr:`388`
+* Add integration test to verify DuckDB and SQLite tables are identical.
+
+.. _release-v1-7-0:
+
+---------------------------------------------------------------------------------------
+1.7.0 (2025-11-16)
+---------------------------------------------------------------------------------------
+
+Support Output to DuckDB
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Add DuckDB output support** alongside existing SQLite output. :pr:`368`
+* **Pin arelle version** to avoid pillow v12.0 compatibility issues. :pr:`382`
+
+.. _release-v1-6-0:
+
+---------------------------------------------------------------------------------------
+1.6.0 (2025-04-28)
+---------------------------------------------------------------------------------------
+
+* **Make table name pattern more robust** to handle edge cases in XBRL taxonomy parsing.
+  :pr:`320`
+
+.. _release-v1-5-2:
+
+---------------------------------------------------------------------------------------
+1.5.2 (2025-04-12)
+---------------------------------------------------------------------------------------
+
+* **Add Python 3.13 support**. :pr:`318`
+
+.. _release-v1-5-1:
+
+---------------------------------------------------------------------------------------
+1.5.1 (2024-07-17)
+---------------------------------------------------------------------------------------
+
+Multi-Taxonomy Support
+^^^^^^^^^^^^^^^^^^^^^^
+
+* **Fix datapackage generation from multiple taxonomies**. :pr:`242`
+* Improve datapackage formatting.
+* Fix examples in README with updated sample filings.
+* Improve docstrings and comments throughout the codebase.
+
+.. _release-v1-5-0:
+
+---------------------------------------------------------------------------------------
+1.5.0 (2024-07-02)
+---------------------------------------------------------------------------------------
+
+* Minor dependency updates and maintenance release.
+
+.. _release-v1-4-0:
+
+---------------------------------------------------------------------------------------
+1.4.0 (2024-04-14)
+---------------------------------------------------------------------------------------
+
+* **Update to Frictionless v5** and ensure all tests pass with the new version.
+  :pr:`213`
+
+.. _release-v1-3-3:
+
+---------------------------------------------------------------------------------------
+1.3.3 (2024-03-26)
+---------------------------------------------------------------------------------------
+
+* **Add retry logic for taxonomy reading** to improve reliability with network issues.
+  :pr:`205`
+
+.. _release-v1-3-2:
+
+---------------------------------------------------------------------------------------
+1.3.2 (2024-01-20)
+---------------------------------------------------------------------------------------
+
+* **Add support for pandas 2.2**.
+* Cache dimension snakecase operations for better performance.
+
+.. _release-v1-3-1:
+
+---------------------------------------------------------------------------------------
+1.3.1 (2023-11-29)
+---------------------------------------------------------------------------------------
+
+* Fix warning suppression by using 'ignore' instead of 'once'.
+
+.. _release-v1-3-0:
+
+---------------------------------------------------------------------------------------
+1.3.0 (2023-11-28)
+---------------------------------------------------------------------------------------
+
+* **Update to Pydantic v2** and migrate from Black to Ruff formatting. :pr:`169`
+* Add Zenodo DOI badge to README.
+
+.. _release-v1-2-1:
+
+---------------------------------------------------------------------------------------
+1.2.1 (2023-10-18)
+---------------------------------------------------------------------------------------
+
+* Add Python 3.12 support.
 
 .. _release-v1-2-0:
 
 ---------------------------------------------------------------------------------------
-1.2.0 (2023-10-06)
+1.2.0 (2023-10-12)
 ---------------------------------------------------------------------------------------
 
 * Instead of combining multiple filings from one year, we track publication

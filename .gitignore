@@ -110,6 +110,12 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.hatch/
+
+# uv lock file - not needed for libraries
+uv.lock
+
+src/ferc_xbrl_extractor/_version.py
 
 # Spyder project settings
 .spyderproject
