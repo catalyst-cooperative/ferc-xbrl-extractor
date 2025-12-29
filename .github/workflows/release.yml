@@ -47,7 +47,7 @@ jobs:
           name: python-package-distributions
           path: dist/
       - name: Generate artifact attestation for sdist and wheel
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v3
         with:
           subject-path: "dist/*"
       - name: Publish distribution to PyPI
