@@ -81,7 +81,7 @@ jobs:
     if: ${{ always() }}
     steps:
       - name: Inform the Codemonkeys
-        uses: slackapi/slack-github-action@v2
+        uses: slackapi/slack-github-action@v3
         with:
           webhook-type: incoming-webhook
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
