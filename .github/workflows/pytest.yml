@@ -57,6 +57,8 @@ jobs:
 
   docs-build:
     runs-on: ubuntu-latest
+    env:
+      PUDL_DOCS_DISABLE_INTERSPHINX: "1"
     steps:
       - uses: actions/checkout@v6
         with:

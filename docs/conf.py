@@ -10,6 +10,7 @@
 
 import datetime
 import importlib.metadata
+import os
 import shutil
 from pathlib import Path
 
@@ -72,6 +73,12 @@ intersphinx_mapping = {
     "setuptools": ("https://setuptools.pypa.io/en/latest/", None),
     "tox": ("https://tox.wiki/en/latest/", None),
 }
+# If PUDL_DOCS_DISABLE_INTERSPHINX is set, disable intersphinx lookups. This can speed
+# up the build and avoids issues with external sites being down.
+if "PUDL_DOCS_DISABLE_INTERSPHINX" in os.environ:
+    print("Disabling intersphinx lookups (PUDL_DOCS_DISABLE_INTERSPHINX is set).")
+    intersphinx_mapping = {}
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
