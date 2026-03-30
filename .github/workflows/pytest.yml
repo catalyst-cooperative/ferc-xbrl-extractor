@@ -33,7 +33,7 @@ jobs:
         run: |
           hatch run test:all
       - name: Upload test coverage report to CodeCov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
 
   lint:
     runs-on: ubuntu-latest
