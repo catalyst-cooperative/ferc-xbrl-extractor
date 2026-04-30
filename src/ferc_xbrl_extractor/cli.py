@@ -29,13 +29,11 @@ def parse():
     )
     parser.add_argument(
         "--sqlite-path",
-        default="ferc-xbrl.sqlite",
         help="Path to SQLite DB to write extracted XBRL data.",
         type=Path,
     )
     parser.add_argument(
         "--duckdb-path",
-        default=None,
         help="Path to DuckDB DB to write extracted XBRL data.",
         type=Path,
     )
@@ -69,7 +67,6 @@ def parse():
     parser.add_argument(
         "-f",
         "--form-number",
-        default=1,
         type=int,
         help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
     )
@@ -140,8 +137,8 @@ def run_main(
     filings: list[Path] | list[io.BytesIO],
     taxonomy: str | Path | io.BytesIO,
     sqlite_path: Path,
-    duckdb_path: Path | None,
-    form_number: int | None,
+    duckdb_path: Path,
+    form_number: int,
     metadata_path: Path | None,
     datapackage_path: Path | None,
     workers: int | None,
@@ -164,10 +161,19 @@ def run_main(
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
+    # NOTE 2026-04-30: This would flow much better overall if extract was split into two steps:
+    #
+    # 1. extract taxonomy and metadata
+    # 2. read data in from xbrl
+    #
+    # Then we can do the loading and writing of datapackage.jsons out at the end.
+    #
+    # CG/DX did not have time or gumption for this refactor but think it would
+    # make this easier to work with.
     extracted = xbrl.extract(
         taxonomy_source=taxonomy,
         form_number=form_number,
-        db_uri=sqlite_uri,
+        db_uri=sqlite_path.absolute().name,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
         filings=filings,
@@ -178,6 +184,16 @@ def run_main(
     )
     # Save extracted data in SQLite/duckdb
     load_extracted(extracted, sqlite_uri, duckdb_path)
+
+    load_parquet(form_number, datapackage_path, duckdb_path)
+
+
+def load_parquet(form_number, datapackage_path, duckdb_path):
+    # read tables from duckdb
+    # dump to parquet, at Path(f"ferc{form_number}_xbrl") / table_name
+    # read existing datapackage
+    # update paths, remove the dialect, change format + mediatype
+    pass
 
 
 def main():
