@@ -223,12 +223,14 @@ def write_validated_datapackage(datapackage: dict, parquet_dir: Path):
 
 def load_parquet(form_number, datapackage_path, output_path, duckdb_path):
     """Convert duckdb and existing datapacakge into parquet."""
+    parquet_dir = output_path / f"ferc{form_number}_xbrl"
+    convert_duckdb_into_parquet(duckdb_path, parquet_dir)
     # read existing datapackage
-    with open(datapackage_path) as file:
+    with Path(datapackage_path).open() as file:
         datapackage = json.load(file)
 
     datapackage = convert_datapackge_sqlite_to_parquet(datapackage)
-    write_validated_datapackage(datapackage)
+    write_validated_datapackage(datapackage, parquet_dir)
 
 
 def main():
