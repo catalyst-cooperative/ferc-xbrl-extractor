@@ -2,6 +2,7 @@
 
 import argparse
 import io
+import json
 import logging
 import sys
 from pathlib import Path
@@ -9,6 +10,7 @@ from pathlib import Path
 import coloredlogs
 import duckdb
 import pandas as pd
+from frictionless import Package
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -188,12 +190,45 @@ def run_main(
     load_parquet(form_number, datapackage_path, duckdb_path)
 
 
-def load_parquet(form_number, datapackage_path, duckdb_path):
-    # read tables from duckdb
-    # dump to parquet, at Path(f"ferc{form_number}_xbrl") / table_name
-    # read existing datapackage
+def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
+    """Convert the duckdb into a directory of parquet files."""
+    con = duckdb.connect(duckdb_path)
+    con.execute(f"EXPORT DATABASE '{str(parquet_dir)}' (FORMAT PARQUET);")
+
+
+def convert_datapackge_sqlite_to_parquet(datapackage: dict) -> dict:
+    """Convert the datapackage made for the SQLite files."""
     # update paths, remove the dialect, change format + mediatype
-    pass
+    for resource in datapackage["resources"]:
+        name = resource["name"]
+        resource["path"] = f"{name}.parquet"
+        resource["format"] = "parquet"
+        resource["mediatype"] = "application/vnd.apache.parquet"
+        resource.pop("dialect")
+
+    return datapackage
+
+
+def write_validated_datapackage(datapackage: dict, parquet_dir: Path):
+    """Validate and write datapackage."""
+    # Verify that datapackage descriptor is valid before outputting
+    report = Package.validate_descriptor(datapackage)
+    if not report.valid:
+        raise RuntimeError(f"Generated datapackage is invalid - {report.errors}")
+
+    # Write to JSON file
+    with Path(parquet_dir / "datapackage.json").open(mode="w") as f:
+        f.write(json.dumps(datapackage, indent=2))
+
+
+def load_parquet(form_number, datapackage_path, output_path, duckdb_path):
+    """Convert duckdb and existing datapacakge into parquet."""
+    # read existing datapackage
+    with open(datapackage_path) as file:
+        datapackage = json.load(file)
+
+    datapackage = convert_datapackge_sqlite_to_parquet(datapackage)
+    write_validated_datapackage(datapackage)
 
 
 def main():
