@@ -56,18 +56,17 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
     with the example filings and taxonomy in the ``examples/`` directory, and verify
     that it returns successfully.
     """
+    form_number = 1
     output_dir = tmp_path
-    sqlite_path = tmp_path / "ferc1-2021-sample.sqlite"
-    duckdb_path = tmp_path / "ferc1-2021-sample.duckdb"
+    sqlite_path = tmp_path / f"ferc{form_number}-2021-sample.sqlite"
+    duckdb_path = tmp_path / f"ferc{form_number}-2021-sample.duckdb"
     log_file = tmp_path / "log.log"
     data_dir = test_dir / "integration" / "data"
 
     ret = script_runner.run(
         [
             "xbrl_extract",
-            str(data_dir / "ferc1-xbrl-2021.zip"),
-            "--form-number",
-            1,
+            str(data_dir / f"ferc{form_number}-xbrl-2021.zip"),
             "--output-dir",
             str(output_dir),
             "--sqlite-path",
@@ -75,7 +74,9 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
             "--duckdb-path",
             str(duckdb_path),
             "--taxonomy",
-            str(data_dir / "ferc1-xbrl-taxonomies.zip"),
+            str(data_dir / f"ferc{form_number}-xbrl-taxonomies.zip"),
+            "--form-number",
+            1,
             "--logfile",
             str(log_file),
         ]

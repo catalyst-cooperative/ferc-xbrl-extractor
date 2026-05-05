@@ -181,19 +181,22 @@ def run_main(
     load_extracted(extracted, sqlite_uri, duckdb_path)
 
     parquet_dir = output_dir / f"ferc{form_number}_xbrl"
-    convert_duckdb_into_parquet(duckdb_path, parquet_dir)
+    convert_duckdb_into_parquet(duckdb_path=duckdb_path, parquet_dir=parquet_dir)
     datapackage_parquet = convert_and_validate_datapackage_sqlite_to_parquet(
-        datapackage_path
+        datapackage_path=datapackage_path
     )
-    write_datapackage(datapackage_parquet, parquet_dir)
+    write_datapackage(datapackage=datapackage_parquet, output_dir=parquet_dir)
 
 
 def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
     """Convert the duckdb into a directory of parquet files."""
+    print(duckdb_path)
     con = duckdb.connect(duckdb_path)
     tables = con.sql("SHOW TABLES").fetchall()
     # tables is a list of tuples, so condense the list
     tables = chain.from_iterable(tables)
+    if not parquet_dir.exists():
+        parquet_dir.mkdir(exist_ok=True)
     for table in tables:
         con.execute(
             f"COPY {table} TO '{parquet_dir}/{table}.parquet' (FORMAT parquet);"
