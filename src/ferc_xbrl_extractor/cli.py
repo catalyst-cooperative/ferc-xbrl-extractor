@@ -30,6 +30,11 @@ def parse():
         type=Path,
     )
     parser.add_argument(
+        "--output-dir",
+        help="Path to output directory where parquet directory will end up.",
+        type=Path,
+    )
+    parser.add_argument(
         "--sqlite-path",
         help="Path to SQLite DB to write extracted XBRL data.",
         type=Path,
@@ -38,13 +43,6 @@ def parse():
         "--duckdb-path",
         help="Path to DuckDB DB to write extracted XBRL data.",
         type=Path,
-    )
-    parser.add_argument(
-        "-s",
-        "--datapackage-path",
-        default=None,
-        type=Path,
-        help="Generate frictionless datapackage descriptor, and write to JSON file at specified path.",
     )
     parser.add_argument(
         "-b",
@@ -71,13 +69,6 @@ def parse():
         "--form-number",
         type=int,
         help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
-    )
-    parser.add_argument(
-        "-m",
-        "--metadata-path",
-        default=None,
-        type=Path,
-        help="Specify path to output metadata extracted taxonomy. Metadata will not be extracted if no path is specified.",
     )
     parser.add_argument(
         "--loglevel",
@@ -138,11 +129,10 @@ def load_extracted(
 def run_main(
     filings: list[Path] | list[io.BytesIO],
     taxonomy: str | Path | io.BytesIO,
+    output_dir: Path,
     sqlite_path: Path,
     duckdb_path: Path,
     form_number: int,
-    metadata_path: Path | None,
-    datapackage_path: Path | None,
     workers: int | None,
     batch_size: int | None,
     loglevel: str,
@@ -157,6 +147,8 @@ def run_main(
     coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
     sqlite_uri = f"sqlite:///{sqlite_path.absolute()}"
+    datapackage_path = output_dir / f"ferc{form_number}_xbrl_datapackage.json"
+    metadata_path = output_dir / f"ferc{form_number}_xbrl_taxonomy_metadata.json"
 
     if logfile:
         file_logger = logging.FileHandler(logfile)
@@ -187,7 +179,10 @@ def run_main(
     # Save extracted data in SQLite/duckdb
     load_extracted(extracted, sqlite_uri, duckdb_path)
 
-    load_parquet(form_number, datapackage_path, duckdb_path)
+    parquet_dir = output_dir / f"ferc{form_number}_xbrl"
+    convert_duckdb_into_parquet(duckdb_path, parquet_dir)
+    datapackage_parquet = convert_and_validate_datapackage_sqlite_to_parquet()
+    write_datapackage(datapackage_parquet, parquet_dir)
 
 
 def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
@@ -196,8 +191,11 @@ def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
     con.execute(f"EXPORT DATABASE '{str(parquet_dir)}' (FORMAT PARQUET);")
 
 
-def convert_datapackge_sqlite_to_parquet(datapackage: dict) -> dict:
+def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -> dict:
     """Convert the datapackage made for the SQLite files."""
+    # read existing datapackage
+    with Path(datapackage_path).open() as file:
+        datapackage = json.load(file)
     # update paths, remove the dialect, change format + mediatype
     for resource in datapackage["resources"]:
         name = resource["name"]
@@ -206,31 +204,18 @@ def convert_datapackge_sqlite_to_parquet(datapackage: dict) -> dict:
         resource["mediatype"] = "application/vnd.apache.parquet"
         resource.pop("dialect")
 
-    return datapackage
-
-
-def write_validated_datapackage(datapackage: dict, parquet_dir: Path):
-    """Validate and write datapackage."""
     # Verify that datapackage descriptor is valid before outputting
     report = Package.validate_descriptor(datapackage)
     if not report.valid:
         raise RuntimeError(f"Generated datapackage is invalid - {report.errors}")
+    return datapackage
 
+
+def write_datapackage(datapackage: dict, output_dir: Path):
+    """Write datapackage."""
     # Write to JSON file
-    with Path(parquet_dir / "datapackage.json").open(mode="w") as f:
+    with Path(output_dir / "datapackage.json").open(mode="w") as f:
         f.write(json.dumps(datapackage, indent=2))
-
-
-def load_parquet(form_number, datapackage_path, output_path, duckdb_path):
-    """Convert duckdb and existing datapacakge into parquet."""
-    parquet_dir = output_path / f"ferc{form_number}_xbrl"
-    convert_duckdb_into_parquet(duckdb_path, parquet_dir)
-    # read existing datapackage
-    with Path(datapackage_path).open() as file:
-        datapackage = json.load(file)
-
-    datapackage = convert_datapackge_sqlite_to_parquet(datapackage)
-    write_validated_datapackage(datapackage, parquet_dir)
 
 
 def main():
