@@ -181,7 +181,9 @@ def run_main(
 
     parquet_dir = output_dir / f"ferc{form_number}_xbrl"
     convert_duckdb_into_parquet(duckdb_path, parquet_dir)
-    datapackage_parquet = convert_and_validate_datapackage_sqlite_to_parquet()
+    datapackage_parquet = convert_and_validate_datapackage_sqlite_to_parquet(
+        datapackage_path
+    )
     write_datapackage(datapackage_parquet, parquet_dir)
 
 
