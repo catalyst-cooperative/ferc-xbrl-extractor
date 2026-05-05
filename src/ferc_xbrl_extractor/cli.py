@@ -190,7 +190,6 @@ def run_main(
 
 def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
     """Convert the duckdb into a directory of parquet files."""
-    print(duckdb_path)
     con = duckdb.connect(duckdb_path)
     tables = con.sql("SHOW TABLES").fetchall()
     # tables is a list of tuples, so condense the list
