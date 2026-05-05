@@ -5,6 +5,7 @@ import io
 import json
 import logging
 import sys
+from itertools import chain
 from pathlib import Path
 
 import coloredlogs
@@ -190,7 +191,16 @@ def run_main(
 def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
     """Convert the duckdb into a directory of parquet files."""
     con = duckdb.connect(duckdb_path)
-    con.execute(f"EXPORT DATABASE '{str(parquet_dir)}' (FORMAT PARQUET);")
+    tables = con.sql("SHOW TABLES").fetchall()
+    # tables is a list of tuples, so condense the list
+    tables = chain.from_iterable(tables)
+    for table in tables:
+        con.execute(
+            f"COPY {table} TO '{parquet_dir}/{table}.parquet' (FORMAT parquet);"
+        )
+    # unfortunately export database sanitizes the table names, which removes the
+    # schedule numbers in the table names so we can't use it.
+    # con.execute(f"EXPORT DATABASE '{str(parquet_dir)}' (FORMAT PARQUET);")
 
 
 def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -> dict:
