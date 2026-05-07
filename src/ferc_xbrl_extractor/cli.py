@@ -189,7 +189,12 @@ def run_main(
 
 
 def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
-    """Convert the duckdb into a directory of parquet files."""
+    """Convert the duckdb into a directory of parquet files.
+
+    We do this using COPY. We tried using EXPORT DATABASE, but it unfortunately
+    sanitizes the table names, which removes the schedule numbers in the table
+    names so we can't use it.
+    """
     con = duckdb.connect(duckdb_path)
     tables = con.sql("SHOW TABLES").fetchall()
     # tables is a list of tuples, so condense the list
@@ -200,24 +205,24 @@ def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
         con.execute(
             f"COPY {table} TO '{parquet_dir}/{table}.parquet' (FORMAT parquet);"
         )
-    # unfortunately export database sanitizes the table names, which removes the
-    # schedule numbers in the table names so we can't use it.
-    # con.execute(f"EXPORT DATABASE '{str(parquet_dir)}' (FORMAT PARQUET);")
 
 
 def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -> dict:
-    """Convert the datapackage made for the SQLite files."""
+    """Convert the SQLite datapackage into one that points at Parquet files.
+
+    * instead of ``path`` pointing at monolithic SQLite db, point at individual Parquet files instead
+    * update format/metadata fields
+    * remove irrelevant dialect field
+    """
     # read existing datapackage
     with Path(datapackage_path).open() as file:
         datapackage = json.load(file)
-    # update paths, remove the dialect, change format + mediatype
     for resource in datapackage["resources"]:
         name = resource["name"]
         resource["path"] = f"{name}.parquet"
         resource["format"] = "parquet"
         resource["mediatype"] = "application/vnd.apache.parquet"
         resource.pop("dialect")
-
     # Verify that datapackage descriptor is valid before outputting
     report = Package.validate_descriptor(datapackage)
     if not report.valid:
@@ -226,8 +231,10 @@ def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -
 
 
 def write_datapackage(datapackage: dict, output_dir: Path):
-    """Write datapackage."""
-    # Write to JSON file
+    """Write a datapackage to <output_dir>/datapackage.json.
+
+    output_dir must exist.
+    """
     with Path(output_dir / "datapackage.json").open(mode="w") as f:
         f.write(json.dumps(datapackage, indent=2))
 

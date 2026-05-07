@@ -186,22 +186,18 @@ batches of 50 filings at a time. It will also output both SQLite and DuckDB.
         --workers 5 \
         --batch-size 50
 
-There are also several options included for extracting metadata from the taxonomy.
-First is the ``--datapackage-path`` command to save a
-`frictionless datapackage <https://specs.frictionlessdata.io/data-package/>`__
-descriptor as JSON, which annotates the generated SQLite database. There is also the
-``--metadata-path`` option, which writes more extensive taxonomy metadata to a json
-file, grouped by table name. See the ``ferc_xbrl_extractor.arelle_interface`` module
-for more info on the extracted metadata. To create both of these files using the example
-filings and taxonomy, run the following command.
+You can also pass the ``--metadata-path`` option,
+which writes extensive taxonomy metadata to a json file,
+grouped by table name.
+See the ``ferc_xbrl_extractor.arelle_interface`` module for more info on the extracted metadata.
+
 
 .. code-block:: bash
 
     xbrl_extract examples/ferc1-2021-sample.zip \
         --sqlite-path /ferc1-2021-sample.sqlite \
         --taxonomy examples/ferc1-xbrl-taxonomies.zip \
-        --metadata-path metadata.json \
-        --datapackage-path datapackage.json
+        --metadata-path metadata.json
 
 Contributing / Development
 --------------------------

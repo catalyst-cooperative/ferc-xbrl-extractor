@@ -127,7 +127,6 @@ def test_extract_example_filings_bad_form(script_runner, tmp_path, test_dir):
     """
     out_db = tmp_path / "ferc1-2021-sample.sqlite"
     metadata = tmp_path / "metadata.json"
-    datapackage = tmp_path / "datapackage.json"
     log_file = tmp_path / "log.log"
     data_dir = test_dir / "integration" / "data"
 
@@ -140,8 +139,6 @@ def test_extract_example_filings_bad_form(script_runner, tmp_path, test_dir):
             "666",
             "--metadata-path",
             str(metadata),
-            "--datapackage-path",
-            str(datapackage),
             "--logfile",
             str(log_file),
         ]
