@@ -2,13 +2,16 @@
 
 import argparse
 import io
+import json
 import logging
 import sys
+from itertools import chain
 from pathlib import Path
 
 import coloredlogs
 import duckdb
 import pandas as pd
+from frictionless import Package
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -28,23 +31,19 @@ def parse():
         type=Path,
     )
     parser.add_argument(
+        "--output-dir",
+        help="Path to output directory where parquet directory will end up.",
+        type=Path,
+    )
+    parser.add_argument(
         "--sqlite-path",
-        default="ferc-xbrl.sqlite",
         help="Path to SQLite DB to write extracted XBRL data.",
         type=Path,
     )
     parser.add_argument(
         "--duckdb-path",
-        default=None,
         help="Path to DuckDB DB to write extracted XBRL data.",
         type=Path,
-    )
-    parser.add_argument(
-        "-s",
-        "--datapackage-path",
-        default=None,
-        type=Path,
-        help="Generate frictionless datapackage descriptor, and write to JSON file at specified path.",
     )
     parser.add_argument(
         "-b",
@@ -69,16 +68,8 @@ def parse():
     parser.add_argument(
         "-f",
         "--form-number",
-        default=1,
         type=int,
         help="Specify form number to choose taxonomy used to generate output schema (if a taxonomy is explicitly specified that will override this parameter). Form number is also used for setting the name of the datapackage descriptor if requested.",
-    )
-    parser.add_argument(
-        "-m",
-        "--metadata-path",
-        default=None,
-        type=Path,
-        help="Specify path to output metadata extracted taxonomy. Metadata will not be extracted if no path is specified.",
     )
     parser.add_argument(
         "--loglevel",
@@ -139,11 +130,10 @@ def load_extracted(
 def run_main(
     filings: list[Path] | list[io.BytesIO],
     taxonomy: str | Path | io.BytesIO,
+    output_dir: Path,
     sqlite_path: Path,
-    duckdb_path: Path | None,
-    form_number: int | None,
-    metadata_path: Path | None,
-    datapackage_path: Path | None,
+    duckdb_path: Path,
+    form_number: int,
     workers: int | None,
     batch_size: int | None,
     loglevel: str,
@@ -158,16 +148,27 @@ def run_main(
     coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
     sqlite_uri = f"sqlite:///{sqlite_path.absolute()}"
+    datapackage_path = output_dir / f"ferc{form_number}_xbrl_datapackage.json"
+    metadata_path = output_dir / f"ferc{form_number}_xbrl_taxonomy_metadata.json"
 
     if logfile:
         file_logger = logging.FileHandler(logfile)
         file_logger.setFormatter(logging.Formatter(log_format))
         logger.addHandler(file_logger)
 
+    # NOTE 2026-04-30: This would flow much better overall if extract was split into two steps:
+    #
+    # 1. extract taxonomy and metadata
+    # 2. read data in from xbrl
+    #
+    # Then we can do the loading and writing of datapackage.jsons out at the end.
+    #
+    # CG/DX did not have time or gumption for this refactor but think it would
+    # make this easier to work with.
     extracted = xbrl.extract(
         taxonomy_source=taxonomy,
         form_number=form_number,
-        db_uri=sqlite_uri,
+        db_uri=sqlite_path.absolute().name,
         datapackage_path=datapackage_path,
         metadata_path=metadata_path,
         filings=filings,
@@ -178,6 +179,64 @@ def run_main(
     )
     # Save extracted data in SQLite/duckdb
     load_extracted(extracted, sqlite_uri, duckdb_path)
+
+    parquet_dir = output_dir / f"ferc{form_number}_xbrl"
+    convert_duckdb_into_parquet(duckdb_path=duckdb_path, parquet_dir=parquet_dir)
+    datapackage_parquet = convert_and_validate_datapackage_sqlite_to_parquet(
+        datapackage_path=datapackage_path
+    )
+    write_datapackage(datapackage=datapackage_parquet, output_dir=parquet_dir)
+
+
+def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
+    """Convert the duckdb into a directory of parquet files.
+
+    We do this using COPY. We tried using EXPORT DATABASE, but it unfortunately
+    sanitizes the table names, which removes the schedule numbers in the table
+    names so we can't use it.
+    """
+    con = duckdb.connect(duckdb_path)
+    tables = con.sql("SHOW TABLES").fetchall()
+    # tables is a list of tuples, so condense the list
+    tables = chain.from_iterable(tables)
+    if not parquet_dir.exists():
+        parquet_dir.mkdir(exist_ok=True)
+    for table in tables:
+        con.execute(
+            f"COPY {table} TO '{parquet_dir}/{table}.parquet' (FORMAT parquet);"
+        )
+
+
+def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -> dict:
+    """Convert the SQLite datapackage into one that points at Parquet files.
+
+    * instead of ``path`` pointing at monolithic SQLite db, point at individual Parquet files instead
+    * update format/metadata fields
+    * remove irrelevant dialect field
+    """
+    # read existing datapackage
+    with Path(datapackage_path).open() as file:
+        datapackage = json.load(file)
+    for resource in datapackage["resources"]:
+        name = resource["name"]
+        resource["path"] = f"{name}.parquet"
+        resource["format"] = "parquet"
+        resource["mediatype"] = "application/vnd.apache.parquet"
+        resource.pop("dialect")
+    # Verify that datapackage descriptor is valid before outputting
+    report = Package.validate_descriptor(datapackage)
+    if not report.valid:
+        raise RuntimeError(f"Generated datapackage is invalid - {report.errors}")
+    return datapackage
+
+
+def write_datapackage(datapackage: dict, output_dir: Path):
+    """Write a datapackage to <output_dir>/datapackage.json.
+
+    output_dir must exist.
+    """
+    with Path(output_dir / "datapackage.json").open(mode="w") as f:
+        f.write(json.dumps(datapackage, indent=2))
 
 
 def main():
