@@ -311,6 +311,7 @@ class Resource(BaseModel):
     ) -> "Resource" | None:
         """Generate a Resource from a fact table (defined by a LinkRole).
         If the fact table is empty, i.e. there are no data columns, return None.
+
         Args:
             fact_table: Link role which defines a fact table.
             period_type: Period type of table.
