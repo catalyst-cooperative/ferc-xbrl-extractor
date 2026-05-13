@@ -323,14 +323,20 @@ class Resource(BaseModel):
 
         name = f"{cleaned_name}_{period_type}"
 
-        return cls(
-            path=db_uri,
-            name=name,
-            dialect=Dialect(table=name),
-            title=f"{fact_table.definition} - {period_type}",
-            description=fact_table.concepts.documentation,
-            schema=Schema.from_concept_tree(fact_table.concepts, period_type),
-        )
+        # check if there are no columns, if none don't make a resource
+        _, columns = _get_fields_from_concepts(fact_table.concepts, period_type)
+        resource_schema = None
+        if columns:
+            resource_schema = cls(
+                path=db_uri,
+                name=name,
+                dialect=Dialect(table=name),
+                title=f"{fact_table.definition} - {period_type}",
+                description=fact_table.concepts.documentation,
+                schema=Schema.from_concept_tree(fact_table.concepts, period_type),
+            )
+
+        return resource_schema
 
     def get_period_type(self):
         """Helper function to get period type from schema."""
