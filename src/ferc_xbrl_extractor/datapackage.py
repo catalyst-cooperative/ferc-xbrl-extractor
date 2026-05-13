@@ -308,9 +308,9 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_uri: str
-    ) -> "Resource":
+    ) -> "Resource" | None:
         """Generate a Resource from a fact table (defined by a LinkRole).
-
+        If the fact table is empty, i.e. there are no data columns, return None.
         Args:
             fact_table: Link role which defines a fact table.
             period_type: Period type of table.
