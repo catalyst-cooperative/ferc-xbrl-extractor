@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Union
 
 import pandas as pd
 import pydantic
@@ -308,8 +308,10 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_uri: str
-    ) -> "Resource":
+    ) -> Union["Resource", None]:
         """Generate a Resource from a fact table (defined by a LinkRole).
+
+        If the fact table is empty, i.e. there are no data columns, return None.
 
         Args:
             fact_table: Link role which defines a fact table.
@@ -323,14 +325,20 @@ class Resource(BaseModel):
 
         name = f"{cleaned_name}_{period_type}"
 
-        return cls(
-            path=db_uri,
-            name=name,
-            dialect=Dialect(table=name),
-            title=f"{fact_table.definition} - {period_type}",
-            description=fact_table.concepts.documentation,
-            schema=Schema.from_concept_tree(fact_table.concepts, period_type),
-        )
+        # check if there are no columns, if none don't make a resource
+        _, columns = _get_fields_from_concepts(fact_table.concepts, period_type)
+        resource_schema = None
+        if columns:
+            resource_schema = cls(
+                path=db_uri,
+                name=name,
+                dialect=Dialect(table=name),
+                title=f"{fact_table.definition} - {period_type}",
+                description=fact_table.concepts.documentation,
+                schema=Schema.from_concept_tree(fact_table.concepts, period_type),
+            )
+
+        return resource_schema
 
     def get_period_type(self):
         """Helper function to get period type from schema."""
