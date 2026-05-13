@@ -310,6 +310,7 @@ class Resource(BaseModel):
         cls, fact_table: LinkRole, period_type: str, db_uri: str
     ) -> "Resource" | None:
         """Generate a Resource from a fact table (defined by a LinkRole).
+
         If the fact table is empty, i.e. there are no data columns, return None.
 
         Args:
