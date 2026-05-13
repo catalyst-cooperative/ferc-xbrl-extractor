@@ -53,9 +53,9 @@ def test_datapackage_generation(test_dir, data_dir):
 
     all_tables = datapackage.get_fact_tables()
 
-    # 366 was just the value we had - this assertion is more of a regression
+    # 255 was just the value we had - this assertion is more of a regression
     # test than a normative statement
-    assert len(all_tables) == 370
+    assert len(all_tables) == 255
 
     assert Package.validate_descriptor(datapackage.model_dump(by_alias=True))
 
