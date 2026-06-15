@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - github-publish
-    if: ${{ always() }}
+    if: ${{ always() && needs.github-publish.result != 'skipped' }}
     steps:
       - name: Notify Zulip
         uses: zulip/github-actions-zulip/send-message@v2
