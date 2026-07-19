@@ -51,7 +51,7 @@ def test_context():
                 "start_date": None,
                 "end_date": "2020-01-01",
             },
-        }
+        }  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
     )
 
 
@@ -133,7 +133,7 @@ def test_parse_instance(file_fixture, request):
     for column, fact_ids in expected_instant_facts.items():
         assert (
             len(
-                {(fact.c_id, fact.value) for fact in instance.instant_facts.get(column)}
+                {(fact.c_id, fact.value) for fact in instance.instant_facts.get(column)}  # ty:ignore[not-iterable] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 - fact_ids
             )
             == 0
@@ -144,7 +144,7 @@ def test_parse_instance(file_fixture, request):
             len(
                 {
                     (fact.c_id, fact.value)
-                    for fact in instance.duration_facts.get(column)
+                    for fact in instance.duration_facts.get(column)  # ty:ignore[not-iterable] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 }
                 - fact_ids
             )
@@ -166,7 +166,7 @@ def test_all_fact_ids():
                 c_id="context_2",
                 f_id="c2f2_id",
                 value="booga",
-            ),
+            ),  # ty:ignore[pydantic-discarded-extra-argument] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
         ],
     }
 

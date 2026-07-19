@@ -16,9 +16,9 @@ FERC XBRL Extractor
    :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
    :alt: Codecov Test Coverage
 
-.. image:: https://img.shields.io/readthedocs/catalystcoop-ferc-xbrl-extractor?style=flat&logo=readthedocs
-   :target: https://catalystcoop-ferc-xbrl-extractor.readthedocs.io/en/latest/
-   :alt: Read the Docs Build Status
+.. image:: https://img.shields.io/github/deployments/catalyst-cooperative/ferc-xbrl-extractor/github-pages?style=flat&logo=githubpages&label=docs
+   :target: https://docs.catalyst.coop/ferc-xbrl-extractor
+   :alt: Documentation Build Status
 
 .. image:: https://img.shields.io/pypi/v/catalystcoop.ferc-xbrl-extractor
    :target: https://pypi.org/project/catalystcoop.ferc-xbrl-extractor/
@@ -41,8 +41,11 @@ FERC XBRL Extractor
    :alt: pre-commit CI
 
 .. image:: https://zenodo.org/badge/471019769.svg
-  :target: https://zenodo.org/doi/10.5281/zenodo.10020145
+   :target: https://zenodo.org/doi/10.5281/zenodo.10020145
    :alt: Zenodo DOI
+
+Overview
+--------
 
 The Federal Energy Regulatory Commission (FERC) has moved to collecting and distributing
 data using `XBRL <https://en.wikipedia.org/wiki/XBRL>`__. XBRL is primarily designed for
@@ -216,8 +219,8 @@ To set up the environment for development first ensure you have
     # Create the development environment with hatch
     uv tool install hatch
     hatch env create
-    # Install the pre-commit hooks
-    hatch run pre-commit install
+    # Install the pre-commit hooks, run via prek (https://prek.j178.dev/)
+    hatch run prek install
 
 All available development environments and commands can be shown with:
 
@@ -241,6 +244,8 @@ Some of the available commands:
     hatch run lint:check
     # Format code
     hatch run lint:format
+    # Type check with ty
+    hatch run types:check
     # Build documentation
     hatch run docs:build
     # Check documentation formatting

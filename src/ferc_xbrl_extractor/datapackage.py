@@ -172,8 +172,8 @@ def _get_fields_from_concepts(
         axes: Axes in table (become part of primary key).
         columns: List of fields in table.
     """
-    # These are sets to gurantee no duplicates
-    # There are occasionaly duplicate concepts in a tree, which are only used for rendering a form
+    # These are sets to guarantee no duplicates
+    # There are occasionally duplicate concepts in a tree, which are only used for rendering a form
     axes = set()
     columns = set()
 
@@ -203,7 +203,7 @@ def _lowercase_words(name: str) -> str:
 
     Pattern finds uppercase characters that are immediately preceded by
     an uppercase character. Later when the name is converted to snakecase,
-    an underscore would be inserted between each of these charaters if this
+    an underscore would be inserted between each of these characters if this
     conversion is not performed.
     """
     matches = UPPERCASE_WORD_PATTERN.findall(name)
@@ -417,10 +417,10 @@ class FactTable:
         raw_facts = list(
             instance.get_facts(self.instant, self.data_columns, self.schema.primary_key)
         )
-        instance.used_fact_ids |= {f.f_id() for f in raw_facts}
+        instance.used_fact_ids |= {f.f_id() for f in raw_facts}  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
 
         if not raw_facts:
-            return pd.DataFrame(columns=self.columns.keys()).set_index(
+            return pd.DataFrame(columns=self.columns.keys()).set_index(  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 self.schema.primary_key
             )
 
@@ -428,9 +428,9 @@ class FactTable:
         facts = (
             pd.DataFrame(
                 {
-                    "c_id": fact.c_id,
-                    "name": fact.name,
-                    "value": CONVERT_DTYPES[self.columns[fact.name]](fact.value),
+                    "c_id": fact.c_id,  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+                    "name": fact.name,  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+                    "value": CONVERT_DTYPES[self.columns[fact.name]](fact.value),  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 }
                 for fact in raw_facts
             )

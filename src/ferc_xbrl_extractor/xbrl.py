@@ -59,8 +59,8 @@ def extract(
         taxonomy_source=taxonomy_source,
         form_number=form_number,
         db_uri=db_uri,
-        datapackage_path=datapackage_path,
-        metadata_path=metadata_path,
+        datapackage_path=datapackage_path,  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+        metadata_path=metadata_path,  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
         filter_tables=requested_tables,
     )
 
@@ -120,9 +120,9 @@ def table_data_from_instances(
         results = {"dfs": defaultdict(list), "metadata": defaultdict(dict)}
         for i, batch in enumerate(executor.map(process_batches, batched_instances)):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
-            for key, df in batch["dfs"].items():
+            for key, df in batch["dfs"].items():  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 results["dfs"][key].append(df)
-            for instance_name, fact_ids in batch["metadata"].items():
+            for instance_name, fact_ids in batch["metadata"].items():  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 results["metadata"][instance_name] |= fact_ids
 
         with warnings.catch_warnings():
@@ -176,9 +176,9 @@ def process_batch(
             category=FutureWarning,
             message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated.",
         )
-        dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
+        dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}  # ty:ignore[invalid-assignment] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
 
-    return {"dfs": dfs, "metadata": metadata}
+    return {"dfs": dfs, "metadata": metadata}  # ty:ignore[invalid-return-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
 
 
 def process_instance(
@@ -246,12 +246,12 @@ def get_fact_tables(
             logger = get_logger(__name__)
             logger.info(f"Parsing taxonomy from {taxonomy_version}")
             with taxonomy_archive.open(taxonomy_version, mode="r") as f:
-                taxonomy_date = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version).group(
+                taxonomy_date = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version).group(  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                     0
                 )
 
                 taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
-                taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
+                taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
                 taxonomies[taxonomy_version] = taxonomy
 
     datapackage = Datapackage.from_taxonomies(

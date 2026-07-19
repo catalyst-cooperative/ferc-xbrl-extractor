@@ -37,7 +37,7 @@ class XBRLType(BaseModel):
     @classmethod
     def from_arelle_type(cls, arelle_type: ModelType) -> "XBRLType":
         """Construct XBRLType class from arelle ModelType."""
-        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
+        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
 
     def get_pandas_type(self) -> str | None:
         """Return corresponding pandas type.
@@ -111,11 +111,11 @@ class Concept(BaseModel):
         concept = concept_dict[concept_list[1]["name"]]
 
         return cls(
-            name=concept.name,
-            standard_label=concept.label(XbrlConst.standardLabel),
-            documentation=concept.label(XbrlConst.documentationLabel),
-            type=XBRLType.from_arelle_type(concept.type),
-            period_type=concept.periodType,
+            name=concept.name,  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            standard_label=concept.label(XbrlConst.standardLabel),  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            documentation=concept.label(XbrlConst.documentationLabel),  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            type=XBRLType.from_arelle_type(concept.type),  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            period_type=concept.periodType,  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],
@@ -145,7 +145,7 @@ class Concept(BaseModel):
         # If concept is leaf node return metadata
         else:
             if period_type == self.period_type:
-                metadata[self.name] = self.metadata.model_dump()
+                metadata[self.name] = self.metadata.model_dump()  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
 
         return metadata
 
@@ -248,7 +248,7 @@ class Taxonomy(BaseModel):
         if isinstance(taxonomy_source, Path):
             taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
 
-        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
+        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {
