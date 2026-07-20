@@ -101,7 +101,7 @@ def write_to_sqlite(sqlite_engine: Engine, table_name: str, table_data: pd.DataF
         table_data.to_sql(table_name, sqlite_conn, if_exists="replace")
 
 
-def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame):
+def write_to_duckdb(duckdb_path: str | Path, table_name: str, table_data: pd.DataFrame):
     """Write one table to a duckdb database."""
     table_data = table_data.reset_index()
     with duckdb.connect(duckdb_path) as duckdb_conn:
@@ -113,7 +113,7 @@ def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame)
 def load_extracted(
     extracted: xbrl.ExtractOutput,
     sqlite_uri: str,
-    duckdb_path: str | None,
+    duckdb_path: str | Path | None,
 ) -> None:
     """Write extracted data to SQLite/Duckdb databases."""
     engine = create_engine(sqlite_uri)
@@ -132,7 +132,7 @@ def run_main(
     taxonomy: str | Path | io.BytesIO,
     output_dir: Path,
     sqlite_path: Path,
-    duckdb_path: Path,
+    duckdb_path: Path | None,
     form_number: int,
     workers: int | None,
     batch_size: int | None,
@@ -148,6 +148,10 @@ def run_main(
     coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
     sqlite_uri = f"sqlite:///{sqlite_path.absolute()}"
+    # Default to writing DuckDB output alongside the SQLite output, unless the user
+    # asked for some other duckdb path.
+    if duckdb_path is None:
+        duckdb_path = sqlite_path.with_suffix(".duckdb")
     datapackage_path = output_dir / f"ferc{form_number}_xbrl_datapackage.json"
     metadata_path = output_dir / f"ferc{form_number}_xbrl_taxonomy_metadata.json"
 
@@ -166,7 +170,7 @@ def run_main(
     # CG/DX did not have time or gumption for this refactor but think it would
     # make this easier to work with.
     extracted = xbrl.extract(
-        taxonomy_source=taxonomy,  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        taxonomy_source=taxonomy,
         form_number=form_number,
         db_uri=sqlite_path.absolute().name,
         datapackage_path=datapackage_path,
@@ -174,11 +178,11 @@ def run_main(
         filings=filings,
         workers=workers,
         batch_size=batch_size,
-        requested_tables=requested_tables,  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        requested_tables=set(requested_tables) if requested_tables else None,
         instance_pattern=instance_pattern,
     )
     # Save extracted data in SQLite/duckdb
-    load_extracted(extracted, sqlite_uri, duckdb_path)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+    load_extracted(extracted, sqlite_uri, duckdb_path)
 
     parquet_dir = output_dir / f"ferc{form_number}_xbrl"
     convert_duckdb_into_parquet(duckdb_path=duckdb_path, parquet_dir=parquet_dir)

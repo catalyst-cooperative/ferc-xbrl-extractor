@@ -2,7 +2,7 @@
 
 import io
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, BinaryIO, Literal
 
 import pydantic
 from arelle import XbrlConst
@@ -145,7 +145,8 @@ class Concept(BaseModel):
         # If concept is leaf node return metadata
         else:
             if period_type == self.period_type:
-                metadata[self.name] = self.metadata.model_dump()  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                assert self.metadata is not None
+                metadata[self.name] = self.metadata.model_dump()
 
         return metadata
 
@@ -230,8 +231,8 @@ class Taxonomy(BaseModel):
     @classmethod
     def from_source(
         cls,
-        taxonomy_source: Path | io.BytesIO,
-        entry_point: Path | None = None,
+        taxonomy_source: Path | BinaryIO,
+        entry_point: str | Path,
     ):
         """Construct taxonomy from taxonomy URL.
 
@@ -242,13 +243,12 @@ class Taxonomy(BaseModel):
 
         Args:
             taxonomy_source: Path to taxonomy or in memory archive of taxonomy.
-            entry_point: Path to taxonomy entry point within archive. If not None,
-                then `taxonomy` should be a path to zipfile, not a URL.
+            entry_point: Path to taxonomy entry point within archive.
         """
         if isinstance(taxonomy_source, Path):
             taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
 
-        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {

@@ -1,9 +1,8 @@
 """Abstract away interface to Arelle XBRL Library."""
 
-import io
 import time
 from pathlib import Path
-from typing import Literal
+from typing import BinaryIO, Literal
 
 import pydantic
 import stringcase
@@ -36,7 +35,7 @@ def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: in
     return taxonomy, view
 
 
-def load_taxonomy(path: Path):
+def load_taxonomy(path: str | Path):
     """Load XBRL taxonomy, and parse relationships.
 
     Args:
@@ -47,7 +46,7 @@ def load_taxonomy(path: Path):
     return _taxonomy_view(source)
 
 
-def load_taxonomy_from_archive(taxonomy_archive: io.BytesIO, entry_point: Path):
+def load_taxonomy_from_archive(taxonomy_archive: BinaryIO, entry_point: str | Path):
     """Load an XBRL taxonomy from a zipfile archive.
 
     Args:
@@ -71,7 +70,7 @@ class References(BaseModel):
     used by FERC.
     """
 
-    account: str = pydantic.Field(None, alias="Account")  # ty:ignore[invalid-assignment] -- pre-existing gap
+    account: str | None = pydantic.Field(None, alias="Account")
     form_location: list[dict[str, str]] = pydantic.Field([], alias="Form Location")
 
 

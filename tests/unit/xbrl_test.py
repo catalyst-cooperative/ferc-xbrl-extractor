@@ -59,15 +59,19 @@ def test_process_batch(mocker):
         for table in table_defs
     }
 
-    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+    # MockInstanceBuilder and the list[str] table_defs are deliberately loose
+    # stand-ins: process_instance is mocked out below, so neither argument's real
+    # structure is ever exercised, and building real InstanceBuilder/FactTable
+    # fixtures here wouldn't test anything more.
+    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type]
 
     for table in table_defs:
         pd.testing.assert_frame_equal(
             expected_dfs[table],
-            results["dfs"][table].reset_index(drop=True),  # ty:ignore[invalid-argument-type] -- pre-existing gap
+            results["dfs"][table].reset_index(drop=True),
         )
 
-    metadata = results["metadata"]  # ty:ignore[invalid-argument-type] -- pre-existing gap
+    metadata = results["metadata"]
     for filing_name, expected_metadata in test_data.items():
         if not expected_metadata["raise_exception"]:
             assert (

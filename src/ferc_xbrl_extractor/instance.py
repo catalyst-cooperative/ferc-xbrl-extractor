@@ -6,6 +6,7 @@ import itertools
 import json
 import zipfile
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 from enum import Enum, auto
 from functools import cached_property
 from pathlib import Path
@@ -41,10 +42,14 @@ class Period(BaseModel):
         if instant is not None:
             return cls(instant=True, end_date=instant.text)
 
+        start_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}startDate")
+        end_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}endDate")
+        assert start_date_elem is not None
+        assert end_date_elem is not None
         return cls(
             instant=False,
-            start_date=elem.find(f"{{{XBRL_INSTANCE}}}startDate").text,  # ty:ignore[unresolved-attribute] -- pre-existing gap
-            end_date=elem.find(f"{{{XBRL_INSTANCE}}}endDate").text,  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            start_date=start_date_elem.text,
+            end_date=end_date_elem.text,
         )
 
 
@@ -89,7 +94,7 @@ class Axis(BaseModel):
             )
 
         if elem.tag.endswith("typedMember"):
-            dim = elem.getchildren()[0]  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            dim = elem[0]
             return cls(
                 name=elem.attrib["dimension"],
                 value=dim.text if dim.text else "",
@@ -118,8 +123,11 @@ class Entity(BaseModel):
         segment = elem.find(f"{{{XBRL_INSTANCE}}}segment")
         dims = segment.findall("*") if segment is not None else []
 
+        identifier_elem = elem.find(f"{{{XBRL_INSTANCE}}}identifier")
+        assert identifier_elem is not None
+
         return cls(
-            identifier=elem.find(f"{{{XBRL_INSTANCE}}}identifier").text,  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            identifier=identifier_elem.text,
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
@@ -148,12 +156,14 @@ class Context(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Context":
         """Construct Context from XML element."""
+        entity_elem = elem.find(f"{{{XBRL_INSTANCE}}}entity")
+        period_elem = elem.find(f"{{{XBRL_INSTANCE}}}period")
+        assert entity_elem is not None
+        assert period_elem is not None
         return cls(
-            **{
-                "c_id": elem.attrib["id"],
-                "entity": Entity.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}entity")),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-                "period": Period.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}period")),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            }  # ty:ignore[invalid-argument-type] -- pre-existing gap
+            c_id=elem.attrib["id"],
+            entity=Entity.from_xml(entity_elem),
+            period=Period.from_xml(period_elem),
         )
 
     def check_dimensions(self, primary_key: list[str]) -> bool:
@@ -181,8 +191,9 @@ class Context(BaseModel):
         if self.period.instant:
             date_dict = {"date": self.period.end_date}
         else:
+            # start_date is always populated for duration periods -- see Period.from_xml.
+            assert self.period.start_date is not None
             date_dict = {
-                # Ignore type because start_date will always be str if duration period
                 "start_date": self.period.start_date,
                 "end_date": self.period.end_date,
             }
@@ -192,7 +203,7 @@ class Context(BaseModel):
             "filing_name": filing_name,
             **date_dict,
             **axes_dict,
-        }  # ty:ignore[invalid-return-type] -- pre-existing gap
+        }
 
     def __hash__(self):
         """Just hash Context ID as it uniquely identifies contexts for an instance."""
@@ -292,21 +303,25 @@ class Instance:
         self.filing_name = filing_name
         self.contexts = contexts
         if "report_date" in duration_facts:
-            self.report_date = datetime.date.fromisoformat(
-                duration_facts["report_date"][0].value  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            )
+            report_date_value = duration_facts["report_date"][0].value
+            assert report_date_value is not None
+            self.report_date = datetime.date.fromisoformat(report_date_value)
         else:
             # FERC 714 workaround - though sometimes reports with different
             # publish dates have the same certifying official date.
+            certifying_official_date_value = duration_facts["certifying_official_date"][
+                0
+            ].value
+            assert certifying_official_date_value is not None
             self.report_date = datetime.date.fromisoformat(
-                duration_facts["certifying_official_date"][0].value  # ty:ignore[invalid-argument-type] -- pre-existing gap
+                certifying_official_date_value
             )
         self.publication_time = publication_time
 
     def get_facts(
         self, instant: bool, concept_names: list[str], primary_key: list[str]
-    ) -> dict[str, list[Fact]]:
-        """Return a dictionary that maps Context ID's to a list of facts for each context.
+    ) -> Iterator[Fact]:
+        """Return facts for the requested concepts whose context matches primary_key.
 
         Args:
             instant: Get facts with instant or duration period.
@@ -322,7 +337,7 @@ class Instance:
             fact
             for fact in all_facts_for_concepts
             if self.contexts[fact.c_id].check_dimensions(primary_key)
-        )  # ty:ignore[invalid-return-type] -- pre-existing gap
+        )
 
 
 class InstanceBuilder:
@@ -379,8 +394,14 @@ class InstanceBuilder:
         # Find all contexts in XML file
         contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
 
-        # Find all facts in XML file
-        facts = root.findall(f"{fact_prefix}:*", root.nsmap)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        # Find all facts in XML file. Filter out the default-namespace entry (key
+        # None) since it's not needed to match the always-prefixed fact_prefix:*
+        # expression below, and lxml-stubs types the namespaces mapping as str-keys
+        # only even though lxml itself accepts a None key at runtime.
+        nsmap = {
+            prefix: uri for prefix, uri in root.nsmap.items() if prefix is not None
+        }
+        facts = root.findall(f"{fact_prefix}:*", nsmap)
 
         # Loop through contexts and parse into pydantic structures
         for context in contexts:
