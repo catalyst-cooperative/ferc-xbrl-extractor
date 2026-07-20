@@ -29,7 +29,13 @@ def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
         metadata_path=metadata_dir / "metadata.json",
         datapackage_path=metadata_dir / "datapackage.json",
         filings=[data_dir / f"ferc{form}-xbrl-{year}.zip"],
-        workers=None,
+        # workers=1 avoids nested process pools: this fixture is parametrized across
+        # 10 independent (form, year) cases, each already running in its own pytest-xdist
+        # worker process when the integration suite runs with `-n auto`. Leaving
+        # workers=None here would let each of those *also* spawn its own
+        # os.cpu_count()-sized ProcessPoolExecutor for a handful of filings
+        # (batch_size=8), oversubscribing CPU far more than it helps.
+        workers=1,
         batch_size=8,
     )
 

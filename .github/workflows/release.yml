@@ -5,7 +5,6 @@ on: push
 
 jobs:
   build-package:
-    name: Build Python Distribution
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -43,7 +42,6 @@ jobs:
           path: dist/
 
   pypi-publish:
-    name: Upload release to PyPI
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs:
       - build-package
@@ -68,7 +66,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
   github-publish:
-    name: Release package on GitHub
     needs:
       - pypi-publish
     runs-on: ubuntu-latest

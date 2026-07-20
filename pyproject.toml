@@ -86,6 +86,7 @@ tests = [
     "pytest-console-scripts>=1.4.1", # Allow automatic testing of scripts
     "pytest-cov>=7.1", # Pytest plugin for working with coverage
     "pytest-mock>=3.15",
+    "pytest-xdist>=3.8", # Run tests in parallel across worker processes
     "ruff>=0.15.22", # A very fast linter and autofixer
 ]
 types = [
@@ -120,7 +121,13 @@ coverage-erase = "coverage erase"
 # clear the combined threshold -- it's enforced once below, after both have
 # contributed to the same coverage data via --cov-append.
 unit = "pytest --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail --doctest-modules src/ferc_xbrl_extractor tests/unit {args}"
-integration = "pytest --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail tests/integration {args}"
+# -n auto (pytest-xdist) parallelizes across worker processes -- only on integration,
+# where individual tests actually take seconds; unit is fast enough (~2s total) that
+# worker startup overhead (each one re-imports arelle et al.) would net lose. The
+# tests parallelized this way each cap their own internal extraction concurrency
+# (workers=1) rather than also spawning a per-test process pool -- see comments in
+# tests/integration/data_quality_test.py and console_scripts_test.py.
+integration = "pytest -n auto --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail tests/integration {args}"
 coverage-report = ["coverage report", "coverage xml"]
 all = ["coverage-erase", "unit", "integration", "coverage-report"]
 
