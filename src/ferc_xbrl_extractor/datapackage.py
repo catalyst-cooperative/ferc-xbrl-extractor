@@ -417,10 +417,10 @@ class FactTable:
         raw_facts = list(
             instance.get_facts(self.instant, self.data_columns, self.schema.primary_key)
         )
-        instance.used_fact_ids |= {f.f_id() for f in raw_facts}  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+        instance.used_fact_ids |= {f.f_id() for f in raw_facts}  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
         if not raw_facts:
-            return pd.DataFrame(columns=self.columns.keys()).set_index(  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            return pd.DataFrame(columns=self.columns.keys()).set_index(  # ty:ignore[invalid-argument-type] -- pre-existing gap
                 self.schema.primary_key
             )
 
@@ -428,9 +428,9 @@ class FactTable:
         facts = (
             pd.DataFrame(
                 {
-                    "c_id": fact.c_id,  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
-                    "name": fact.name,  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
-                    "value": CONVERT_DTYPES[self.columns[fact.name]](fact.value),  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+                    "c_id": fact.c_id,  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                    "name": fact.name,  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                    "value": CONVERT_DTYPES[self.columns[fact.name]](fact.value),  # ty:ignore[unresolved-attribute] -- pre-existing gap
                 }
                 for fact in raw_facts
             )

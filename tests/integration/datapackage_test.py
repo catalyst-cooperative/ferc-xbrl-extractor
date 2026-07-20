@@ -39,7 +39,7 @@ def test_datapackage_generation(test_dir, data_dir):
             archive.open(version, mode="r") as f,
         ):
             taxonomies[version] = Taxonomy.from_source(
-                f,  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+                f,  # ty:ignore[invalid-argument-type] -- pre-existing gap
                 entry_point=Path(entry_point),
             )
     datapackage = Datapackage.from_taxonomies(taxonomies, "sqlite:///test_db.sqlite")

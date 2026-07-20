@@ -20,14 +20,14 @@ def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: in
     model_manager = ModelManager.initialize(cntlr)
     for try_count in range(max_retries):
         try:
-            cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")  # ty:ignore[unresolved-attribute] -- pre-existing gap
             taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
             continue
         except FileExistsError as e:
             if (try_count + 1) == max_retries:
                 raise e
             backoff = 2 ** (try_count + 1)
-            cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")  # ty:ignore[unresolved-attribute] -- pre-existing gap
             time.sleep(backoff)
 
     view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
@@ -71,7 +71,7 @@ class References(BaseModel):
     used by FERC.
     """
 
-    account: str = pydantic.Field(None, alias="Account")  # ty:ignore[invalid-assignment] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+    account: str = pydantic.Field(None, alias="Account")  # ty:ignore[invalid-assignment] -- pre-existing gap
     form_location: list[dict[str, str]] = pydantic.Field([], alias="Form Location")
 
 
@@ -115,7 +115,7 @@ class Metadata(BaseModel):
         name = stringcase.snakecase(concept.name)
         concept_metadata = {"name": name}
 
-        references = concept.modelXbrl.relationshipSet(  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+        references = concept.modelXbrl.relationshipSet(  # ty:ignore[unresolved-attribute] -- pre-existing gap
             XbrlConst.conceptReference
         ).fromModelObject(concept)
 
@@ -123,11 +123,11 @@ class Metadata(BaseModel):
         reference_dict = {}
         for reference in references:
             reference = reference.toModelObject
-            reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)  # ty:ignore[unresolved-attribute] -- pre-existing gap
             # Several values can make up a single reference. Create a dictionary with these
             part_dict = {
-                part.localName: part.stringValue  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
-                for part in reference.iterchildren()  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+                part.localName: part.stringValue  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                for part in reference.iterchildren()  # ty:ignore[unresolved-attribute] -- pre-existing gap
             }
 
             # There can also be several references with the same name, so store in list
@@ -148,7 +148,7 @@ class Metadata(BaseModel):
         concept_metadata["references"] = reference_dict
 
         # Get calculations
-        calculations = concept.modelXbrl.relationshipSet(  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+        calculations = concept.modelXbrl.relationshipSet(  # ty:ignore[unresolved-attribute] -- pre-existing gap
             XbrlConst.summationItem
         ).fromModelObject(concept)
 
@@ -156,7 +156,7 @@ class Metadata(BaseModel):
         for calculation in calculations:
             calculation_list.append(
                 {
-                    "name": stringcase.snakecase(calculation.toModelObject.name),  # ty:ignore[unresolved-attribute] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+                    "name": stringcase.snakecase(calculation.toModelObject.name),  # ty:ignore[unresolved-attribute] -- pre-existing gap
                     "weight": calculation.weight,
                 }
             )
@@ -164,4 +164,4 @@ class Metadata(BaseModel):
         concept_metadata["calculations"] = calculation_list
         concept_metadata["balance"] = concept.balance
 
-        return cls(**concept_metadata)  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+        return cls(**concept_metadata)  # ty:ignore[invalid-argument-type] -- pre-existing gap

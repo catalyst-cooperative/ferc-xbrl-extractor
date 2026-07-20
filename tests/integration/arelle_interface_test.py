@@ -13,7 +13,7 @@ def test_concurrent_taxonomy_load(tmp_path):
     path = "https://eCollection.ferc.gov/taxonomy/form60/2022-01-01/form/form60/form-60_2022-01-01.xsd"
     with patch("ferc_xbrl_extractor.arelle_interface.Cntlr.Cntlr", lambda: cntlr):
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [executor.submit(load_taxonomy, path) for _ in range(2)]  # ty:ignore[invalid-argument-type] -- pre-existing gap, not introduced by adopting ty; tracked for a follow-up typing cleanup PR
+            futures = [executor.submit(load_taxonomy, path) for _ in range(2)]  # ty:ignore[invalid-argument-type] -- pre-existing gap
         done, _not_done = concurrent.futures.wait(
             futures, timeout=10, return_when=concurrent.futures.ALL_COMPLETED
         )
