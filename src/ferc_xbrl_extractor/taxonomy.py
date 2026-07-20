@@ -39,22 +39,6 @@ class XBRLType(BaseModel):
         """Construct XBRLType class from arelle ModelType."""
         return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())  # ty:ignore[invalid-argument-type] -- pre-existing gap
 
-    def get_pandas_type(self) -> str | None:
-        """Return corresponding pandas type.
-
-        Gets a string representation of the pandas type best suited to represent the
-        base type.
-        """
-        if self.base == "string" or self.base == "date" or self.base == "duration":
-            return "string"
-        if self.base == "decimal":
-            return "Float64"
-        if self.base == "gyear" or self.base == "integer":
-            return "Int64"
-        if self.base == "boolean":
-            return "boolean"
-        return None
-
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
         if self.base == "gyear":
