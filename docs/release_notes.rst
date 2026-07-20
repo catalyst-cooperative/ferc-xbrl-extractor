@@ -16,6 +16,16 @@ Modernize tooling and packaging
   time type checking is enforced here. Pre-existing type gaps (mostly around
   ``arelle-release``, which ships without type stubs) are suppressed inline with
   ``# ty:ignore`` comments pending a follow-up typing cleanup.
+* **Fixed real bugs that adopting ty surfaced**, rather than just suppressing
+  them: wrong return-type annotations on ``Instance.get_facts()`` and
+  ``process_batch()``, several functions typed narrower (``Path``-only) than
+  what they're actually called with, and missing ``None`` checks around
+  ``lxml`` element lookups. Also fixed a real crash this work turned up:
+  ``run_main()`` called ``convert_duckdb_into_parquet()`` unconditionally even
+  when ``--duckdb-path`` was never passed, which crashed with
+  ``duckdb.InvalidInputException`` -- including via the simplest example
+  command in the README. ``--duckdb-path`` now defaults to the sqlite path
+  with a ``.duckdb`` suffix instead.
 * **Switched from pre-commit to prek** as the hook runner, and added several new
   hooks: ``detect-secrets``, ``typos``, ``actionlint``, ``markdownlint-cli2``, and
   ``taplo-format``, among others.
@@ -37,6 +47,25 @@ Modernize tooling and packaging
   before building.
 * Switched release notifications from Slack to Zulip. :pr:`434`
 * Routine dependency and GitHub Actions version bumps.
+
+Fix ``get_instances()`` input handling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Fixed a long-standing crash in ``get_instances()``'s directory and bare-file
+  input modes**, and removed the bare-file mode, which can't be fixed. Both had
+  always crashed with a confusing ``TypeError``: they never supplied the
+  ``InstanceBuilder`` constructor with a filing's publication time and taxonomy
+  version, which are otherwise derived from an ``rssfeed`` metadata file FERC's
+  archiving process bundles into zip archives alongside the filings. Adopting
+  ``ty`` for type checking surfaced the bug (a call missing required constructor
+  arguments). The **directory mode is now fixed for real**, reading that same
+  ``rssfeed`` file from disk instead of from inside a zip -- useful for local
+  debugging, where it's convenient to edit filings directly rather than
+  repackaging them into a zip after every change. The **bare single-file mode is
+  removed**: a lone filing has no room for an accompanying ``rssfeed`` file, so
+  there's no way to determine its publication time or taxonomy version. Both
+  input types now raise a clear ``ValueError`` on invalid input instead of
+  crashing.
 
 .. _release-v1-10-0:
 

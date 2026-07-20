@@ -429,18 +429,15 @@ class InstanceBuilder:
         )
 
 
-def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
-    """Get list of instances from specified path to zipfile.
+def _parse_rssfeed_metadata(
+    raw: bytes,
+) -> tuple[dict[str, datetime.datetime], dict[str, str]]:
+    """Parse an "rssfeed" metadata file into publication times and taxonomy versions.
 
-    Args:
-        instance_path: Path to zipfile containing XBRL filings.
+    Shared by instances_from_zip and instances_from_directory, which differ only
+    in where they read the "rssfeed" file and individual filings from.
     """
-    allowable_suffixes = [".xbrl"]
-
-    archive = zipfile.ZipFile(instance_path)
-
-    with archive.open("rssfeed") as f:
-        filings_metadata = json.loads(f.read())
+    filings_metadata = json.loads(raw)
 
     # Publication time is always published as UTC, but just to be safe convert to UTC
     # then make timezone naive
@@ -458,6 +455,21 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
         for filers_metadata in filings_metadata.values()
         for filing in filers_metadata
     }
+    return publication_times, taxonomy_versions
+
+
+def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
+    """Get list of instances from specified path to zipfile.
+
+    Args:
+        instance_path: Path to zipfile containing XBRL filings.
+    """
+    allowable_suffixes = [".xbrl"]
+
+    archive = zipfile.ZipFile(instance_path)
+
+    with archive.open("rssfeed") as f:
+        publication_times, taxonomy_versions = _parse_rssfeed_metadata(f.read())
 
     # Read files into in memory buffers to parse
     return [
@@ -472,14 +484,62 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
     ]
 
 
-def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
-    """Get list of instances from specified path.
+def instances_from_directory(instance_path: Path) -> list[InstanceBuilder]:
+    """Get list of instances from a directory of unzipped XBRL filings.
+
+    Mainly useful for local debugging, where it's convenient to edit filings
+    directly on disk rather than repackaging them into a zip after every change.
+    The directory must still include the "rssfeed" metadata file that FERC's
+    archiving process bundles into the zip alongside the filings -- e.g. by
+    unzipping one of these archives without discarding it -- since that's the
+    only source for each filing's publication_time and taxonomy_version. See
+    instances_from_zip for the zip-archive equivalent of this function.
 
     Args:
-        instance_path: Path to one or more XBRL filings.
+        instance_path: Path to a directory of XBRL filings, including an
+            "rssfeed" metadata file.
     """
     allowable_suffixes = [".xbrl"]
 
+    rssfeed_path = instance_path / "rssfeed"
+    if not rssfeed_path.exists():
+        raise ValueError(
+            f"Could not find an 'rssfeed' metadata file in {instance_path}. "
+            "get_instances() expects a directory of XBRL filings to include "
+            "the 'rssfeed' file bundled by FERC's archiving process -- see "
+            "its docstring."
+        )
+    publication_times, taxonomy_versions = _parse_rssfeed_metadata(
+        rssfeed_path.read_bytes()
+    )
+
+    return [
+        InstanceBuilder(
+            str(instance),
+            instance.stem,
+            publication_time=publication_times[instance.name],
+            taxonomy_version=taxonomy_versions[instance.name],
+        )
+        for instance in sorted(instance_path.iterdir())
+        if instance.suffix in allowable_suffixes
+    ]
+
+
+def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
+    """Get list of instances from a zipfile or directory of XBRL filings.
+
+    Both a zip archive (or in-memory equivalent) and a plain directory are
+    supported, as long as an "rssfeed" metadata file is present -- FERC's
+    archiving process bundles one into every zip archive automatically, and
+    it's still there if you unzip one without discarding it. Each filing's
+    publication_time and taxonomy_version are derived from that file; without
+    it there's no reliable way to determine them, which is why a bare single
+    filing (with no "rssfeed" of its own) isn't supported.
+
+    Args:
+        instance_path: Path to a zipfile or directory of XBRL filings, or an
+            in-memory zip archive.
+    """
     if isinstance(instance_path, io.BytesIO):
         return instances_from_zip(instance_path)
 
@@ -489,17 +549,10 @@ def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
     if instance_path.suffix == ".zip":
         return instances_from_zip(instance_path)
 
-    # Single instance
-    if instance_path.is_file():
-        instances = [instance_path]
-    # Directory of instances
-    else:
-        # Must be either a directory or file
-        assert instance_path.is_dir()  # nosec: B101
-        instances = sorted(instance_path.iterdir())
+    if instance_path.is_dir():
+        return instances_from_directory(instance_path)
 
-    return [
-        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))  # ty:ignore[missing-argument] -- pre-existing gap
-        for instance in sorted(instances)
-        if instance.suffix in allowable_suffixes
-    ]
+    raise ValueError(
+        f"Expected a zipfile or directory of XBRL filings, got {instance_path}. "
+        "get_instances() only supports those two input types -- see its docstring."
+    )

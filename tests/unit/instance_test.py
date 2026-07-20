@@ -1,6 +1,7 @@
 """Test XBRL instance interface."""
 
 import datetime
+import json
 import logging
 from collections import Counter
 
@@ -133,7 +134,10 @@ def test_parse_instance(file_fixture, request):
     for column, fact_ids in expected_instant_facts.items():
         assert (
             len(
-                {(fact.c_id, fact.value) for fact in instance.instant_facts.get(column)}  # ty:ignore[not-iterable] -- pre-existing gap
+                {
+                    (fact.c_id, fact.value)
+                    for fact in instance.instant_facts.get(column, [])
+                }
                 - fact_ids
             )
             == 0
@@ -144,7 +148,7 @@ def test_parse_instance(file_fixture, request):
             len(
                 {
                     (fact.c_id, fact.value)
-                    for fact in instance.duration_facts.get(column)  # ty:ignore[not-iterable] -- pre-existing gap
+                    for fact in instance.duration_facts.get(column, [])
                 }
                 - fact_ids
             )
@@ -164,9 +168,8 @@ def test_all_fact_ids():
             Fact(
                 name="caveman_utterance",
                 c_id="context_2",
-                f_id="c2f2_id",
                 value="booga",
-            ),  # ty:ignore[pydantic-discarded-extra-argument] -- pre-existing gap
+            ),
         ],
     }
 
@@ -210,6 +213,58 @@ def test_all_fact_ids():
 def test_get_instances_wrong_path(tmp_path):
     with pytest.raises(ValueError, match="Could not find XBRL instances"):
         get_instances(tmp_path / "bogus")
+
+
+def test_get_instances_from_directory(tmp_path):
+    """get_instances() supports a directory of unzipped filings with an rssfeed.
+
+    This mirrors the zip-archive case, but reading the "rssfeed" metadata file
+    and individual filings from disk instead of from inside a zip -- useful for
+    local debugging, where it's convenient to edit filings directly rather than
+    repackaging them into a zip after every change.
+    """
+    (tmp_path / "filing.xbrl").write_text("<xbrl/>")
+    rssfeed = {
+        "some_filer": [
+            {
+                "filename": "filing.xbrl",
+                "rss_metadata": {"published_parsed": "2023-10-06T00:00:00+00:00"},
+                "taxonomy_zip_name": "form-1-2022-01-01.zip",
+            }
+        ]
+    }
+    (tmp_path / "rssfeed").write_text(json.dumps(rssfeed))
+
+    instance_builders = get_instances(tmp_path)
+
+    assert len(instance_builders) == 1
+    builder = instance_builders[0]
+    assert isinstance(builder, InstanceBuilder)
+    assert builder.name == "filing"
+    assert builder.publication_time == datetime.datetime(2023, 10, 6, 0, 0, 0)
+    assert builder.taxonomy_version == "form-1-2022-01-01.zip"
+
+
+def test_get_instances_from_directory_missing_rssfeed(tmp_path):
+    """A directory without an "rssfeed" file is rejected with a clear error."""
+    (tmp_path / "filing.xbrl").write_text("<xbrl/>")
+
+    with pytest.raises(ValueError, match="Could not find an 'rssfeed' metadata file"):
+        get_instances(tmp_path)
+
+
+def test_get_instances_rejects_bare_file(tmp_path):
+    """get_instances() doesn't support a single bare filing.
+
+    Unlike a directory, a single file has no room for an accompanying "rssfeed"
+    metadata file, so there's no way to determine its publication_time or
+    taxonomy_version.
+    """
+    instance_file = tmp_path / "filing.xbrl"
+    instance_file.write_text("<xbrl/>")
+
+    with pytest.raises(ValueError, match="Expected a zipfile or directory"):
+        get_instances(instance_file)
 
 
 def test_instances_with_dates(multi_filings):
