@@ -21,7 +21,7 @@ def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: in
         try:
             cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")  # ty:ignore[unresolved-attribute] -- pre-existing gap
             taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
-            continue
+            break
         except FileExistsError as e:
             if (try_count + 1) == max_retries:
                 raise e
