@@ -13,7 +13,35 @@ from pydantic import BaseModel
 
 
 def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: int = 7):
-    """Actually use Arelle to get a taxonomy and its relationships."""
+    """Use Arelle to load a taxonomy and build its parent-child relationship view.
+
+    As it parses a taxonomy, Arelle downloads the schema/linkbase files it
+    references to a local on-disk cache (managed by Arelle's own ``webCache``),
+    then reads them back from there. When two or more callers load the *same*
+    taxonomy concurrently -- e.g. multiple threads or processes each extracting
+    a different filing that shares one taxonomy version -- their cache writes
+    can race, and Arelle raises ``FileExistsError`` when one caller tries to
+    create a cache file another is already writing.
+
+    This is a transient condition, not a real failure: by the time we retry,
+    the other caller has usually finished writing the file, so the retried
+    ``ModelXbrl.load`` call reads the now-complete cache entry instead of
+    trying to write it again. The loop therefore retries *only*
+    ``FileExistsError``, with exponential backoff, up to ``max_retries``
+    attempts before giving up and re-raising. Any other exception (a genuinely
+    missing taxonomy, malformed XBRL, an unrelated network error, ...) is
+    allowed to propagate immediately on the first attempt, since retrying
+    those wouldn't help -- they aren't the race this loop exists to work
+    around. See ``test_concurrent_taxonomy_load`` (integration) and
+    ``test_taxonomy_view_retries_then_raises_after_max_retries`` (unit) for
+    coverage of this behavior.
+
+    Args:
+        taxonomy_source: URL, local path, or in-memory ``FileSource`` pointing
+            at the taxonomy entry point.
+        max_retries: Maximum number of load attempts before giving up and
+            re-raising the last ``FileExistsError``.
+    """
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     model_manager = ModelManager.initialize(cntlr)

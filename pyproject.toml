@@ -142,7 +142,7 @@ unit = "pytest --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail
 # tests parallelized this way each cap their own internal extraction concurrency
 # (workers=1) rather than also spawning a per-test process pool -- see comments in
 # tests/integration/data_quality_test.py and console_scripts_test.py.
-integration = "pytest -n auto --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail tests/integration {args}"
+integration = "pytest -n auto --durations 10 --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail tests/integration {args}"
 coverage-report = ["coverage report", "coverage xml"]
 all = ["coverage-erase", "unit", "integration", "coverage-report"]
 
