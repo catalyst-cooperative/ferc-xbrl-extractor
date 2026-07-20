@@ -152,8 +152,13 @@ This tool can be used as a library, as it is in `PUDL
 <https://github.com/catalyst-cooperative/pudl>`__. There is also a CLI provided for
 interacting with XBRL data. The only required options for the CLI are a path to the
 filings to be extracted, and a path to the output database. The path to the
-filings can point to a directory full of XBRL Filings, a single XBRL filing, or a
-zipfile with XBRL filings. If the specified output database already exists, it will be
+filings must point to a zipfile of XBRL filings, or a directory of already-unzipped
+filings that still includes the ``rssfeed`` metadata file FERC's archiving process
+bundles into the zip alongside the filings (useful for local debugging, where it's
+convenient to edit filings directly rather than repackaging them into a zip after
+every change). Each filing's publication time and taxonomy version are derived
+from that file, so a single bare filing with no ``rssfeed`` of its own isn't
+supported. If the specified output database already exists, it will be
 overwritten.
 
 .. code-block:: bash

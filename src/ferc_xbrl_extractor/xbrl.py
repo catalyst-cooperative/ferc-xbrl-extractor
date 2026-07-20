@@ -48,7 +48,9 @@ def extract(
     """Extract fact tables from instance documents as Pandas dataframes.
 
     Args:
-        filings: list of filings or zip files with filings.
+        filings: list of zip files (or in-memory equivalents) containing filings,
+            or directories of already-unzipped filings including the "rssfeed"
+            metadata file -- see get_instances.
         taxonomy_source: either a URL/path to taxonomy or in memory archive of
             taxonomy.
         form_number: the FERC form number (1, 2, 6, 60, 714).

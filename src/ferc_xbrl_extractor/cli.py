@@ -27,7 +27,10 @@ def parse():
     parser.add_argument(
         "filings",
         nargs="+",
-        help="Path to a single XBRL filing, a directory of XBRL filings, or a zipfile containing XBRL filings.",
+        help=(
+            "Path to a zipfile containing XBRL filings, or a directory of "
+            "already-unzipped filings including the 'rssfeed' metadata file."
+        ),
         type=Path,
     )
     parser.add_argument(
