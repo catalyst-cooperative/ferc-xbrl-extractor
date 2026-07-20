@@ -34,6 +34,33 @@ def pytest_addoption(parser):
     )
 
 
+def pytest_collection_modifyitems(items):
+    """Schedule the slowest tests first so xdist runs them in parallel, not at the tail.
+
+    pytest-xdist's default "load" scheduler hands tests to workers in collection
+    order, dispatching the next not-yet-run item to whichever worker frees up
+    first. If a slow test sits late in that order, it gets dispatched late and
+    ends up running alone after every other worker has drained its queue,
+    stretching overall wall-clock time. Sorting known-slow tests to the front
+    gets them dispatched -- and running alongside everything else -- from the
+    start of the run instead. Ordered longest-running first; more specific
+    substrings must precede the shorter ones they contain.
+    """
+    slow_first = (
+        "test_concurrent_taxonomy_load",
+        "test_extract_example_filings_default_duckdb_path",
+        "test_extract_example_filings",
+    )
+
+    def priority(item: pytest.Item) -> int:
+        for rank, name in enumerate(slow_first):
+            if name in item.nodeid:
+                return rank
+        return len(slow_first)
+
+    items.sort(key=priority)
+
+
 @pytest.fixture(scope="session")
 def data_dir(request) -> Path:
     return request.config.getoption("--integration-data-dir")
