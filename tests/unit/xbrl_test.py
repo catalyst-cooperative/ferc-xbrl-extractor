@@ -1,7 +1,27 @@
 import pandas as pd
 from lxml.etree import XMLSyntaxError  # nosec: B410
 
-from ferc_xbrl_extractor.xbrl import process_batch
+from ferc_xbrl_extractor.xbrl import process_batch, process_instance
+
+
+def test_process_instance(mocker):
+    """process_instance() builds a dict of dataframes from the requested tables.
+
+    process_batch() is the only other caller, and only exercises this indirectly
+    via a ProcessPoolExecutor worker subprocess (see data_quality_test.py), whose
+    execution coverage.py doesn't capture -- so this needs its own direct test.
+    Table construction itself is FactTable.construct_dataframe()'s job (tested
+    separately), so this just checks the looping/dict-building contract.
+    """
+    instance = mocker.Mock(filing_name="test_filing")
+    fake_df = pd.DataFrame({"value": [1, 2, 3]})
+    table_def = mocker.Mock()
+    table_def.construct_dataframe.return_value = fake_df
+
+    result = process_instance(instance, table_defs={"my_table": table_def})
+
+    assert result == {"my_table": fake_df}
+    table_def.construct_dataframe.assert_called_once_with(instance)
 
 
 def test_process_batch(mocker):
