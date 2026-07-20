@@ -137,6 +137,18 @@ An agent should run `hatch run lint:check`, `hatch run types:check`, and
 
 ## Gotchas
 
+- Hatch environments use `installer = "uv"` and pin `python = "3.14"`, but Hatch still
+    resolves *which* concrete interpreter satisfies that pin itself, by searching
+    `PATH` (or falling back to its own separate, uv-independent Python distribution
+    manager) -- it does not consult `[tool.uv]`'s `python-preference`. If you have
+    multiple 3.14.x installs around (Homebrew, uv-managed, etc.), Hatch can silently
+    pick a stale one. To force it to use a specific uv-managed interpreter, set the
+    `HATCH_PYTHON` environment variable to that interpreter's path, e.g.
+    `HATCH_PYTHON="$(uv python find 3.14)" hatch run test:all` -- this is what CI does
+    in `.github/workflows/*.yml`, and is worth doing locally too after upgrading the
+    Python version via `uv python install`/`uv python pin`. Follow with
+    `hatch env prune` to drop any environments already built against the old
+    interpreter.
 - The `hatch run lint:*` environment (`[tool.hatch.envs.lint]`) is `detached = true`
     for speed -- it does *not* install this package or its runtime dependencies, only
     `ruff` and friends. That's fine for `ruff`, which only needs to parse syntax, but

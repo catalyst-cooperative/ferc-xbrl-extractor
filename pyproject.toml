@@ -94,6 +94,14 @@ types = [
     "ty>=0.0.61", # Extremely fast Rust-based Python type checker, from Astral
 ]
 
+[tool.uv]
+# Always use a uv-managed Python distribution -- never one discovered on the system
+# (Homebrew, apt, pyenv, etc.) -- and fetch it automatically if the pinned version
+# (see .python-version) isn't installed yet. Keeps local dev and CI reproducible
+# without relying on actions/setup-python or whatever happens to be on PATH.
+python-preference = "only-managed"
+python-downloads = "automatic"
+
 [tool.hatch.version]
 source = "vcs"
 
@@ -109,6 +117,13 @@ packages = ["src/ferc_xbrl_extractor"]
 [tool.hatch.envs.default]
 description = "Default environment with all development dependencies"
 features = ["dev", "docs", "tests", "types"]
+# Delegate venv creation and package installation to uv rather than pip/virtualenv.
+# Hatch still resolves *which* interpreter to hand uv (see the `python` pin below),
+# but once resolved, this makes uv do the actual venv creation and installs, and lets
+# HATCH_PYTHON (set to a `uv python find` path in CI) bypass Hatch's own PATH
+# discovery entirely -- see AGENTS.md and .github/workflows/*.yml.
+installer = "uv"
+python = "3.14"
 
 [tool.hatch.envs.test]
 description = "Run tests with pytest and collect test coverage"
@@ -135,6 +150,10 @@ all = ["coverage-erase", "unit", "integration", "coverage-report"]
 description = "Run linters and formatters"
 features = ["tests"]
 detached = true
+# `detached` makes this its own template root, so it doesn't inherit `installer`/
+# `python` from [tool.hatch.envs.default] -- repeat them here.
+installer = "uv"
+python = "3.14"
 
 [tool.hatch.envs.lint.scripts]
 check = ["ruff check ./", "ruff format --check ./"]
