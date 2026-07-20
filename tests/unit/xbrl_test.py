@@ -17,7 +17,7 @@ def test_process_batch(mocker):
 
         def parse(self):
             if self.raise_exception:
-                raise XMLSyntaxError("message", 1, 0, 0)
+                raise XMLSyntaxError("message", 1, 0, 0)  # ty:ignore[invalid-argument-type, too-many-positional-arguments] -- pre-existing gap
             return self
 
     test_data = {
@@ -59,15 +59,15 @@ def test_process_batch(mocker):
         for table in table_defs
     }
 
-    results = process_batch(instances, table_defs)
+    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type] -- pre-existing gap
 
     for table in table_defs:
         pd.testing.assert_frame_equal(
             expected_dfs[table],
-            results["dfs"][table].reset_index(drop=True),
+            results["dfs"][table].reset_index(drop=True),  # ty:ignore[invalid-argument-type] -- pre-existing gap
         )
 
-    metadata = results["metadata"]
+    metadata = results["metadata"]  # ty:ignore[invalid-argument-type] -- pre-existing gap
     for filing_name, expected_metadata in test_data.items():
         if not expected_metadata["raise_exception"]:
             assert (

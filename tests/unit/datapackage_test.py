@@ -121,19 +121,19 @@ def test_columns_from_concepts(link_role, duration_column_names, instant_column_
     instant_resource = Resource.from_link_role(link_role, "instant", "test_path")
 
     # Verify column names are correct
-    duration_columns = {field.name: field for field in duration_resource.schema_.fields}
-    instant_columns = {field.name: field for field in instant_resource.schema_.fields}
+    duration_columns = {field.name: field for field in duration_resource.schema_.fields}  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    instant_columns = {field.name: field for field in instant_resource.schema_.fields}  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
     assert duration_column_names == set(duration_columns.keys())
     assert instant_column_names == set(instant_columns.keys())
 
     # Verify data types
-    assert duration_columns.get("duration_concept").type_ == "string"
-    assert duration_columns.get("duration_concept_int").type_ == "integer"
+    assert duration_columns.get("duration_concept").type_ == "string"  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    assert duration_columns.get("duration_concept_int").type_ == "integer"  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
-    assert instant_columns.get("instant_concept").type_ == "string"
-    assert instant_columns.get("child_concept").type_ == "year"
-    assert instant_columns.get("concept_bool").type_ == "boolean"
+    assert instant_columns.get("instant_concept").type_ == "string"  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    assert instant_columns.get("child_concept").type_ == "year"  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    assert instant_columns.get("concept_bool").type_ == "boolean"  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
 
 def test_fuzzy_dedup():
