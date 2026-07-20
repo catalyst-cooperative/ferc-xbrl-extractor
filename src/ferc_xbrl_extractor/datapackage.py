@@ -420,7 +420,7 @@ class FactTable:
         instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
         if not raw_facts:
-            return pd.DataFrame(columns=self.columns.keys()).set_index(
+            return pd.DataFrame(columns=list(self.columns.keys())).set_index(
                 self.schema.primary_key
             )
 

@@ -59,7 +59,11 @@ def test_process_batch(mocker):
         for table in table_defs
     }
 
-    results = process_batch(instances, table_defs)
+    # MockInstanceBuilder and the list[str] table_defs are deliberately loose
+    # stand-ins: process_instance is mocked out below, so neither argument's real
+    # structure is ever exercised, and building real InstanceBuilder/FactTable
+    # fixtures here wouldn't test anything more.
+    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type]
 
     for table in table_defs:
         pd.testing.assert_frame_equal(
