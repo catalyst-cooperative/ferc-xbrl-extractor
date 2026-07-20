@@ -1,6 +1,6 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling>=1.31", "hatch-vcs>=0.5"]
 
 [project]
 name = "catalystcoop.ferc_xbrl_extractor"
@@ -59,7 +59,7 @@ keywords = [
 [project.urls]
 "Homepage" = "https://github.com/catalyst-cooperative/ferc-xbrl-extractor"
 "Source" = "https://github.com/catalyst-cooperative/ferc-xbrl-extractor"
-"Documentation" = "https://catalystcoop-ferc-xbrl-extractor.readthedocs.io"
+"Documentation" = "https://docs.catalyst.coop/ferc-xbrl-extractor"
 "Issue Tracker" = "https://github.com/catalyst-cooperative/ferc-xbrl-extractor/issues"
 
 [project.scripts]
@@ -68,28 +68,31 @@ xbrl_extract = "ferc_xbrl_extractor.cli:main"
 [project.optional-dependencies]
 dev = [
     "hatch>=1.16",
-    "ruff>=0.14", # A very fast linter and autofixer
+    "prek>=0.4.10", # Fast Rust-based pre-commit hook runner
+    "ruff>=0.15.22", # A very fast linter and autofixer
 ]
 docs = [
     "doc8>=2", # Ensures clean documentation formatting
-    "furo>=2024",
+    "pydata-sphinx-theme>=0.20", # Shared look-and-feel with our other docs sites
     "sphinx>=9", # The default Python documentation engine
     "sphinx-autoapi>=3", # Generates documentation from docstrings
     "sphinx-issues>=5", # Allows references to GitHub issues
+    "sphinx-llm>=0.4.1", # Generates llms.txt and markdown twins of each page for agents
 ]
 tests = [
-    "coverage>=7", # Lets us track what code is being tested
+    "coverage>=7.15", # Lets us track what code is being tested
     "doc8>=2", # Ensures clean documentation formatting
-    "mypy>=1", # Static type checking
-    "pre-commit>=4", # Allow us to run pre-commit hooks in testing
-    "pydocstyle>=6", # Style guidelines for Python documentation
-    "pytest>=9", # Our testing framework
-    "pytest-console-scripts>=1", # Allow automatic testing of scripts
-    "pytest-cov>=7", # Pytest plugin for working with coverage
-    "pytest-mock>=3",
-    "ruff>=0.14", # A very fast linter and autofixer
+    "pytest>=9.1.1", # Our testing framework
+    "pytest-console-scripts>=1.4.1", # Allow automatic testing of scripts
+    "pytest-cov>=7.1", # Pytest plugin for working with coverage
+    "pytest-mock>=3.15",
+    "pytest-xdist>=3.8", # Run tests in parallel across worker processes
+    "ruff>=0.15.22", # A very fast linter and autofixer
 ]
-types = ["types-setuptools"]
+types = [
+    "lxml-stubs>=0.5", # Type stubs for lxml, which ships without inline types
+    "ty>=0.0.61", # Extremely fast Rust-based Python type checker, from Astral
+]
 
 [tool.hatch.version]
 source = "vcs"
@@ -105,7 +108,7 @@ packages = ["src/ferc_xbrl_extractor"]
 
 [tool.hatch.envs.default]
 description = "Default environment with all development dependencies"
-features = ["dev", "docs", "tests"]
+features = ["dev", "docs", "tests", "types"]
 
 [tool.hatch.envs.test]
 description = "Run tests with pytest and collect test coverage"
@@ -113,18 +116,20 @@ features = ["tests"]
 
 [tool.hatch.envs.test.scripts]
 coverage-erase = "coverage erase"
-unit = "pytest --cov=src/ferc_xbrl_extractor --cov-append --no-cov-on-fail --doctest-modules src/ferc_xbrl_extractor tests/unit {args}"
-integration = "pytest --cov=src/ferc_xbrl_extractor --cov-append --no-cov-on-fail tests/integration {args}"
-coverage-report = [
-    "coverage report",
-    "coverage xml",
-]
-all = [
-    "coverage-erase",
-    "unit",
-    "integration",
-    "coverage-report",
-]
+# --cov-fail-under=0 overrides [tool.coverage.report] fail_under for these individual
+# invocations, since neither the unit nor the integration suite alone is expected to
+# clear the combined threshold -- it's enforced once below, after both have
+# contributed to the same coverage data via --cov-append.
+unit = "pytest --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail --doctest-modules src/ferc_xbrl_extractor tests/unit {args}"
+# -n auto (pytest-xdist) parallelizes across worker processes -- only on integration,
+# where individual tests actually take seconds; unit is fast enough (~2s total) that
+# worker startup overhead (each one re-imports arelle et al.) would net lose. The
+# tests parallelized this way each cap their own internal extraction concurrency
+# (workers=1) rather than also spawning a per-test process pool -- see comments in
+# tests/integration/data_quality_test.py and console_scripts_test.py.
+integration = "pytest -n auto --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail tests/integration {args}"
+coverage-report = ["coverage report", "coverage xml"]
+all = ["coverage-erase", "unit", "integration", "coverage-report"]
 
 [tool.hatch.envs.lint]
 description = "Run linters and formatters"
@@ -132,18 +137,21 @@ features = ["tests"]
 detached = true
 
 [tool.hatch.envs.lint.scripts]
-check = [
-    "ruff check ./",
-    "ruff format --check ./",
-]
-format = [
-    "ruff format ./",
-    "ruff check --fix ./",
-]
-all = [
-    "check",
-    "format",
-]
+check = ["ruff check ./", "ruff format --check ./"]
+format = ["ruff format ./", "ruff check --fix ./"]
+all = ["check", "format"]
+
+[tool.hatch.envs.types]
+description = "Type check the code with ty"
+# Not detached, unlike the lint env above -- ty needs the project's actual runtime
+# dependencies (pydantic, pandas, etc.) installed to resolve imports, not just its
+# own tooling, so this env installs the project itself plus the "types" extra. Also
+# includes "tests" since [tool.ty.src] type checks the tests/ directory too, and
+# those tests import pytest, pytest-mock, etc.
+features = ["tests", "types"]
+
+[tool.hatch.envs.types.scripts]
+check = "ty check"
 
 [tool.hatch.envs.docs]
 description = "Build documentation with Sphinx"
@@ -152,19 +160,7 @@ features = ["docs"]
 [tool.hatch.envs.docs.scripts]
 check = "doc8 docs/ README.rst"
 clean = "rm -rf docs/_build"
-build = [
-    "clean",
-    "check",
-    "sphinx-build -W -b html docs docs/_build/html",
-]
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools_scm]
+build = ["clean", "check", "sphinx-build -W -b html docs docs/_build/html"]
 
 [tool.ruff]
 # Configurations that apply to both the `format` and `lint` subcommands.
@@ -244,12 +240,55 @@ convention = "google"
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
+[tool.coverage.run]
+# Measure coverage of tests/ as well as src/, not just to gauge how much of the
+# library is tested but to catch test files/functions that silently never run (e.g.
+# a typo'd test_ prefix, or a test class pytest doesn't collect) -- those show up as
+# 0% covered files/lines here instead of just quietly not existing in the report.
+source = ["src/ferc_xbrl_extractor", "tests"]
+omit = ["src/ferc_xbrl_extractor/_version.py"]
+relative_files = true
+
+[tool.coverage.report]
+precision = 2
+sort = "miss"
+skip_empty = true
+fail_under = 95
+# fail_under is enforced once, after unit and integration coverage are combined, by
+# the final "coverage report" invocation in the `all` hatch script under
+# [tool.hatch.envs.test.scripts] above -- not here, since pytest-cov would otherwise
+# also enforce it after unit or integration tests run on their own (hence
+# --cov-fail-under=0 on those individual invocations), before the other suite gets a
+# chance to contribute its coverage.
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+
+    # Stuff that's not expected to run normally...
+    "logger.debug",
+]
+
 [tool.doc8]
 max-line-length = 88
 ignore-path = ["docs/_build"]
 
-[tool.pytest.ini_options]
-testpaths = "./"
+[tool.ty.src]
+include = ["src", "tests"]
+
+# No [tool.ty.environment] python-version setting -- ty already infers it from
+# `project.requires-python` above, so pinning it again here would just be tracking
+# the same version in two places.
+
+[tool.pytest]
+testpaths = ["./"]
 filterwarnings = [
     "ignore:distutils Version classes are deprecated:DeprecationWarning",
     "ignore:Creating a LegacyVersion:DeprecationWarning:pkg_resources[.*]",
@@ -257,9 +296,13 @@ filterwarnings = [
     "ignore:datetime.datetime.utcfromtimestamp\\(\\) is deprecated:DeprecationWarning:dateutil.tz",
 ]
 
-addopts = "--verbose"
+addopts = ["--verbose"]
 log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
-log_cli = "true"
+log_cli = true
 log_cli_level = "INFO"
-doctest_optionflags = ["NORMALIZE_WHITESPACE", "IGNORE_EXCEPTION_DETAIL", "ELLIPSIS"]
+doctest_optionflags = [
+    "NORMALIZE_WHITESPACE",
+    "IGNORE_EXCEPTION_DETAIL",
+    "ELLIPSIS",
+]

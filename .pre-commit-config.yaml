@@ -1,3 +1,4 @@
+---
 repos:
   # Quick content checks based on grepping for python specific patterns:
   - repo: https://github.com/pre-commit/pygrep-hooks
@@ -7,6 +8,11 @@ repos:
       - id: rst-directive-colons # Missing double-colons after directives
       - id: rst-inline-touching-normal # Inline code should never touch normal text
       - id: python-use-type-annotations # Use annotations not old-style type comments
+      - id: python-check-blanket-noqa # Require noqa comments to specify an error code.
+      - id: python-check-blanket-type-ignore # Require type: ignore to specify a code.
+      - id: python-no-log-warn # Use logger.warning() instead of deprecated logger.warn()
+      - id: python-no-eval # Flag uses of the eval() builtin.
+      - id: text-unicode-replacement-char # Catch mangled-encoding artifacts.
 
   # Other file formatting, plus common Git mistakes & text file standardization:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -15,18 +21,30 @@ repos:
       - id: check-added-large-files # Don't accidentally commit giant files.
       - id: check-merge-conflict # Watch for lingering merge markers.
       - id: check-yaml # Validate all YAML files.
+      - id: check-toml
+      - id: check-json # Validate all JSON files, including Jupyter notebooks.
+        # check-json is strict json.load() with no JSONC (comments, trailing
+        # commas) support and no flag to add it, so exclude files that are JSONC
+        # by convention rather than weakening validation for real JSON files.
+        exclude: ^(\.devcontainer/.*devcontainer\.json|\.vscode/.*\.json)$
       - id: check-case-conflict # Avoid case sensitivity in file names.
+      - id: check-illegal-windows-names # Avoid filenames that break on Windows.
+      - id: destroyed-symlinks # Catch symlinks silently replaced with copies.
       - id: debug-statements # Watch for lingering debugger calls.
+      - id: detect-private-key # Don't accidentally commit private keys.
+      - id: trailing-whitespace # Remove trailing whitespace.
       - id: mixed-line-ending # Only newlines, no line-feeds.
         args: ["--fix=lf"]
-      - id: trailing-whitespace # Remove trailing whitespace.
       - id: name-tests-test # Follow PyTest naming convention.
+      - id: end-of-file-fixer
+      - id: no-commit-to-branch # Discourage committing directly to main; PRs only.
+        args: ["--branch", "main"]
 
   ########################################################################################
-  # Formatters: hooks that re-write Python and RST files
+  # Formatters: hooks that re-write Python, TOML, YAML, and RST files
   ########################################################################################
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.21
+    rev: v0.15.22
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
@@ -38,10 +56,14 @@ repos:
       - id: prettier
         types_or: [yaml]
 
+  - repo: https://github.com/ComPWA/taplo-pre-commit
+    rev: v0.9.3
+    hooks:
+      - id: taplo-format
+
   ########################################################################################
   # Linters: hooks that check but don't alter Python & RST files
   ########################################################################################
-
   # Check for errors in restructuredtext (.rst) files under the doc hierarchy
   - repo: https://github.com/PyCQA/doc8
     rev: v2.0.0
@@ -55,12 +77,26 @@ repos:
     hooks:
       - id: actionlint
 
+  # Spell check our documentation and code comments
+  - repo: https://github.com/adhtruong/mirrors-typos
+    rev: v1.48.0
+    hooks:
+      - id: typos
+        args: [] # Make this read, not write
+
+  # Scan for secrets and credentials
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+
   ########################################################################################
   # Custom local hooks
   ########################################################################################
   - repo: local
     hooks:
-      # Run the unit tests
+      # Run the (fast) unit tests
       - id: unit-tests
         name: unit-tests
         stages: [pre-commit]
@@ -70,10 +106,13 @@ repos:
         always_run: true
         entry: hatch run test:unit
 
+########################################################################################
 # Configuration for pre-commit.ci
+########################################################################################
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit.com hooks
+
     For more information, see https://pre-commit.ci
   autofix_prs: true
   autoupdate_branch: main

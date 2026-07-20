@@ -1,6 +1,10 @@
 name: pytest
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
 
 jobs:
   test:
@@ -33,7 +37,15 @@ jobs:
         run: |
           hatch run test:all
       - name: Upload test coverage report to CodeCov
+        # CODECOV_TOKEN here is the catalyst-cooperative org's shared "Global Upload
+        # Token" (an organization-level secret, not a per-repo one -- see
+        # .codecov.yml), not a repo-specific secret we need to mint per project.
+        # Coverage reporting failing shouldn't fail this required check on its own,
+        # since it's orthogonal to whether the tests passed.
         uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   lint:
     runs-on: ubuntu-latest
@@ -54,25 +66,3 @@ jobs:
       - name: Run linters
         run: |
           hatch run lint:check
-
-  docs-build:
-    runs-on: ubuntu-latest
-    env:
-      PUDL_DOCS_DISABLE_INTERSPHINX: "1"
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-      - name: Install hatch
-        run: uv tool install hatch
-      - name: Build docs
-        run: |
-          hatch run docs:build

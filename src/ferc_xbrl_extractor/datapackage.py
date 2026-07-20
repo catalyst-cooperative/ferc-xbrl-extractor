@@ -172,8 +172,8 @@ def _get_fields_from_concepts(
         axes: Axes in table (become part of primary key).
         columns: List of fields in table.
     """
-    # These are sets to gurantee no duplicates
-    # There are occasionaly duplicate concepts in a tree, which are only used for rendering a form
+    # These are sets to guarantee no duplicates
+    # There are occasionally duplicate concepts in a tree, which are only used for rendering a form
     axes = set()
     columns = set()
 
@@ -203,7 +203,7 @@ def _lowercase_words(name: str) -> str:
 
     Pattern finds uppercase characters that are immediately preceded by
     an uppercase character. Later when the name is converted to snakecase,
-    an underscore would be inserted between each of these charaters if this
+    an underscore would be inserted between each of these characters if this
     conversion is not performed.
     """
     matches = UPPERCASE_WORD_PATTERN.findall(name)
