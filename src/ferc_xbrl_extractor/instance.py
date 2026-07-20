@@ -43,8 +43,8 @@ class Period(BaseModel):
 
         return cls(
             instant=False,
-            start_date=elem.find(f"{{{XBRL_INSTANCE}}}startDate").text,  # ty:ignore[unresolved-attribute] -- pre-existing gap
-            end_date=elem.find(f"{{{XBRL_INSTANCE}}}endDate").text,  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            start_date=elem.find(f"{{{XBRL_INSTANCE}}}startDate").text,
+            end_date=elem.find(f"{{{XBRL_INSTANCE}}}endDate").text,
         )
 
 
@@ -89,7 +89,7 @@ class Axis(BaseModel):
             )
 
         if elem.tag.endswith("typedMember"):
-            dim = elem.getchildren()[0]  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            dim = elem.getchildren()[0]
             return cls(
                 name=elem.attrib["dimension"],
                 value=dim.text if dim.text else "",
@@ -119,7 +119,7 @@ class Entity(BaseModel):
         dims = segment.findall("*") if segment is not None else []
 
         return cls(
-            identifier=elem.find(f"{{{XBRL_INSTANCE}}}identifier").text,  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            identifier=elem.find(f"{{{XBRL_INSTANCE}}}identifier").text,
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
@@ -151,9 +151,9 @@ class Context(BaseModel):
         return cls(
             **{
                 "c_id": elem.attrib["id"],
-                "entity": Entity.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}entity")),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-                "period": Period.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}period")),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            }  # ty:ignore[invalid-argument-type] -- pre-existing gap
+                "entity": Entity.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}entity")),
+                "period": Period.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}period")),
+            }
         )
 
     def check_dimensions(self, primary_key: list[str]) -> bool:
@@ -192,7 +192,7 @@ class Context(BaseModel):
             "filing_name": filing_name,
             **date_dict,
             **axes_dict,
-        }  # ty:ignore[invalid-return-type] -- pre-existing gap
+        }
 
     def __hash__(self):
         """Just hash Context ID as it uniquely identifies contexts for an instance."""
@@ -293,13 +293,13 @@ class Instance:
         self.contexts = contexts
         if "report_date" in duration_facts:
             self.report_date = datetime.date.fromisoformat(
-                duration_facts["report_date"][0].value  # ty:ignore[invalid-argument-type] -- pre-existing gap
+                duration_facts["report_date"][0].value
             )
         else:
             # FERC 714 workaround - though sometimes reports with different
             # publish dates have the same certifying official date.
             self.report_date = datetime.date.fromisoformat(
-                duration_facts["certifying_official_date"][0].value  # ty:ignore[invalid-argument-type] -- pre-existing gap
+                duration_facts["certifying_official_date"][0].value
             )
         self.publication_time = publication_time
 
@@ -322,7 +322,7 @@ class Instance:
             fact
             for fact in all_facts_for_concepts
             if self.contexts[fact.c_id].check_dimensions(primary_key)
-        )  # ty:ignore[invalid-return-type] -- pre-existing gap
+        )
 
 
 class InstanceBuilder:
@@ -380,7 +380,7 @@ class InstanceBuilder:
         contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
 
         # Find all facts in XML file
-        facts = root.findall(f"{fact_prefix}:*", root.nsmap)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        facts = root.findall(f"{fact_prefix}:*", root.nsmap)
 
         # Loop through contexts and parse into pydantic structures
         for context in contexts:
@@ -478,7 +478,7 @@ def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
         instances = sorted(instance_path.iterdir())
 
     return [
-        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))  # ty:ignore[missing-argument] -- pre-existing gap
+        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
         for instance in sorted(instances)
         if instance.suffix in allowable_suffixes
     ]

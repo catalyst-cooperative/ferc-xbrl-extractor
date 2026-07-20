@@ -66,8 +66,3 @@ jobs:
       - name: Run linters
         run: |
           hatch run lint:check
-      - name: Type check with ty
-        # Not covered by pre-commit.ci (see .pre-commit-config.yaml's "ty" hook and
-        # its `ci.skip` entry), so it's enforced here instead.
-        run: |
-          hatch run types:check

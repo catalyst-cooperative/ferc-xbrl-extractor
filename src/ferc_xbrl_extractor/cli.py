@@ -166,7 +166,7 @@ def run_main(
     # CG/DX did not have time or gumption for this refactor but think it would
     # make this easier to work with.
     extracted = xbrl.extract(
-        taxonomy_source=taxonomy,  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        taxonomy_source=taxonomy,
         form_number=form_number,
         db_uri=sqlite_path.absolute().name,
         datapackage_path=datapackage_path,
@@ -174,11 +174,11 @@ def run_main(
         filings=filings,
         workers=workers,
         batch_size=batch_size,
-        requested_tables=requested_tables,  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        requested_tables=requested_tables,
         instance_pattern=instance_pattern,
     )
     # Save extracted data in SQLite/duckdb
-    load_extracted(extracted, sqlite_uri, duckdb_path)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+    load_extracted(extracted, sqlite_uri, duckdb_path)
 
     parquet_dir = output_dir / f"ferc{form_number}_xbrl"
     convert_duckdb_into_parquet(duckdb_path=duckdb_path, parquet_dir=parquet_dir)

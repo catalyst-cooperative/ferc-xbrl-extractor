@@ -11,11 +11,6 @@ Release Notes
 Modernize tooling and packaging
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Switched from mypy to ty** for type checking. mypy had been declared as a
-  dependency but never actually wired into CI or pre-commit, so this is the first
-  time type checking is enforced here. Pre-existing type gaps (mostly around
-  ``arelle-release``, which ships without type stubs) are suppressed inline with
-  ``# ty:ignore`` comments pending a follow-up typing cleanup.
 * **Switched from pre-commit to prek** as the hook runner, and added several new
   hooks: ``detect-secrets``, ``typos``, ``actionlint``, ``markdownlint-cli2``, and
   ``taplo-format``, among others.

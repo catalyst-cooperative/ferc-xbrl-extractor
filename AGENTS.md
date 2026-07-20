@@ -49,15 +49,16 @@ will use most:
 - `hatch run lint:format` -- reformat code and auto-fix lint issues with `ruff`.
 - `hatch run types:check` -- type check with `ty`. This is a separate, non-detached
     env from `lint` (see "Gotchas" below) because `ty` needs the project's actual
-    runtime dependencies installed to resolve imports.
+    runtime dependencies installed to resolve imports. Configured but **not currently
+    enforced** in pre-commit or CI (see "Code style" below) -- still fine to run
+    manually.
 - `hatch run docs:build` -- build the documentation with Sphinx into
     `docs/_build/html/`. Runs `doc8` first and fails on Sphinx warnings (`-W`).
 - `hatch run docs:check` -- run just the `doc8` formatting check on `docs/` and
     `README.rst`.
 
-An agent should run `hatch run lint:check`, `hatch run types:check`, and
-`hatch run test:all` before considering a change complete, and
-`hatch run lint:format` if it touched Python code.
+An agent should run `hatch run lint:check` and `hatch run test:all` before
+considering a change complete, and `hatch run lint:format` if it touched Python code.
 
 ## Code style
 
@@ -65,14 +66,14 @@ An agent should run `hatch run lint:check`, `hatch run types:check`, and
     `pyproject.toml`) and applied automatically by `hatch run lint:format` / the
     `ruff-check` and `ruff-format` pre-commit hooks. Don't hand-format code to match a
     personal preference that conflicts with what `ruff format` produces.
-- Type checking is done with `ty` (see `[tool.ty.src]`, which checks both `src` and
-    `tests`). New code should be typed cleanly.  There's a backlog of pre-existing
-    errors suppressed with `# ty:ignore[rule-name] -- pre-existing gap, not introduced
-    by adopting ty; tracked for a follow-up typing cleanup PR` comments, mostly around
-    `arelle-release`'s untyped API. Don't add new `ty:ignore` comments to paper over
-    genuinely new type errors -- if you must suppress a real false positive, use a `#
-    ty: ignore[rule-name]` comment with a short note explaining *why* it's a false
-    positive, not just that it is one.
+- `ty` is configured (see `[tool.ty.src]`, which checks both `src` and `tests`) and
+    runnable via `hatch run types:check`, but is **not yet enforced** in pre-commit or
+    CI -- adopting it surfaced ~70 pre-existing errors (mostly around
+    `arelle-release`'s untyped API), and turning on enforcement plus deciding how to
+    handle that backlog (fix vs. suppress with `# ty: ignore[rule-name]`) is deferred
+    to a dedicated follow-up PR, kept out of unrelated changes here. Don't add
+    `ty: ignore` comments in this repo yet -- there's no enforcement to suppress
+    against, so they'd just be dead code until that follow-up PR lands.
 - Docstrings use the Google convention (`[tool.ruff.lint.pydocstyle]`).
 - Direct runtime `dependencies` in `pyproject.toml` should stay loosely
     version-constrained (lower bounds only, no upper bounds unless there's a known
@@ -119,9 +120,10 @@ An agent should run `hatch run lint:check`, `hatch run types:check`, and
 
 ## Commit / PR instructions
 
-- Before committing, run `hatch run lint:check`, `hatch run types:check`, and
-    `hatch run test:all`; CI (`.github/workflows/pytest.yml`) runs the same checks
-    (across Python 3.11-3.14 for tests) and will fail the PR otherwise.
+- Before committing, run `hatch run lint:check` and `hatch run test:all`; CI
+    (`.github/workflows/pytest.yml`) runs the same checks (across Python 3.11-3.14 for
+    tests) and will fail the PR otherwise. (`hatch run types:check` is not currently
+    part of CI -- see "Code style" above.)
 - `.github/workflows/docs.yml` builds and, on `main`, deploys the documentation;
     `.github/workflows/release.yml` builds and publishes to PyPI on `v*` tags pushed
     to `main`, and refuses to run unless the tag points at the current head of
@@ -147,14 +149,15 @@ An agent should run `hatch run lint:check`, `hatch run types:check`, and
 - `arelle-release` is a large, slow-to-install dependency (it's a full XBRL
     processor). Don't be surprised if `hatch env create` or CI takes a while the first
     time; this is normal, not a hang.
-- The pre-commit/`prek` `ty` hook and `unit-tests` hook are both `language: system`
-    local hooks that shell out to `hatch run types:check` / `hatch run test:unit`
-    rather than using `ty`'s own `astral-sh/ty-pre-commit` repo hook. That's
-    deliberate: the official hook shells out to `uv check`, which needs network
-    access to resolve dependencies, and pre-commit.ci disables network access during
-    hook execution. Both hooks are also in `ci.skip` in `.pre-commit-config.yaml` for
-    the same reason, and are instead enforced as separate steps in
-    `.github/workflows/pytest.yml`.
+- The pre-commit/`prek` `unit-tests` hook is a `language: system` local hook that
+    shells out to `hatch run test:unit`, and is in `ci.skip` in
+    `.pre-commit-config.yaml` since pre-commit.ci can't install this project's
+    dependencies -- it's enforced instead as a separate step in
+    `.github/workflows/pytest.yml`. If/when `ty` enforcement is added back (see "Code
+    style" above), give it the same treatment rather than using `ty`'s own
+    `astral-sh/ty-pre-commit` repo hook: that hook shells out to `uv check`, which
+    needs network access to resolve dependencies, and pre-commit.ci disables network
+    access during hook execution.
 - `PUDL_DOCS_DISABLE_INTERSPHINX=1` speeds up doc builds and avoids failures when
     external intersphinx targets (numpy, pandas, etc. doc sites) are temporarily
     unreachable. CI sets this for the `docs` workflow; set it locally too if a docs

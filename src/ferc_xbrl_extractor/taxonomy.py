@@ -37,7 +37,7 @@ class XBRLType(BaseModel):
     @classmethod
     def from_arelle_type(cls, arelle_type: ModelType) -> "XBRLType":
         """Construct XBRLType class from arelle ModelType."""
-        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
 
     def get_pandas_type(self) -> str | None:
         """Return corresponding pandas type.
@@ -111,11 +111,11 @@ class Concept(BaseModel):
         concept = concept_dict[concept_list[1]["name"]]
 
         return cls(
-            name=concept.name,  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            standard_label=concept.label(XbrlConst.standardLabel),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            documentation=concept.label(XbrlConst.documentationLabel),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            type=XBRLType.from_arelle_type(concept.type),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            period_type=concept.periodType,  # ty:ignore[invalid-argument-type] -- pre-existing gap
+            name=concept.name,
+            standard_label=concept.label(XbrlConst.standardLabel),
+            documentation=concept.label(XbrlConst.documentationLabel),
+            type=XBRLType.from_arelle_type(concept.type),
+            period_type=concept.periodType,
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],
@@ -145,7 +145,7 @@ class Concept(BaseModel):
         # If concept is leaf node return metadata
         else:
             if period_type == self.period_type:
-                metadata[self.name] = self.metadata.model_dump()  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                metadata[self.name] = self.metadata.model_dump()
 
         return metadata
 
@@ -248,7 +248,7 @@ class Taxonomy(BaseModel):
         if isinstance(taxonomy_source, Path):
             taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
 
-        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        taxonomy, view = load_taxonomy_from_archive(taxonomy_source, entry_point)
 
         # Create dictionary mapping concept names to concepts
         concept_dict = {
