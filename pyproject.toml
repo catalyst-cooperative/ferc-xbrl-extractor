@@ -115,8 +115,12 @@ features = ["tests"]
 
 [tool.hatch.envs.test.scripts]
 coverage-erase = "coverage erase"
-unit = "pytest --cov=src/ferc_xbrl_extractor --cov-append --no-cov-on-fail --doctest-modules src/ferc_xbrl_extractor tests/unit {args}"
-integration = "pytest --cov=src/ferc_xbrl_extractor --cov-append --no-cov-on-fail tests/integration {args}"
+# --cov-fail-under=0 overrides [tool.coverage.report] fail_under for these individual
+# invocations, since neither the unit nor the integration suite alone is expected to
+# clear the combined threshold -- it's enforced once below, after both have
+# contributed to the same coverage data via --cov-append.
+unit = "pytest --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail --doctest-modules src/ferc_xbrl_extractor tests/unit {args}"
+integration = "pytest --cov=src/ferc_xbrl_extractor --cov=tests --cov-append --cov-fail-under=0 --no-cov-on-fail tests/integration {args}"
 coverage-report = ["coverage report", "coverage xml"]
 all = ["coverage-erase", "unit", "integration", "coverage-report"]
 
@@ -229,6 +233,42 @@ convention = "google"
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
+[tool.coverage.run]
+# Measure coverage of tests/ as well as src/, not just to gauge how much of the
+# library is tested but to catch test files/functions that silently never run (e.g.
+# a typo'd test_ prefix, or a test class pytest doesn't collect) -- those show up as
+# 0% covered files/lines here instead of just quietly not existing in the report.
+source = ["src/ferc_xbrl_extractor", "tests"]
+omit = ["src/ferc_xbrl_extractor/_version.py"]
+relative_files = true
+
+[tool.coverage.report]
+precision = 2
+sort = "miss"
+skip_empty = true
+fail_under = 95
+# fail_under is enforced once, after unit and integration coverage are combined, by
+# the final "coverage report" invocation in the `all` hatch script under
+# [tool.hatch.envs.test.scripts] above -- not here, since pytest-cov would otherwise
+# also enforce it after unit or integration tests run on their own (hence
+# --cov-fail-under=0 on those individual invocations), before the other suite gets a
+# chance to contribute its coverage.
+exclude_lines = [
+    # Have to re-enable the standard pragma
+    "pragma: no cover",
+
+    # Don't complain if tests don't hit defensive assertion code:
+    "raise AssertionError",
+    "raise NotImplementedError",
+
+    # Don't complain if non-runnable code isn't run:
+    "if 0:",
+    "if __name__ == .__main__.:",
+
+    # Stuff that's not expected to run normally...
+    "logger.debug",
+]
+
 [tool.doc8]
 max-line-length = 88
 ignore-path = ["docs/_build"]
@@ -241,7 +281,7 @@ include = ["src", "tests"]
 # the same version in two places.
 
 [tool.pytest.ini_options]
-testpaths = "./"
+testpaths = ["./"]
 filterwarnings = [
     "ignore:distutils Version classes are deprecated:DeprecationWarning",
     "ignore:Creating a LegacyVersion:DeprecationWarning:pkg_resources[.*]",
@@ -249,7 +289,7 @@ filterwarnings = [
     "ignore:datetime.datetime.utcfromtimestamp\\(\\) is deprecated:DeprecationWarning:dateutil.tz",
 ]
 
-addopts = "--verbose"
+addopts = ["--verbose"]
 log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
 log_cli = "true"

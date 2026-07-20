@@ -131,6 +131,12 @@ html_theme_options = {
             "icon": "fa-brands fa-linkedin",
             "type": "fontawesome",
         },
+        {
+            "name": "Support PUDL",
+            "url": "https://opencollective.com/pudl",
+            "icon": "fa-solid fa-donate",
+            "type": "fontawesome",
+        },
     ],
     "secondary_sidebar_items": {
         "**": ["page-toc", "sourcelink"],
