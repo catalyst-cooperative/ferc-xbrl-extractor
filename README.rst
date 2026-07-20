@@ -251,8 +251,8 @@ Some of the available commands:
     # Check documentation formatting
     hatch run docs:check
 
-Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__ with configuration
-in ``pyproject.toml``.
+Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__, and type checked
+using `ty <https://docs.astral.sh/ty/>`__, both configured in ``pyproject.toml``.
 
 PUDL Sustainers
 ---------------
