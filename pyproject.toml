@@ -253,7 +253,7 @@ relative_files = true
 precision = 2
 sort = "miss"
 skip_empty = true
-fail_under = 96
+fail_under = 99
 # fail_under is enforced once, after unit and integration coverage are combined, by
 # the final "coverage report" invocation in the `all` hatch script under
 # [tool.hatch.envs.test.scripts] above -- not here, since pytest-cov would otherwise

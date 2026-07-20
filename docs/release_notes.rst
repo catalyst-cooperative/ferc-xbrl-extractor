@@ -67,6 +67,24 @@ Fix ``get_instances()`` input handling
   input types now raise a clear ``ValueError`` on invalid input instead of
   crashing.
 
+Test suite cleanup
+^^^^^^^^^^^^^^^^^^^
+
+* **Removed the long-dead ``XBRLType.get_pandas_type()`` method.** It was
+  introduced alongside a pandas-DataFrame-based extraction path that was
+  replaced by the current frictionless-datapackage-based path two weeks
+  later; the cleanup commit at the time removed every caller but missed the
+  method itself, leaving it with no callers in this package, ``pudl``, or
+  ``pudl-archiver`` since 2022. :pr:`444`
+* **Reordered integration tests so the three slowest run first.** Under
+  pytest-xdist's default scheduler, tests are dispatched to workers in
+  collection order; a slow test dispatched late tends to run alone after
+  every other worker has emptied its queue, stretching total wall-clock
+  time. A new ``pytest_collection_modifyitems`` hook in ``tests/conftest.py``
+  sorts ``test_concurrent_taxonomy_load`` and the two slowest
+  ``console_scripts_test.py`` cases to the front of collection so they run
+  in parallel with the rest of the suite instead of at the tail. :pr:`444`
+
 .. _release-v1-10-0:
 
 ---------------------------------------------------------------------------------------
