@@ -24,11 +24,6 @@ jobs:
             echo "::error::Tag ${{ github.ref_name }} (${{ github.sha }}) does not point at the current HEAD of main ($main_sha). Pull the latest main and re-tag."
             exit 1
           fi
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
       - name: Install uv
         uses: astral-sh/setup-uv@v7
       - name: Build source and wheel distributions

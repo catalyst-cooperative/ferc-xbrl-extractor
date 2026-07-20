@@ -28,11 +28,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -40,6 +35,15 @@ jobs:
 
       - name: Install hatch
         run: uv tool install hatch
+
+      # uv manages its own Python distributions rather than relying on the runner's
+      # preinstalled ones (see [tool.uv] in pyproject.toml), so replaces
+      # actions/setup-python. HATCH_PYTHON points Hatch straight at that interpreter,
+      # skipping its own PATH-based discovery.
+      - name: Install Python 3.14 via uv
+        run: |
+          uv python install 3.14
+          echo "HATCH_PYTHON=$(uv python find 3.14)" >> "$GITHUB_ENV"
 
       - name: Build documentation with Sphinx
         run: hatch run docs:build
