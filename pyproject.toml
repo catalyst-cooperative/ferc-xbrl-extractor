@@ -287,7 +287,7 @@ include = ["src", "tests"]
 # `project.requires-python` above, so pinning it again here would just be tracking
 # the same version in two places.
 
-[tool.pytest.ini_options]
+[tool.pytest]
 testpaths = ["./"]
 filterwarnings = [
     "ignore:distutils Version classes are deprecated:DeprecationWarning",
@@ -299,7 +299,7 @@ filterwarnings = [
 addopts = ["--verbose"]
 log_format = "%(asctime)s [%(levelname)8s] %(name)s:%(lineno)s %(message)s"
 log_date_format = "%Y-%m-%d %H:%M:%S"
-log_cli = "true"
+log_cli = true
 log_cli_level = "INFO"
 doctest_optionflags = [
     "NORMALIZE_WHITESPACE",
