@@ -6,6 +6,7 @@ import itertools
 import json
 import zipfile
 from collections import Counter, defaultdict
+from collections.abc import Iterator
 from enum import Enum, auto
 from functools import cached_property
 from pathlib import Path
@@ -41,10 +42,14 @@ class Period(BaseModel):
         if instant is not None:
             return cls(instant=True, end_date=instant.text)
 
+        start_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}startDate")
+        end_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}endDate")
+        assert start_date_elem is not None
+        assert end_date_elem is not None
         return cls(
             instant=False,
-            start_date=elem.find(f"{{{XBRL_INSTANCE}}}startDate").text,
-            end_date=elem.find(f"{{{XBRL_INSTANCE}}}endDate").text,
+            start_date=start_date_elem.text,
+            end_date=end_date_elem.text,
         )
 
 
@@ -89,7 +94,7 @@ class Axis(BaseModel):
             )
 
         if elem.tag.endswith("typedMember"):
-            dim = elem.getchildren()[0]
+            dim = elem[0]
             return cls(
                 name=elem.attrib["dimension"],
                 value=dim.text if dim.text else "",
@@ -118,8 +123,11 @@ class Entity(BaseModel):
         segment = elem.find(f"{{{XBRL_INSTANCE}}}segment")
         dims = segment.findall("*") if segment is not None else []
 
+        identifier_elem = elem.find(f"{{{XBRL_INSTANCE}}}identifier")
+        assert identifier_elem is not None
+
         return cls(
-            identifier=elem.find(f"{{{XBRL_INSTANCE}}}identifier").text,
+            identifier=identifier_elem.text,
             dimensions=[Axis.from_xml(child) for child in dims],
         )
 
@@ -148,12 +156,14 @@ class Context(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Context":
         """Construct Context from XML element."""
+        entity_elem = elem.find(f"{{{XBRL_INSTANCE}}}entity")
+        period_elem = elem.find(f"{{{XBRL_INSTANCE}}}period")
+        assert entity_elem is not None
+        assert period_elem is not None
         return cls(
-            **{
-                "c_id": elem.attrib["id"],
-                "entity": Entity.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}entity")),
-                "period": Period.from_xml(elem.find(f"{{{XBRL_INSTANCE}}}period")),
-            }
+            c_id=elem.attrib["id"],
+            entity=Entity.from_xml(entity_elem),
+            period=Period.from_xml(period_elem),
         )
 
     def check_dimensions(self, primary_key: list[str]) -> bool:
@@ -181,8 +191,9 @@ class Context(BaseModel):
         if self.period.instant:
             date_dict = {"date": self.period.end_date}
         else:
+            # start_date is always populated for duration periods -- see Period.from_xml.
+            assert self.period.start_date is not None
             date_dict = {
-                # Ignore type because start_date will always be str if duration period
                 "start_date": self.period.start_date,
                 "end_date": self.period.end_date,
             }
@@ -292,21 +303,25 @@ class Instance:
         self.filing_name = filing_name
         self.contexts = contexts
         if "report_date" in duration_facts:
-            self.report_date = datetime.date.fromisoformat(
-                duration_facts["report_date"][0].value
-            )
+            report_date_value = duration_facts["report_date"][0].value
+            assert report_date_value is not None
+            self.report_date = datetime.date.fromisoformat(report_date_value)
         else:
             # FERC 714 workaround - though sometimes reports with different
             # publish dates have the same certifying official date.
+            certifying_official_date_value = duration_facts["certifying_official_date"][
+                0
+            ].value
+            assert certifying_official_date_value is not None
             self.report_date = datetime.date.fromisoformat(
-                duration_facts["certifying_official_date"][0].value
+                certifying_official_date_value
             )
         self.publication_time = publication_time
 
     def get_facts(
         self, instant: bool, concept_names: list[str], primary_key: list[str]
-    ) -> dict[str, list[Fact]]:
-        """Return a dictionary that maps Context ID's to a list of facts for each context.
+    ) -> Iterator[Fact]:
+        """Return facts for the requested concepts whose context matches primary_key.
 
         Args:
             instant: Get facts with instant or duration period.
@@ -379,8 +394,14 @@ class InstanceBuilder:
         # Find all contexts in XML file
         contexts = root.findall(f"{{{XBRL_INSTANCE}}}context")
 
-        # Find all facts in XML file
-        facts = root.findall(f"{fact_prefix}:*", root.nsmap)
+        # Find all facts in XML file. Filter out the default-namespace entry (key
+        # None) since it's not needed to match the always-prefixed fact_prefix:*
+        # expression below, and lxml-stubs types the namespaces mapping as str-keys
+        # only even though lxml itself accepts a None key at runtime.
+        nsmap = {
+            prefix: uri for prefix, uri in root.nsmap.items() if prefix is not None
+        }
+        facts = root.findall(f"{fact_prefix}:*", nsmap)
 
         # Loop through contexts and parse into pydantic structures
         for context in contexts:
@@ -408,18 +429,15 @@ class InstanceBuilder:
         )
 
 
-def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
-    """Get list of instances from specified path to zipfile.
+def _parse_rssfeed_metadata(
+    raw: bytes,
+) -> tuple[dict[str, datetime.datetime], dict[str, str]]:
+    """Parse an "rssfeed" metadata file into publication times and taxonomy versions.
 
-    Args:
-        instance_path: Path to zipfile containing XBRL filings.
+    Shared by instances_from_zip and instances_from_directory, which differ only
+    in where they read the "rssfeed" file and individual filings from.
     """
-    allowable_suffixes = [".xbrl"]
-
-    archive = zipfile.ZipFile(instance_path)
-
-    with archive.open("rssfeed") as f:
-        filings_metadata = json.loads(f.read())
+    filings_metadata = json.loads(raw)
 
     # Publication time is always published as UTC, but just to be safe convert to UTC
     # then make timezone naive
@@ -437,6 +455,21 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
         for filers_metadata in filings_metadata.values()
         for filing in filers_metadata
     }
+    return publication_times, taxonomy_versions
+
+
+def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
+    """Get list of instances from specified path to zipfile.
+
+    Args:
+        instance_path: Path to zipfile containing XBRL filings.
+    """
+    allowable_suffixes = [".xbrl"]
+
+    archive = zipfile.ZipFile(instance_path)
+
+    with archive.open("rssfeed") as f:
+        publication_times, taxonomy_versions = _parse_rssfeed_metadata(f.read())
 
     # Read files into in memory buffers to parse
     return [
@@ -451,14 +484,62 @@ def instances_from_zip(instance_path: Path | io.BytesIO) -> list[InstanceBuilder
     ]
 
 
-def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
-    """Get list of instances from specified path.
+def instances_from_directory(instance_path: Path) -> list[InstanceBuilder]:
+    """Get list of instances from a directory of unzipped XBRL filings.
+
+    Mainly useful for local debugging, where it's convenient to edit filings
+    directly on disk rather than repackaging them into a zip after every change.
+    The directory must still include the "rssfeed" metadata file that FERC's
+    archiving process bundles into the zip alongside the filings -- e.g. by
+    unzipping one of these archives without discarding it -- since that's the
+    only source for each filing's publication_time and taxonomy_version. See
+    instances_from_zip for the zip-archive equivalent of this function.
 
     Args:
-        instance_path: Path to one or more XBRL filings.
+        instance_path: Path to a directory of XBRL filings, including an
+            "rssfeed" metadata file.
     """
     allowable_suffixes = [".xbrl"]
 
+    rssfeed_path = instance_path / "rssfeed"
+    if not rssfeed_path.exists():
+        raise ValueError(
+            f"Could not find an 'rssfeed' metadata file in {instance_path}. "
+            "get_instances() expects a directory of XBRL filings to include "
+            "the 'rssfeed' file bundled by FERC's archiving process -- see "
+            "its docstring."
+        )
+    publication_times, taxonomy_versions = _parse_rssfeed_metadata(
+        rssfeed_path.read_bytes()
+    )
+
+    return [
+        InstanceBuilder(
+            str(instance),
+            instance.stem,
+            publication_time=publication_times[instance.name],
+            taxonomy_version=taxonomy_versions[instance.name],
+        )
+        for instance in sorted(instance_path.iterdir())
+        if instance.suffix in allowable_suffixes
+    ]
+
+
+def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
+    """Get list of instances from a zipfile or directory of XBRL filings.
+
+    Both a zip archive (or in-memory equivalent) and a plain directory are
+    supported, as long as an "rssfeed" metadata file is present -- FERC's
+    archiving process bundles one into every zip archive automatically, and
+    it's still there if you unzip one without discarding it. Each filing's
+    publication_time and taxonomy_version are derived from that file; without
+    it there's no reliable way to determine them, which is why a bare single
+    filing (with no "rssfeed" of its own) isn't supported.
+
+    Args:
+        instance_path: Path to a zipfile or directory of XBRL filings, or an
+            in-memory zip archive.
+    """
     if isinstance(instance_path, io.BytesIO):
         return instances_from_zip(instance_path)
 
@@ -468,17 +549,10 @@ def get_instances(instance_path: Path | io.BytesIO) -> list[InstanceBuilder]:
     if instance_path.suffix == ".zip":
         return instances_from_zip(instance_path)
 
-    # Single instance
-    if instance_path.is_file():
-        instances = [instance_path]
-    # Directory of instances
-    else:
-        # Must be either a directory or file
-        assert instance_path.is_dir()  # nosec: B101
-        instances = sorted(instance_path.iterdir())
+    if instance_path.is_dir():
+        return instances_from_directory(instance_path)
 
-    return [
-        InstanceBuilder(str(instance), instance.name.rstrip(instance.suffix))
-        for instance in sorted(instances)
-        if instance.suffix in allowable_suffixes
-    ]
+    raise ValueError(
+        f"Expected a zipfile or directory of XBRL filings, got {instance_path}. "
+        "get_instances() only supports those two input types -- see its docstring."
+    )

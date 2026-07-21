@@ -105,6 +105,22 @@ repos:
         pass_filenames: false
         always_run: true
         entry: hatch run test:unit
+      # Type check with ty. This has to be a local hook rather than the official
+      # astral-sh/ty-pre-commit repo: that hook shells out to `uv check`, which needs
+      # network access to resolve the project's dependencies, and pre-commit.ci
+      # disables network access during hook execution. Running it through the hatch
+      # lint environment (which already has every dependency installed) avoids that
+      # entirely -- but since pre-commit.ci can't run this hook either way (see
+      # `ci.skip` below), it's enforced in CI via a dedicated step in pytest.yml
+      # instead.
+      - id: ty
+        name: ty
+        stages: [pre-commit]
+        language: system
+        verbose: false
+        pass_filenames: false
+        always_run: true
+        entry: hatch run types:check
 
 ########################################################################################
 # Configuration for pre-commit.ci
@@ -118,5 +134,5 @@ ci:
   autoupdate_branch: main
   autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
   autoupdate_schedule: weekly
-  skip: [unit-tests]
+  skip: [unit-tests, ty]
   submodules: false

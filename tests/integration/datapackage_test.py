@@ -4,6 +4,7 @@ import datetime
 import io
 import zipfile
 from pathlib import Path
+from typing import BinaryIO, cast
 
 import pandas as pd
 import pytest
@@ -39,7 +40,9 @@ def test_datapackage_generation(test_dir, data_dir):
             archive.open(version, mode="r") as f,
         ):
             taxonomies[version] = Taxonomy.from_source(
-                f,
+                # ZipFile.open() is typed IO[bytes] in typeshed, but the ZipExtFile
+                # it actually returns satisfies BinaryIO at runtime.
+                cast(BinaryIO, f),
                 entry_point=Path(entry_point),
             )
     datapackage = Datapackage.from_taxonomies(taxonomies, "sqlite:///test_db.sqlite")
@@ -58,6 +61,29 @@ def test_datapackage_generation(test_dir, data_dir):
     assert len(all_tables) == 255
 
     assert Package.validate_descriptor(datapackage.model_dump(by_alias=True))
+
+
+def test_taxonomy_from_source_accepts_path(tmp_path, data_dir):
+    """Taxonomy.from_source() also accepts a bare Path, not just an open file.
+
+    Every other caller in this repo already has an open file object in hand
+    (from a zip archive being processed elsewhere) and uses that, so this
+    branch -- reading the whole archive into memory itself -- isn't otherwise
+    exercised. ferc1-xbrl-taxonomies.zip is a zip-of-zips (one per taxonomy
+    version), so extract the specific per-version zip to a real file on disk
+    first, since that's the granularity from_source() actually expects.
+    """
+    version = "form-1-2022-01-01.zip"
+    with zipfile.ZipFile(data_dir / "ferc1-xbrl-taxonomies.zip") as archive:
+        taxonomy_zip_path = tmp_path / version
+        taxonomy_zip_path.write_bytes(archive.read(version))
+
+    taxonomy = Taxonomy.from_source(
+        taxonomy_zip_path,
+        entry_point=Path("taxonomy/form1/2022-01-01/form/form1/form-1_2022-01-01.xsd"),
+    )
+
+    assert len(taxonomy.roles) > 0
 
 
 def _create_schema(instant=True, axes=None):

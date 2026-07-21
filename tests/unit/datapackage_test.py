@@ -1,14 +1,35 @@
 """Test XBRL extraction interface."""
 
+import datetime
 import logging
 
 import pandas as pd
 import pytest
 
-from ferc_xbrl_extractor.datapackage import Resource, clean_table_names, fuzzy_dedup
+from ferc_xbrl_extractor.datapackage import (
+    Dialect,
+    FactTable,
+    Field,
+    Resource,
+    Schema,
+    clean_table_names,
+    fuzzy_dedup,
+)
+from ferc_xbrl_extractor.instance import Fact, Instance
 from ferc_xbrl_extractor.taxonomy import LinkRole
 
 logger = logging.getLogger(__name__)
+
+
+def _make_resource(schema: Schema) -> Resource:
+    return Resource(
+        path="db",
+        name="table",
+        dialect=Dialect(table="table"),
+        title="Table",
+        description="A table",
+        schema=schema,
+    )
 
 
 @pytest.mark.parametrize(
@@ -121,19 +142,19 @@ def test_columns_from_concepts(link_role, duration_column_names, instant_column_
     instant_resource = Resource.from_link_role(link_role, "instant", "test_path")
 
     # Verify column names are correct
-    duration_columns = {field.name: field for field in duration_resource.schema_.fields}
-    instant_columns = {field.name: field for field in instant_resource.schema_.fields}
+    duration_columns = {field.name: field for field in duration_resource.schema_.fields}  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    instant_columns = {field.name: field for field in instant_resource.schema_.fields}  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
     assert duration_column_names == set(duration_columns.keys())
     assert instant_column_names == set(instant_columns.keys())
 
     # Verify data types
-    assert duration_columns.get("duration_concept").type_ == "string"
-    assert duration_columns.get("duration_concept_int").type_ == "integer"
+    assert duration_columns.get("duration_concept").type_ == "string"  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    assert duration_columns.get("duration_concept_int").type_ == "integer"  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
-    assert instant_columns.get("instant_concept").type_ == "string"
-    assert instant_columns.get("child_concept").type_ == "year"
-    assert instant_columns.get("concept_bool").type_ == "boolean"
+    assert instant_columns.get("instant_concept").type_ == "string"  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    assert instant_columns.get("child_concept").type_ == "year"  # ty:ignore[unresolved-attribute] -- pre-existing gap
+    assert instant_columns.get("concept_bool").type_ == "boolean"  # ty:ignore[unresolved-attribute] -- pre-existing gap
 
 
 def test_fuzzy_dedup():
@@ -213,3 +234,59 @@ def test_clean_table_names(input_name: str, cleaned_name: str | None, is_bad: bo
             clean_table_names(input_name)
     else:
         assert clean_table_names(input_name) == cleaned_name
+
+
+def test_merge_resources_rejects_incompatible_primary_keys():
+    """Resource.merge_resources() rejects tables with mismatched primary keys.
+
+    This can happen if a table's structure changed enough between taxonomy
+    versions that its primary key itself differs, which isn't something we can
+    meaningfully merge.
+    """
+    schema_a = Schema(
+        primary_key=["date"],
+        fields=[Field(name="date", title="Date", description="date")],
+    )
+    schema_b = Schema(
+        primary_key=["date", "extra_axis"],
+        fields=[
+            Field(name="date", title="Date", description="date"),
+            Field(name="extra_axis", title="Extra Axis", description="extra"),
+        ],
+    )
+    resource_a = _make_resource(schema_a)
+    resource_b = _make_resource(schema_b)
+
+    with pytest.raises(RuntimeError, match="incompatible schemas"):
+        resource_a.merge_resources(resource_b, other_version="form-1-2023-01-01.zip")
+
+
+def test_construct_dataframe_with_no_matching_facts():
+    """FactTable.construct_dataframe() handles an instance with no matching facts.
+
+    Returns an empty, but correctly shaped (indexed on the primary key) dataframe,
+    rather than erroring.
+    """
+    schema = Schema(
+        primary_key=["date"],
+        fields=[Field(name="date", title="Date", description="date")],
+    )
+    fact_table = FactTable(schema=schema, period_type="instant")
+
+    instance = Instance(
+        contexts={},
+        instant_facts={},
+        duration_facts={
+            "report_date": [
+                Fact(name="report_date", c_id="context_1", value="2022-08-12")
+            ]
+        },
+        filing_name="test_instance",
+        taxonomy_version="form-1-2022-01-01.zip",
+        publication_time=datetime.datetime(2023, 10, 20, 0, 1, 2),
+    )
+
+    df = fact_table.construct_dataframe(instance)
+
+    assert df.empty
+    assert df.index.names == ["date"]

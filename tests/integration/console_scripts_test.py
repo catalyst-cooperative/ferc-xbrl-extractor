@@ -123,6 +123,41 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
 
 
 @pytest.mark.script_launch_mode("inprocess")
+def test_extract_example_filings_default_duckdb_path(script_runner, tmp_path, test_dir):
+    """Test that omitting --duckdb-path still produces a DuckDB output.
+
+    Regression test: run_main() used to unconditionally call
+    convert_duckdb_into_parquet() with duckdb_path=None whenever --duckdb-path was
+    omitted, which crashed with duckdb.InvalidInputException. It now defaults to
+    the sqlite path with a .duckdb suffix instead.
+    """
+    form_number = 1
+    output_dir = tmp_path
+    sqlite_path = tmp_path / f"ferc{form_number}-2021-sample.sqlite"
+    data_dir = test_dir / "integration" / "data"
+
+    ret = script_runner.run(
+        [
+            "xbrl_extract",
+            str(data_dir / f"ferc{form_number}-xbrl-2021.zip"),
+            "--output-dir",
+            str(output_dir),
+            "--sqlite-path",
+            str(sqlite_path),
+            "--taxonomy",
+            str(data_dir / f"ferc{form_number}-xbrl-taxonomies.zip"),
+            "--form-number",
+            1,
+            "--workers",
+            1,
+        ]
+    )
+
+    assert ret.success
+    assert (tmp_path / f"ferc{form_number}-2021-sample.duckdb").exists()
+
+
+@pytest.mark.script_launch_mode("inprocess")
 def test_extract_example_filings_bad_form(script_runner, tmp_path, test_dir):
     """Test the XBRL extraction on the example filings.
 

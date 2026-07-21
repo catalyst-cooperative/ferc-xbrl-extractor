@@ -1,7 +1,27 @@
 import pandas as pd
 from lxml.etree import XMLSyntaxError  # nosec: B410
 
-from ferc_xbrl_extractor.xbrl import process_batch
+from ferc_xbrl_extractor.xbrl import process_batch, process_instance
+
+
+def test_process_instance(mocker):
+    """process_instance() builds a dict of dataframes from the requested tables.
+
+    process_batch() is the only other caller, and only exercises this indirectly
+    via a ProcessPoolExecutor worker subprocess (see data_quality_test.py), whose
+    execution coverage.py doesn't capture -- so this needs its own direct test.
+    Table construction itself is FactTable.construct_dataframe()'s job (tested
+    separately), so this just checks the looping/dict-building contract.
+    """
+    instance = mocker.Mock(filing_name="test_filing")
+    fake_df = pd.DataFrame({"value": [1, 2, 3]})
+    table_def = mocker.Mock()
+    table_def.construct_dataframe.return_value = fake_df
+
+    result = process_instance(instance, table_defs={"my_table": table_def})
+
+    assert result == {"my_table": fake_df}
+    table_def.construct_dataframe.assert_called_once_with(instance)
 
 
 def test_process_batch(mocker):
@@ -17,7 +37,7 @@ def test_process_batch(mocker):
 
         def parse(self):
             if self.raise_exception:
-                raise XMLSyntaxError("message", 1, 0, 0)
+                raise XMLSyntaxError("message", 1, 0, 0)  # ty:ignore[invalid-argument-type, too-many-positional-arguments] -- pre-existing gap
             return self
 
     test_data = {
@@ -59,7 +79,11 @@ def test_process_batch(mocker):
         for table in table_defs
     }
 
-    results = process_batch(instances, table_defs)
+    # MockInstanceBuilder and the list[str] table_defs are deliberately loose
+    # stand-ins: process_instance is mocked out below, so neither argument's real
+    # structure is ever exercised, and building real InstanceBuilder/FactTable
+    # fixtures here wouldn't test anything more.
+    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type]
 
     for table in table_defs:
         pd.testing.assert_frame_equal(

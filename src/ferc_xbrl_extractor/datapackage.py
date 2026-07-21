@@ -420,7 +420,7 @@ class FactTable:
         instance.used_fact_ids |= {f.f_id() for f in raw_facts}
 
         if not raw_facts:
-            return pd.DataFrame(columns=self.columns.keys()).set_index(
+            return pd.DataFrame(columns=list(self.columns.keys())).set_index(
                 self.schema.primary_key
             )
 
@@ -443,10 +443,17 @@ class FactTable:
 
         facts["publication_time"] = instance.publication_time
 
-        contexts = facts.index.to_series().apply(
-            lambda c_id: pd.Series(
+        # Building this via DataFrame.from_records() instead of
+        # `facts.index.to_series().apply(lambda c_id: pd.Series(...))` avoids
+        # constructing one pd.Series per row -- profiling showed that per-row
+        # apply() accounting for ~20% of total extraction time, since it runs
+        # once per context per fact table per filing.
+        contexts = pd.DataFrame.from_records(
+            [
                 instance.contexts[c_id].as_primary_key(instance.filing_name, self.axes)
-            )
+                for c_id in facts.index
+            ],
+            index=facts.index,
         )
 
         return (

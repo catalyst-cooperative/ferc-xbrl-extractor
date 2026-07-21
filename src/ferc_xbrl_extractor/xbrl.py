@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from concurrent.futures import ProcessPoolExecutor as Executor
 from functools import partial
 from pathlib import Path
+from typing import BinaryIO, TypedDict, cast
 from zipfile import ZipFile
 
 import numpy as np
@@ -25,9 +26,16 @@ from ferc_xbrl_extractor.taxonomy import Taxonomy, get_metadata_from_taxonomies
 ExtractOutput = namedtuple("ExtractOutput", ["table_defs", "table_data", "stats"])
 
 
+class BatchResult(TypedDict):
+    """Dataframes and metadata extracted from one batch of instances."""
+
+    dfs: dict[str, pd.DataFrame]
+    metadata: dict[str, dict]
+
+
 def extract(
     filings: list[Path] | list[io.BytesIO],
-    taxonomy_source: Path | io.BytesIO,
+    taxonomy_source: str | Path | io.BytesIO,
     form_number: int,
     db_uri: str,
     datapackage_path: Path | None = None,
@@ -40,7 +48,9 @@ def extract(
     """Extract fact tables from instance documents as Pandas dataframes.
 
     Args:
-        filings: list of filings or zip files with filings.
+        filings: list of zip files (or in-memory equivalents) containing filings,
+            or directories of already-unzipped filings including the "rssfeed"
+            metadata file -- see get_instances.
         taxonomy_source: either a URL/path to taxonomy or in memory archive of
             taxonomy.
         form_number: the FERC form number (1, 2, 6, 60, 714).
@@ -139,7 +149,7 @@ def table_data_from_instances(
 def process_batch(
     instance_builders: Iterable[InstanceBuilder],
     table_defs: dict[str, FactTable],
-) -> tuple[dict[str, pd.DataFrame], set[str]]:
+) -> BatchResult:
     """Extract data from one batch of instances.
 
     Splitting instances into batches significantly improves multiprocessing
@@ -176,9 +186,9 @@ def process_batch(
             category=FutureWarning,
             message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated.",
         )
-        dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
+        concatenated_dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
 
-    return {"dfs": dfs, "metadata": metadata}
+    return {"dfs": concatenated_dfs, "metadata": metadata}
 
 
 def process_instance(
@@ -207,12 +217,12 @@ def process_instance(
 
 
 def get_fact_tables(
-    taxonomy_source: Path | io.BytesIO,
+    taxonomy_source: str | Path | io.BytesIO,
     form_number: int,
     db_uri: str,
     filter_tables: set[str] | None = None,
-    datapackage_path: str | None = None,
-    metadata_path: str | None = None,
+    datapackage_path: str | Path | None = None,
+    metadata_path: str | Path | None = None,
 ) -> dict[str, FactTable]:
     """Parse taxonomy from URL.
 
@@ -246,12 +256,17 @@ def get_fact_tables(
             logger = get_logger(__name__)
             logger.info(f"Parsing taxonomy from {taxonomy_version}")
             with taxonomy_archive.open(taxonomy_version, mode="r") as f:
-                taxonomy_date = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version).group(
+                taxonomy_date = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version).group(  # ty:ignore[unresolved-attribute] -- pre-existing gap
                     0
                 )
 
                 taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
-                taxonomy = Taxonomy.from_source(f, entry_point=taxonomy_entry_point)
+                # ZipFile.open() is typed IO[bytes] in typeshed, but the ZipExtFile
+                # it actually returns satisfies BinaryIO at runtime -- the stub is
+                # just imprecise here.
+                taxonomy = Taxonomy.from_source(
+                    cast(BinaryIO, f), entry_point=taxonomy_entry_point
+                )
                 taxonomies[taxonomy_version] = taxonomy
 
     datapackage = Datapackage.from_taxonomies(
