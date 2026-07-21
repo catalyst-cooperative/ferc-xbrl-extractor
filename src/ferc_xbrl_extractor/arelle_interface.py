@@ -2,17 +2,20 @@
 
 import time
 from pathlib import Path
-from typing import BinaryIO, Literal
+from typing import BinaryIO, Literal, cast
 
 import pydantic
 import stringcase
 from arelle import Cntlr, FileSource, ModelManager, ModelXbrl, XbrlConst
 from arelle.ModelDtsObject import ModelConcept
+from arelle.ModelObject import ModelObject
 from arelle.ViewFileRelationshipSet import ViewRelationshipSet
 from pydantic import BaseModel
 
 
-def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: int = 7):
+def _taxonomy_view(
+    taxonomy_source: str | FileSource.FileSource, max_retries: int = 7
+) -> tuple[ModelXbrl.ModelXbrl, ViewRelationshipSet]:
     """Use Arelle to load a taxonomy and build its parent-child relationship view.
 
     As it parses a taxonomy, Arelle downloads the schema/linkbase files it
@@ -44,17 +47,20 @@ def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: in
     """
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
+    # Arelle types `logger` as `Logger | None` since it's unset until `startLogging()`
+    # runs -- which we just did, so it's populated from here on.
+    assert cntlr.logger is not None
     model_manager = ModelManager.initialize(cntlr)
     for try_count in range(max_retries):
         try:
-            cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")
             taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
             break
         except FileExistsError as e:
             if (try_count + 1) == max_retries:
                 raise e
             backoff = 2 ** (try_count + 1)
-            cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")  # ty:ignore[unresolved-attribute] -- pre-existing gap
+            cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")
             time.sleep(backoff)
 
     view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
@@ -63,7 +69,9 @@ def _taxonomy_view(taxonomy_source: str | FileSource.FileSource, max_retries: in
     return taxonomy, view
 
 
-def load_taxonomy(path: str | Path):
+def load_taxonomy(
+    path: str | Path,
+) -> tuple[ModelXbrl.ModelXbrl, ViewRelationshipSet]:
     """Load XBRL taxonomy, and parse relationships.
 
     Args:
@@ -74,7 +82,9 @@ def load_taxonomy(path: str | Path):
     return _taxonomy_view(source)
 
 
-def load_taxonomy_from_archive(taxonomy_archive: BinaryIO, entry_point: str | Path):
+def load_taxonomy_from_archive(
+    taxonomy_archive: BinaryIO, entry_point: str | Path
+) -> tuple[ModelXbrl.ModelXbrl, ViewRelationshipSet]:
     """Load an XBRL taxonomy from a zipfile archive.
 
     Args:
@@ -142,7 +152,10 @@ class Metadata(BaseModel):
         name = stringcase.snakecase(concept.name)
         concept_metadata = {"name": name}
 
-        references = concept.modelXbrl.relationshipSet(  # ty:ignore[unresolved-attribute] -- pre-existing gap
+        # A loaded Concept always belongs to a ModelXbrl -- only unset on freestanding
+        # prototype objects, which don't reach this code path.
+        assert concept.modelXbrl is not None
+        references = concept.modelXbrl.relationshipSet(
             XbrlConst.conceptReference
         ).fromModelObject(concept)
 
@@ -150,16 +163,26 @@ class Metadata(BaseModel):
         reference_dict = {}
         for reference in references:
             reference = reference.toModelObject
-            reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)  # ty:ignore[unresolved-attribute] -- pre-existing gap
-            # Several values can make up a single reference. Create a dictionary with these
+            assert reference is not None
+            assert reference.modelXbrl is not None
+            reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)
+            # Several values can make up a single reference. Create a dictionary with these.
+            # iterchildren() is inherited from lxml's generic `_Element`, but Arelle
+            # registers its own element class, so children are actually `ModelObject`s
+            # with `localName`/`stringValue` attributes lxml's stubs don't know about.
             part_dict = {
-                part.localName: part.stringValue  # ty:ignore[unresolved-attribute] -- pre-existing gap
-                for part in reference.iterchildren()  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                cast(ModelObject, part).localName: cast(ModelObject, part).stringValue
+                for part in reference.iterchildren()
             }
 
             # There can also be several references with the same name, so store in list
             if reference_name in reference_dict:
-                reference_dict[reference_name].append(part_dict)
+                # `reference_dict[reference_name]` can be flattened to a bare `str`
+                # below (see comment), so its declared type is `list[dict] | str`, but
+                # `ty` can't confirm that a *previously* flattened entry never recurs
+                # here. Pre-existing behavior, unrelated to Arelle's own typing --
+                # flagged separately as a possible latent bug, not fixed by this change.
+                reference_dict[reference_name].append(part_dict)  # ty:ignore[unresolved-attribute]
             else:
                 reference_dict[reference_name] = [part_dict]
 
@@ -175,15 +198,20 @@ class Metadata(BaseModel):
         concept_metadata["references"] = reference_dict
 
         # Get calculations
-        calculations = concept.modelXbrl.relationshipSet(  # ty:ignore[unresolved-attribute] -- pre-existing gap
+        calculations = concept.modelXbrl.relationshipSet(
             XbrlConst.summationItem
         ).fromModelObject(concept)
 
         calculation_list = []
         for calculation in calculations:
+            assert calculation.toModelObject is not None
+            # summation-item relationships always link concept to concept, but
+            # `toModelObject` is typed as the generic `ModelObject` base class, which
+            # doesn't declare `.name` -- only its `ModelConcept` subclass does.
+            calc_concept = cast(ModelConcept, calculation.toModelObject)
             calculation_list.append(
                 {
-                    "name": stringcase.snakecase(calculation.toModelObject.name),  # ty:ignore[unresolved-attribute] -- pre-existing gap
+                    "name": stringcase.snakecase(calc_concept.name),
                     "weight": calculation.weight,
                 }
             )
@@ -191,4 +219,6 @@ class Metadata(BaseModel):
         concept_metadata["calculations"] = calculation_list
         concept_metadata["balance"] = concept.balance
 
-        return cls(**concept_metadata)  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        # Arelle types `balance` as a plain `str`, wider than our `Literal["credit",
+        # "debit"] | None` -- pydantic validates the actual value at construction time.
+        return cls(**concept_metadata)  # ty:ignore[invalid-argument-type]
