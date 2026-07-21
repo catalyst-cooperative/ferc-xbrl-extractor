@@ -37,7 +37,12 @@ class XBRLType(BaseModel):
     @classmethod
     def from_arelle_type(cls, arelle_type: ModelType) -> "XBRLType":
         """Construct XBRLType class from arelle ModelType."""
-        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
+        assert arelle_type.name is not None
+        # Arelle types `baseXsdType` as a plain `str`, wider than our `base` Literal --
+        # pydantic validates the actual value at construction time.
+        return cls(
+            name=arelle_type.name, base=arelle_type.baseXsdType.lower()
+        )  # ty:ignore[invalid-argument-type]
 
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
@@ -94,12 +99,21 @@ class Concept(BaseModel):
 
         concept = concept_dict[concept_list[1]["name"]]
 
+        assert concept.name is not None
+        standard_label = concept.label(XbrlConst.standardLabel)
+        assert standard_label is not None
+        documentation = concept.label(XbrlConst.documentationLabel)
+        assert documentation is not None
+        assert concept.type is not None
+
         return cls(
             name=concept.name,
-            standard_label=concept.label(XbrlConst.standardLabel),
-            documentation=concept.label(XbrlConst.documentationLabel),
+            standard_label=standard_label,
+            documentation=documentation,
             type=XBRLType.from_arelle_type(concept.type),
-            period_type=concept.periodType,
+            # Arelle types `periodType` as a plain `str`, wider than our Literal --
+            # pydantic validates the actual value at construction time.
+            period_type=concept.periodType,  # ty:ignore[invalid-argument-type]
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],

@@ -140,6 +140,8 @@ def test_columns_from_concepts(link_role, duration_column_names, instant_column_
     link_role = LinkRole(**link_role)
     duration_resource = Resource.from_link_role(link_role, "duration", "test_path")
     instant_resource = Resource.from_link_role(link_role, "instant", "test_path")
+    assert duration_resource is not None
+    assert instant_resource is not None
 
     # Verify column names are correct
     duration_columns = {field.name: field for field in duration_resource.schema_.fields}
@@ -148,13 +150,14 @@ def test_columns_from_concepts(link_role, duration_column_names, instant_column_
     assert duration_column_names == set(duration_columns.keys())
     assert instant_column_names == set(instant_columns.keys())
 
-    # Verify data types
-    assert duration_columns.get("duration_concept").type_ == "string"
-    assert duration_columns.get("duration_concept_int").type_ == "integer"
+    # Verify data types -- indexing (rather than .get()) so a missing key raises
+    # instead of silently comparing None, and so the type isn't Optional.
+    assert duration_columns["duration_concept"].type_ == "string"
+    assert duration_columns["duration_concept_int"].type_ == "integer"
 
-    assert instant_columns.get("instant_concept").type_ == "string"
-    assert instant_columns.get("child_concept").type_ == "year"
-    assert instant_columns.get("concept_bool").type_ == "boolean"
+    assert instant_columns["instant_concept"].type_ == "string"
+    assert instant_columns["child_concept"].type_ == "year"
+    assert instant_columns["concept_bool"].type_ == "boolean"
 
 
 def test_fuzzy_dedup():
