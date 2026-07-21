@@ -67,6 +67,16 @@ Fix ``get_instances()`` input handling
   input types now raise a clear ``ValueError`` on invalid input instead of
   crashing.
 
+Resolve most Arelle/frictionless ``ty:ignore`` comments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Resolved most remaining ``# ty:ignore`` comments with real narrowing fixes
+  rather than the type stub package originally proposed in** :issue:`443`
+  **(it turned out not to be the right tool for nearly any of them), then
+  raised overall type annotation coverage and shipped a ``py.typed`` marker**
+  so downstream consumers' type checkers can rely on this package's inline
+  types.
+
 Test suite cleanup
 ^^^^^^^^^^^^^^^^^^^
 

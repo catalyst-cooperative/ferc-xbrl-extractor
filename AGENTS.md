@@ -66,14 +66,18 @@ considering a change complete, and `hatch run lint:format` if it touched Python 
     `pyproject.toml`) and applied automatically by `hatch run lint:format` / the
     `ruff-check` and `ruff-format` pre-commit hooks. Don't hand-format code to match a
     personal preference that conflicts with what `ruff format` produces.
-- `ty` is configured (see `[tool.ty.src]`, which checks both `src` and `tests`) and
-    runnable via `hatch run types:check`, but is **not yet enforced** in pre-commit or
-    CI -- adopting it surfaced ~70 pre-existing errors (mostly around
-    `arelle-release`'s untyped API), and turning on enforcement plus deciding how to
-    handle that backlog (fix vs. suppress with `# ty: ignore[rule-name]`) is deferred
-    to a dedicated follow-up PR, kept out of unrelated changes here. Don't add
-    `ty: ignore` comments in this repo yet -- there's no enforcement to suppress
-    against, so they'd just be dead code until that follow-up PR lands.
+- Type checking is done with `ty` (see `[tool.ty.src]`, which checks both `src` and
+    `tests`), enforced as a blocking check both locally (pre-commit) and in CI. New
+    code should be typed cleanly, with no new `# ty:ignore` comments to paper over
+    genuinely new type errors -- if you must suppress a real false positive, use a
+    `# ty: ignore[rule-name]` comment with a short note explaining *why*, not just
+    that it is one. `arelle-release` ships no `py.typed` marker but `ty` reads its
+    inline types anyway; most Arelle-related errors are real `X | None` unions, fixed
+    with `assert x is not None` rather than a suppression or a type stub package. For
+    `Literal`-typed fields populated from an untyped external `str`, prefer letting
+    `pydantic` validate the value at construction and suppress the resulting
+    `ty:ignore` with a comment to that effect, rather than chasing it statically.
+
 - Docstrings use the Google convention (`[tool.ruff.lint.pydocstyle]`).
 - Direct runtime `dependencies` in `pyproject.toml` should stay loosely
     version-constrained (lower bounds only, no upper bounds unless there's a known
@@ -108,7 +112,11 @@ considering a change complete, and `hatch run lint:format` if it touched Python 
     `1.Y.Z (Unreleased)` section at the top of the file (create it, copying the
     format of the most recent released section, if it doesn't exist yet). Reference
     the relevant PR and/or issue number using the `sphinx-issues` roles, e.g.
-    `` :pr:`123` `` / `` :issue:`123` ``.
+    `` :pr:`123` `` / `` :issue:`123` ``. Keep each bullet to one concise,
+    intent-focused sentence -- describe *what changed and why*, not an enumeration
+    of every file or line touched; that's what the PR diff and commit messages are
+    for. This has been a recurring correction, so treat a multi-sentence bullet as a
+    sign to cut it down before committing.
 - Don't trust the file's existing top section number alone to know what the next
     version is -- it can lag behind reality. Run `git tag --sort=-v:refname | head -1`
     to find the actual most-recently-released version, and base the next number on
