@@ -2,7 +2,7 @@
 
 import re
 from collections.abc import Callable
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 import pandas as pd
 import pydantic
@@ -340,7 +340,7 @@ class Resource(BaseModel):
 
         return resource_schema
 
-    def get_period_type(self):
+    def get_period_type(self) -> Literal["instant", "duration"]:
         """Helper function to get period type from schema."""
         period_type = "instant" if "date" in self.schema_.primary_key else "duration"
         return period_type

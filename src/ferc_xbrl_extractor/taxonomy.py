@@ -229,7 +229,7 @@ class Taxonomy(BaseModel):
         cls,
         taxonomy_source: Path | BinaryIO,
         entry_point: str | Path,
-    ):
+    ) -> "Taxonomy":
         """Construct taxonomy from taxonomy URL.
 
         Use Arelle to parse a taxonomy from a URL or local file path. The

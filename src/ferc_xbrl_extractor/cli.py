@@ -19,7 +19,7 @@ from ferc_xbrl_extractor import xbrl
 from ferc_xbrl_extractor.helpers import get_logger
 
 
-def parse():
+def parse() -> argparse.Namespace:
     """Process base commands from the CLI."""
     parser = argparse.ArgumentParser(
         description="Extract data from XBRL filings to SQLite or DuckDB."
@@ -97,14 +97,18 @@ def parse():
     return parser.parse_args()
 
 
-def write_to_sqlite(sqlite_engine: Engine, table_name: str, table_data: pd.DataFrame):
+def write_to_sqlite(
+    sqlite_engine: Engine, table_name: str, table_data: pd.DataFrame
+) -> None:
     """Write one table to a SQLite database."""
     # Write to SQLite
     with sqlite_engine.begin() as sqlite_conn:
         table_data.to_sql(table_name, sqlite_conn, if_exists="replace")
 
 
-def write_to_duckdb(duckdb_path: str | Path, table_name: str, table_data: pd.DataFrame):
+def write_to_duckdb(
+    duckdb_path: str | Path, table_name: str, table_data: pd.DataFrame
+) -> None:
     """Write one table to a duckdb database."""
     table_data = table_data.reset_index()
     with duckdb.connect(duckdb_path) as duckdb_conn:
@@ -143,7 +147,7 @@ def run_main(
     logfile: Path | None,
     requested_tables: list[str] | None = None,
     instance_pattern: str = r"",
-):
+) -> None:
     """Log setup, taxonomy finding, and SQL IO."""
     logger = get_logger("ferc_xbrl_extractor")
     logger.setLevel(loglevel)
@@ -195,7 +199,7 @@ def run_main(
     write_datapackage(datapackage=datapackage_parquet, output_dir=parquet_dir)
 
 
-def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path):
+def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path) -> None:
     """Convert the duckdb into a directory of parquet files.
 
     We do this using COPY. We tried using EXPORT DATABASE, but it unfortunately
@@ -237,7 +241,7 @@ def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -
     return datapackage
 
 
-def write_datapackage(datapackage: dict, output_dir: Path):
+def write_datapackage(datapackage: dict, output_dir: Path) -> None:
     """Write a datapackage to <output_dir>/datapackage.json.
 
     output_dir must exist.
@@ -246,7 +250,7 @@ def write_datapackage(datapackage: dict, output_dir: Path):
         f.write(json.dumps(datapackage, indent=2))
 
 
-def main():
+def main() -> None:
     """Parse arguments and pass to run_main."""
     return run_main(**vars(parse()))
 
