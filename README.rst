@@ -32,7 +32,7 @@ FERC XBRL Extractor
    :target: https://pypi.org/project/catalystcoop.ferc-xbrl-extractor/
    :alt: Supported Python Versions
 
-.. :image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
    :target: https://github.com/astral-sh/ruff
    :alt: Formatted by ruff
 
@@ -258,6 +258,11 @@ Some of the available commands:
 
 Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__, and type checked
 using `ty <https://docs.astral.sh/ty/>`__, both configured in ``pyproject.toml``.
+
+**Type annotations are encouraged but not required everywhere** -- this is a gradually
+typed codebase, not a strictly typed one. Annotating a function or variable is
+optional, but whatever annotations *are* present must be internally consistent, or
+``ty check`` will fail; it's a blocking check in both pre-commit and CI.
 
 PUDL Sustainers
 ---------------
