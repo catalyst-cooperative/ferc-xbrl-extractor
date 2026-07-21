@@ -16,9 +16,9 @@ jobs:
     name: Auto-merge passing bot PRs
     runs-on: ubuntu-latest
     if: >-
-      github.actor == 'dependabot[bot]' ||
-      github.actor == 'pre-commit-ci[bot]' ||
-      github.actor == 'catalyst-workflow-triggerer[bot]'
+      github.event.pull_request.user.login == 'dependabot[bot]' ||
+      github.event.pull_request.user.login == 'pre-commit-ci[bot]' ||
+      github.event.pull_request.user.login == 'catalyst-workflow-triggerer[bot]'
     steps:
       - name: Impersonate auto merge PR bot
         uses: actions/create-github-app-token@v3
