@@ -177,12 +177,20 @@ class Metadata(BaseModel):
 
             # There can also be several references with the same name, so store in list
             if reference_name in reference_dict:
+                existing_entry = reference_dict[reference_name]
                 # `reference_dict[reference_name]` can be flattened to a bare `str`
-                # below (see comment), so its declared type is `list[dict] | str`, but
-                # `ty` can't confirm that a *previously* flattened entry never recurs
-                # here. Pre-existing behavior, unrelated to Arelle's own typing --
-                # flagged separately as a possible latent bug, not fixed by this change.
-                reference_dict[reference_name].append(part_dict)  # ty:ignore[unresolved-attribute]
+                # below (see comment) the *first* time a reference_name occurs with a
+                # single, name-matching part. If that same reference_name recurs after
+                # being flattened, this logic can't represent both shapes at once --
+                # turn what would otherwise be a cryptic `AttributeError` into a
+                # legible one so this gets noticed and investigated if it ever
+                # actually happens with real FERC filing data.
+                assert isinstance(existing_entry, list), (
+                    f"Reference {reference_name!r} was flattened to a single value for "
+                    "an earlier reference on this concept, but recurred here -- the "
+                    "flattening logic below can't represent both shapes."
+                )
+                existing_entry.append(part_dict)
             else:
                 reference_dict[reference_name] = [part_dict]
 
