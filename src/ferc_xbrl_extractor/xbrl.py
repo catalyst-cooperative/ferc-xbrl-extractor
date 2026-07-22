@@ -141,7 +141,11 @@ def table_data_from_instances(
                 category=FutureWarning,
                 message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated",
             )
-            filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
+            # Concatenating the (already-consolidated) per-batch frames re-fragments
+            # the result, same reasoning as the .copy() in process_batch below.
+            filings = {
+                table: pd.concat(dfs).copy() for table, dfs in results["dfs"].items()
+            }
         metadata = results["metadata"]
         return filings, metadata
 
@@ -186,7 +190,13 @@ def process_batch(
             category=FutureWarning,
             message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated.",
         )
-        concatenated_dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
+        # pd.concat of many single-filing frames leaves the result internally
+        # fragmented (one block per input frame); .copy() consolidates it into
+        # a single block per column so downstream ops (reset_index, merge,
+        # to_sql, ...) don't repeatedly trip pandas' PerformanceWarning.
+        concatenated_dfs = {
+            key: pd.concat(df_list).copy() for key, df_list in dfs.items()
+        }
 
     return {"dfs": concatenated_dfs, "metadata": metadata}
 
