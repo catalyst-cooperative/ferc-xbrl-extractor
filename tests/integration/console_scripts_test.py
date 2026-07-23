@@ -41,6 +41,21 @@ def _find_empty_tables(db_conn, tables: set[str]) -> list[str]:
     return empty_tables
 
 
+def test_find_empty_tables():
+    """_find_empty_tables() flags zero-row tables and leaves populated ones alone.
+
+    The real extraction tests below only ever assert that *no* table came back
+    empty, so this branch was never actually exercised -- a real (if
+    minimal) DuckDB connection here forces it, rather than mocking.
+    """
+    with duckdb.connect(":memory:") as conn:
+        conn.execute("CREATE TABLE populated (x INTEGER)")
+        conn.execute("INSERT INTO populated VALUES (1)")
+        conn.execute("CREATE TABLE empty (x INTEGER)")
+
+        assert _find_empty_tables(conn, {"populated", "empty"}) == ["empty"]
+
+
 def _get_sqlite_df(db_conn, table: str) -> pd.DataFrame:
     df = db_conn.table(table).df()
     return df.astype(

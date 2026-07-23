@@ -56,7 +56,7 @@ def test_context():
                 "start_date": None,
                 "end_date": "2020-01-01",
             },
-        }  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        }
     )
 
 

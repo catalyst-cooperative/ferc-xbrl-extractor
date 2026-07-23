@@ -1,8 +1,9 @@
 """Define structures for creating a datapackage descriptor."""
 
+import logging
 import re
 from collections.abc import Callable
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 import pandas as pd
 import pydantic
@@ -13,7 +14,7 @@ from ferc_xbrl_extractor.helpers import get_logger
 from ferc_xbrl_extractor.instance import Instance
 from ferc_xbrl_extractor.taxonomy import Concept, LinkRole, Taxonomy
 
-logger = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 
 class Field(BaseModel):
@@ -48,7 +49,7 @@ class Field(BaseModel):
         return hash(self.name)
 
 
-ENTITY_ID = Field(
+ENTITY_ID: Field = Field(
     name="entity_id",
     title="Entity Identifier",
     type="string",
@@ -58,14 +59,14 @@ ENTITY_ID = Field(
 Field representing an entity ID (Present in all tables).
 """
 
-FILING_NAME = Field(
+FILING_NAME: Field = Field(
     name="filing_name", title="Filing Name", type="string", description="Name of filing"
 )
 """
 Field representing the filing name (Present in all tables).
 """
 
-PUBLICATION_TIME = Field(
+PUBLICATION_TIME: Field = Field(
     name="publication_time",
     title="Publication Time",
     type="date",
@@ -75,7 +76,7 @@ PUBLICATION_TIME = Field(
 Field representing the publication time (injected into all tables).
 """
 
-START_DATE = Field(
+START_DATE: Field = Field(
     name="start_date",
     title="Start Date",
     type="date",
@@ -85,7 +86,7 @@ START_DATE = Field(
 Field representing start date (Present in all duration tables).
 """
 
-END_DATE = Field(
+END_DATE: Field = Field(
     name="end_date",
     title="End Date",
     type="date",
@@ -95,7 +96,7 @@ END_DATE = Field(
 Field representing end date (Present in all duration tables).
 """
 
-INSTANT_DATE = Field(
+INSTANT_DATE: Field = Field(
     name="date", title="Instant Date", type="date", description="Date of instant period"
 )
 """
@@ -139,12 +140,14 @@ CONVERT_DTYPES: dict[str, Callable] = {
 Map callables to schema field type to convert parsed values (Data Package `field.type`).
 """
 
-TABLE_NAME_PATTERN = re.compile(r"(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I)
+TABLE_NAME_PATTERN: re.Pattern[str] = re.compile(
+    r"(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I
+)
 """
 Simple regex pattern used to clean up table names.
 """
 
-UPPERCASE_WORD_PATTERN = re.compile("[^A-Z][A-Z]([A-Z]+)")
+UPPERCASE_WORD_PATTERN: re.Pattern[str] = re.compile("[^A-Z][A-Z]([A-Z]+)")
 """
 Regex pattern to find fully uppercase words.
 
@@ -340,7 +343,7 @@ class Resource(BaseModel):
 
         return resource_schema
 
-    def get_period_type(self):
+    def get_period_type(self) -> Literal["instant", "duration"]:
         """Helper function to get period type from schema."""
         period_type = "instant" if "date" in self.schema_.primary_key else "duration"
         return period_type
@@ -397,16 +400,20 @@ class FactTable:
 
     def __init__(self, schema: Schema, period_type: str):
         """Create FactTable and prepare for constructing dataframe."""
-        self.schema = schema
+        self.schema: Schema = schema
         # Map column names to function to convert parsed values
-        self.columns = {field.name: field.type_ for field in schema.fields}
-        self.axes = [name for name in schema.primary_key if name.endswith("axis")]
-        self.data_columns = [
+        self.columns: dict[str, str] = {
+            field.name: field.type_ for field in schema.fields
+        }
+        self.axes: list[str] = [
+            name for name in schema.primary_key if name.endswith("axis")
+        ]
+        self.data_columns: list[str] = [
             field.name
             for field in schema.fields
             if field.name not in schema.primary_key
         ]
-        self.instant = period_type == "instant"
+        self.instant: bool = period_type == "instant"
 
     def construct_dataframe(self, instance: Instance) -> pd.DataFrame:
         """Construct dataframe from a parsed XBRL instance.

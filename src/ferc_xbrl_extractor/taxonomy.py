@@ -37,7 +37,10 @@ class XBRLType(BaseModel):
     @classmethod
     def from_arelle_type(cls, arelle_type: ModelType) -> "XBRLType":
         """Construct XBRLType class from arelle ModelType."""
-        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())  # ty:ignore[invalid-argument-type] -- pre-existing gap
+        assert arelle_type.name is not None
+        # Arelle types `baseXsdType` as a plain `str`, wider than our `base` Literal --
+        # pydantic validates the actual value at construction time.
+        return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())  # pyrefly: ignore[bad-argument-type]
 
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
@@ -94,12 +97,21 @@ class Concept(BaseModel):
 
         concept = concept_dict[concept_list[1]["name"]]
 
+        assert concept.name is not None
+        standard_label = concept.label(XbrlConst.standardLabel)
+        assert standard_label is not None
+        documentation = concept.label(XbrlConst.documentationLabel)
+        assert documentation is not None
+        assert concept.type is not None
+
         return cls(
-            name=concept.name,  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            standard_label=concept.label(XbrlConst.standardLabel),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            documentation=concept.label(XbrlConst.documentationLabel),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            type=XBRLType.from_arelle_type(concept.type),  # ty:ignore[invalid-argument-type] -- pre-existing gap
-            period_type=concept.periodType,  # ty:ignore[invalid-argument-type] -- pre-existing gap
+            name=concept.name,
+            standard_label=standard_label,
+            documentation=documentation,
+            type=XBRLType.from_arelle_type(concept.type),
+            # Arelle types `periodType` as a plain `str`, wider than our Literal --
+            # pydantic validates the actual value at construction time.
+            period_type=concept.periodType,  # pyrefly: ignore[bad-argument-type]
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],
@@ -217,7 +229,7 @@ class Taxonomy(BaseModel):
         cls,
         taxonomy_source: Path | BinaryIO,
         entry_point: str | Path,
-    ):
+    ) -> "Taxonomy":
         """Construct taxonomy from taxonomy URL.
 
         Use Arelle to parse a taxonomy from a URL or local file path. The
