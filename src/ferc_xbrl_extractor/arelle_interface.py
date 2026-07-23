@@ -237,4 +237,4 @@ class Metadata(BaseModel):
 
         # Arelle types `balance` as a plain `str`, wider than our `Literal["credit",
         # "debit"] | None` -- pydantic validates the actual value at construction time.
-        return cls(**concept_metadata)  # pyrefly: ignore[missing-argument]
+        return cls(**concept_metadata)

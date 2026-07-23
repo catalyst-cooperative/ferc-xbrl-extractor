@@ -11,74 +11,66 @@ Release Notes
 Modernize tooling and packaging
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Switched from mypy to pyrefly** for type checking. mypy had been declared as a
-  dependency but never actually wired into CI or pre-commit, so this is the first
-  time type checking is enforced here, at pyrefly's ``basic`` preset. Pre-existing
-  type gaps (mostly around ``arelle-release``, which ships without type stubs) are
-  suppressed inline with ``# pyrefly: ignore`` comments pending a follow-up typing
-  cleanup. An 85% type annotation coverage floor across ``src/`` is also enforced
-  via ``pyrefly coverage check``, with ``hatch run types:coverage-report``
-  available to print a human-readable, per-module breakdown of the same metric.
-* **Fixed real bugs that adopting a type checker surfaced**, rather than just
-  suppressing them: wrong return-type annotations on ``Instance.get_facts()`` and
-  ``process_batch()``, several functions typed narrower (``Path``-only) than
-  what they're actually called with, and missing ``None`` checks around
-  ``lxml`` element lookups. Also fixed a real crash this work turned up:
-  ``run_main()`` called ``convert_duckdb_into_parquet()`` unconditionally even
-  when ``--duckdb-path`` was never passed, which crashed with
-  ``duckdb.InvalidInputException`` -- including via the simplest example
-  command in the README. ``--duckdb-path`` now defaults to the sqlite path
-  with a ``.duckdb`` suffix instead.
 * **Switched from pre-commit to prek** as the hook runner, and added several new
   hooks: ``detect-secrets``, ``typos``, ``actionlint``, ``markdownlint-cli2``, and
-  ``taplo-format``, among others.
+  ``taplo-format``, among others. :pr:`442`
 * **Simplified packaging**: removed ``MANIFEST.in`` and the vestigial
   ``[tool.setuptools]`` configuration left over from before the switch to
-  hatchling.
-* **Migrated documentation hosting from Read the Docs to GitHub Pages**, publishing
-  only the latest version rather than a full version history.
+  hatchling. :pr:`442`
+* **Migrated documentation hosting from Read the Docs to GitHub Pages**, see
+  `https://docs.catalyst.coop/ferc-xbrl-extractor <https://docs.catalyst.coop/ferc-xbrl-extractor>`__.
+  :pr:`442`
 * **Switched the documentation theme from furo to pydata-sphinx-theme**, matching
   the look and feel of our other documentation sites, including shared social
-  links in the footer.
+  links in the footer. :pr:`442`
 * **Added ``llms.txt`` and per-page Markdown alternates** (via ``sphinx-llm``) to
-  make the documentation more easily consumable by LLM agents.
+  make the documentation more easily consumable by LLM agents. :pr:`442`
 * **Wired up CodeCov coverage reporting** with a repo-specific ``.codecov.yml``.
+  :pr:`442`
 * **Grouped Dependabot PRs** for both Python and GitHub Actions dependencies to
-  reduce bot PR noise.
+  reduce bot PR noise. :pr:`442`
 * Simplified the bot auto-merge workflow, and added a guard to the release
   workflow that verifies a release tag points at the current head of ``main``
-  before building.
+  before building. :pr:`442`
 * Switched release notifications from Slack to Zulip. :pr:`434`
 * Routine dependency and GitHub Actions version bumps.
 
-Fix ``get_instances()`` input handling
+Add static type checking with pyrefly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Type checking is now enforced** using `pyrefly <https://pyrefly.org>`__ as a
+  blocking check in both pre-commit and CI, along with a 95% type annotation coverage
+  floor across ``src/`` -- ``hatch run types:coverage-report`` prints a human-readable,
+  per-module breakdown of that metric. The goal is to catch bugs, make future changes
+  safer, and help support IDEs and LLMs in parsing the codebase. The package now also
+  ships a ``py.typed`` marker indicating consumers can rely on inline types. :pr:`447`
+  :issue:`443`
+
+Bug fixes
+^^^^^^^^^
+
+Adding type checking (see above) surfaced several bugs.
 
 * **Fixed a long-standing crash in ``get_instances()``'s directory and bare-file
   input modes**, and removed the bare-file mode, which can't be fixed. Both had
   always crashed with a confusing ``TypeError``: they never supplied the
   ``InstanceBuilder`` constructor with a filing's publication time and taxonomy
   version, which are otherwise derived from an ``rssfeed`` metadata file FERC's
-  archiving process bundles into zip archives alongside the filings. Adopting
-  type checking surfaced the bug (a call missing required constructor
-  arguments). The **directory mode is now fixed for real**, reading that same
-  ``rssfeed`` file from disk instead of from inside a zip -- useful for local
-  debugging, where it's convenient to edit filings directly rather than
-  repackaging them into a zip after every change. The **bare single-file mode is
-  removed**: a lone filing has no room for an accompanying ``rssfeed`` file, so
-  there's no way to determine its publication time or taxonomy version. Both
-  input types now raise a clear ``ValueError`` on invalid input instead of
-  crashing.
-
-Resolve most Arelle/frictionless type-ignore comments
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-* **Resolved most remaining type-ignore comments with real narrowing fixes
-  rather than the type stub package originally proposed in** :issue:`443`
-  **(it turned out not to be the right tool for nearly any of them), then
-  raised overall type annotation coverage and shipped a ``py.typed`` marker**
-  so downstream consumers' type checkers can rely on this package's inline
-  types.
+  archiving process bundles into zip archives alongside the filings. The
+  **directory mode now works**, reading that same ``rssfeed`` file
+  from disk instead of from inside a zip -- useful for local debugging, where
+  it's convenient to edit filings directly rather than repackaging them into a
+  zip after every change. The **bare single-file mode is removed**: a lone
+  filing has no room for an accompanying ``rssfeed`` file, so there's no way to
+  determine its publication time or taxonomy version. Both input types now
+  raise a clear ``ValueError`` on invalid input instead of crashing. :pr:`444`
+* **Fixed a crash in ``run_main()``** that occurred whenever ``--duckdb-path``
+  wasn't passed on the CLI -- including via the simplest example command in
+  the README. ``--duckdb-path`` now defaults to the sqlite path with a
+  ``.duckdb`` suffix instead. :pr:`444`
+* **Fixed a taxonomy-loading retry loop** that could have raised a confusing
+  ``UnboundLocalError`` instead of a clear error if ever called with
+  ``max_retries < 1``. :pr:`447`
 
 Test suite cleanup
 ^^^^^^^^^^^^^^^^^^^
