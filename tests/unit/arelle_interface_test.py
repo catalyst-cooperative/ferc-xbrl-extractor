@@ -5,6 +5,19 @@ import pytest
 import ferc_xbrl_extractor.arelle_interface as arelle_interface
 
 
+@pytest.mark.parametrize("max_retries", [0, -1])
+def test_taxonomy_view_rejects_non_positive_max_retries(max_retries):
+    """_taxonomy_view() rejects max_retries < 1 instead of looping zero times.
+
+    Regression test for a bug a stricter pyrefly preset caught: with
+    max_retries < 1, the retry loop's body -- the only place `taxonomy` gets
+    assigned -- would never run, so the code after the loop would crash with a
+    confusing UnboundLocalError instead of a clear error.
+    """
+    with pytest.raises(ValueError, match="max_retries must be at least 1"):
+        arelle_interface._taxonomy_view("fake_source", max_retries=max_retries)
+
+
 def test_taxonomy_view_retries_then_raises_after_max_retries(mocker):
     """_taxonomy_view() retries with exponential backoff, then re-raises.
 

@@ -249,20 +249,26 @@ Some of the available commands:
     hatch run lint:check
     # Format code
     hatch run lint:format
-    # Type check with ty
+    # Type check with pyrefly
     hatch run types:check
+    # Check type annotation coverage stays at or above 85%
+    hatch run types:coverage-check
+    # Print a human-readable type coverage report, module by module
+    hatch run types:coverage-report
     # Build documentation
     hatch run docs:build
     # Check documentation formatting
     hatch run docs:check
 
 Code style is enforced using `ruff <https://docs.astral.sh/ruff/>`__, and type checked
-using `ty <https://docs.astral.sh/ty/>`__, both configured in ``pyproject.toml``.
+using `pyrefly <https://pyrefly.org/>`__, both configured in ``pyproject.toml``.
 
 **Type annotations are encouraged but not required everywhere** -- this is a gradually
 typed codebase, not a strictly typed one. Annotating a function or variable is
 optional, but whatever annotations *are* present must be internally consistent, or
-``ty check`` will fail; it's a blocking check in both pre-commit and CI.
+``pyrefly check`` will fail; it's a blocking check in both pre-commit and CI, along
+with a floor of 85% type annotation coverage across ``src/``, enforced by
+``pyrefly coverage check``.
 
 PUDL Sustainers
 ---------------
