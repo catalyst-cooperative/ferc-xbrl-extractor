@@ -12,6 +12,10 @@ FERC XBRL Extractor
    :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/pytest.yml
    :alt: pytest status
 
+.. image:: https://img.shields.io/github/actions/workflow/status/catalyst-cooperative/ferc-xbrl-extractor/pytest.yml?branch=main&label=pyrefly
+   :target: https://github.com/catalyst-cooperative/ferc-xbrl-extractor/actions/workflows/pytest.yml
+   :alt: pyrefly type checking status
+
 .. image:: https://img.shields.io/codecov/c/github/catalyst-cooperative/ferc-xbrl-extractor?style=flat&logo=codecov
    :target: https://codecov.io/gh/catalyst-cooperative/ferc-xbrl-extractor
    :alt: Codecov Test Coverage
@@ -251,7 +255,7 @@ Some of the available commands:
     hatch run lint:format
     # Type check with pyrefly
     hatch run types:check
-    # Check type annotation coverage stays at or above 85%
+    # Check type annotation coverage stays at or above 95%
     hatch run types:coverage-check
     # Print a human-readable type coverage report, module by module
     hatch run types:coverage-report
@@ -267,7 +271,7 @@ using `pyrefly <https://pyrefly.org/>`__, both configured in ``pyproject.toml``.
 typed codebase, not a strictly typed one. Annotating a function or variable is
 optional, but whatever annotations *are* present must be internally consistent, or
 ``pyrefly check`` will fail; it's a blocking check in both pre-commit and CI, along
-with a floor of 85% type annotation coverage across ``src/``, enforced by
+with a floor of 95% type annotation coverage across ``src/``, enforced by
 ``pyrefly coverage check``.
 
 PUDL Sustainers

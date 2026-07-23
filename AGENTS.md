@@ -49,7 +49,7 @@ will use most:
 - `hatch run lint:format` -- reformat code and auto-fix lint issues with `ruff`.
 - `hatch run types:check` -- type check with `pyrefly` (separate, non-detached env
     from `lint`; see "Gotchas" below).
-- `hatch run types:coverage-check` -- enforce the 85% type-coverage floor on `src/`.
+- `hatch run types:coverage-check` -- enforce the 95% type-coverage floor on `src/`.
     `types:coverage-report` prints the same metric as a human-readable per-module
     table instead of raw JSON.
 - `hatch run docs:build` -- build the documentation with Sphinx into
@@ -67,9 +67,9 @@ change complete, and `hatch run lint:format` if it touched Python code.
     `pyproject.toml`) and applied automatically by `hatch run lint:format` / the
     `ruff-check` and `ruff-format` pre-commit hooks. Don't hand-format code to match a
     personal preference that conflicts with what `ruff format` produces.
-- Type checking uses `pyrefly` at the `basic` preset (`[tool.pyrefly]`), blocking in
-    pre-commit and CI, plus the 85% `src/` type-coverage floor above. New code should
-    be typed cleanly; suppress a genuine false positive with
+- Type checking uses `pyrefly` at the `default` preset (`[tool.pyrefly]`), blocking
+    in pre-commit and CI, plus the 95% `src/` type-coverage floor above. New code
+    should be typed cleanly; suppress a genuine false positive with
     `# pyrefly: ignore[rule-name]` and a short note explaining *why*, not just that
     it is one -- e.g. for `arelle-release` fields typed as plain `str` but narrower
     in our models, prefer letting `pydantic` validate the value at construction and

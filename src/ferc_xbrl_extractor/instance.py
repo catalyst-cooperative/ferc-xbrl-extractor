@@ -41,12 +41,14 @@ class Period(BaseModel):
         """Construct Period from XML element."""
         instant = elem.find(f"{{{XBRL_INSTANCE}}}instant")
         if instant is not None:
+            assert instant.text is not None
             return cls(instant=True, end_date=instant.text)
 
         start_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}startDate")
         end_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}endDate")
         assert start_date_elem is not None
         assert end_date_elem is not None
+        assert end_date_elem.text is not None
         return cls(
             instant=False,
             start_date=start_date_elem.text,
@@ -87,10 +89,13 @@ class Axis(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Axis":
         """Construct Axis from XML element."""
+        # A parsed element's tag is always a plain str; only an as-yet-unparsed,
+        # freshly-constructed element could have a QName tag instead.
+        assert isinstance(elem.tag, str)
         if elem.tag.endswith("explicitMember"):
             return cls(
                 name=elem.attrib["dimension"],
-                value=elem.text,
+                value=elem.text or "",
                 dimension_type=DimensionType.EXPLICIT,
             )
 
@@ -98,7 +103,7 @@ class Axis(BaseModel):
             dim = elem[0]
             return cls(
                 name=elem.attrib["dimension"],
-                value=dim.text if dim.text else "",
+                value=dim.text or "",
                 dimension_type=DimensionType.TYPED,
             )
 
@@ -126,6 +131,7 @@ class Entity(BaseModel):
 
         identifier_elem = elem.find(f"{{{XBRL_INSTANCE}}}identifier")
         assert identifier_elem is not None
+        assert identifier_elem.text is not None
 
         return cls(
             identifier=identifier_elem.text,
@@ -227,6 +233,9 @@ class Fact(BaseModel):
         """Construct Fact from XML element."""
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
+        # A parsed element's tag is always a plain str; only an as-yet-unparsed,
+        # freshly-constructed element could have a QName tag instead.
+        assert isinstance(elem.tag, str)
         return cls(
             name=stringcase.snakecase(elem.tag.replace(prefix, "")),  # Strip prefix
             c_id=elem.attrib["contextRef"],

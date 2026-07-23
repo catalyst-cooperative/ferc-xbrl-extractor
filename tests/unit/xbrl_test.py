@@ -37,7 +37,14 @@ def test_process_batch(mocker):
 
         def parse(self):
             if self.raise_exception:
-                raise XMLSyntaxError("message", 1, 0, 0)
+                # lxml's stub for XMLSyntaxError.__init__ only declares 2 of the 4
+                # positional args the real (C-implemented) constructor accepts.
+                raise XMLSyntaxError(
+                    "message",
+                    1,
+                    0,
+                    0,
+                )
             return self
 
     test_data = {

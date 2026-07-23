@@ -90,7 +90,7 @@ tests = [
     "ruff>=0.15.22", # A very fast linter and autofixer
 ]
 types = [
-    "lxml-stubs>=0.5", # Type stubs for lxml, which ships without inline types
+    "types-lxml>=2026.1.1", # Type stubs for lxml, which ships without inline types.
     "pyrefly>=1.1.1", # Fast Rust-based Python type checker, from Meta
 ]
 
@@ -171,12 +171,11 @@ features = ["tests", "types"]
 
 [tool.hatch.envs.types.scripts]
 check = "pyrefly check"
-# Coverage is only measured (and the 85% floor enforced) against src/, not tests/:
+# Coverage is only measured (and the 95% floor enforced) against src/, not tests/:
 # pyrefly can't derive stable per-module names for the test suite (no importable
 # package layout the same way src/ has), so a project-wide run reports those files
-# under a single "__unknown__" bucket and tanks the overall percentage. Restricting
-# to src/ also matches the 85% figure this floor was originally set from.
-coverage-check = "pyrefly coverage check --fail-under 85 src"
+# under a single "__unknown__" bucket and tanks the overall percentage.
+coverage-check = "pyrefly coverage check --fail-under 95 src"
 coverage-report = "pyrefly coverage report src | python scripts/pyrefly_coverage_summary.py"
 
 [tool.hatch.envs.docs]
@@ -308,15 +307,7 @@ ignore-path = ["docs/_build"]
 
 [tool.pyrefly]
 project-includes = ["src", "tests"]
-# "basic" is comparable in strictness to what ty enforced -- diagnostics for parse
-# errors and a small set of high-confidence, locally-fixable checks, but not the
-# stricter override/annotation-completeness/call-shape checks "strict" adds. Revisit
-# this over time as the codebase's annotation coverage grows.
-preset = "basic"
-
-# No explicit python-version setting -- pyrefly already infers it from
-# `project.requires-python` above, so pinning it again here would just be tracking
-# the same version in two places.
+preset = "default"
 
 [tool.pytest]
 testpaths = ["./"]
