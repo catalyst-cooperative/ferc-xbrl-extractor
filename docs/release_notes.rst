@@ -11,13 +11,16 @@ Release Notes
 Modernize tooling and packaging
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Switched from mypy to ty** for type checking. mypy had been declared as a
+* **Switched from mypy to pyrefly** for type checking. mypy had been declared as a
   dependency but never actually wired into CI or pre-commit, so this is the first
-  time type checking is enforced here. Pre-existing type gaps (mostly around
-  ``arelle-release``, which ships without type stubs) are suppressed inline with
-  ``# ty:ignore`` comments pending a follow-up typing cleanup.
-* **Fixed real bugs that adopting ty surfaced**, rather than just suppressing
-  them: wrong return-type annotations on ``Instance.get_facts()`` and
+  time type checking is enforced here, at pyrefly's ``basic`` preset. Pre-existing
+  type gaps (mostly around ``arelle-release``, which ships without type stubs) are
+  suppressed inline with ``# pyrefly: ignore`` comments pending a follow-up typing
+  cleanup. An 85% type annotation coverage floor across ``src/`` is also enforced
+  via ``pyrefly coverage check``, with ``hatch run types:coverage-report``
+  available to print a human-readable, per-module breakdown of the same metric.
+* **Fixed real bugs that adopting a type checker surfaced**, rather than just
+  suppressing them: wrong return-type annotations on ``Instance.get_facts()`` and
   ``process_batch()``, several functions typed narrower (``Path``-only) than
   what they're actually called with, and missing ``None`` checks around
   ``lxml`` element lookups. Also fixed a real crash this work turned up:
@@ -57,7 +60,7 @@ Fix ``get_instances()`` input handling
   ``InstanceBuilder`` constructor with a filing's publication time and taxonomy
   version, which are otherwise derived from an ``rssfeed`` metadata file FERC's
   archiving process bundles into zip archives alongside the filings. Adopting
-  ``ty`` for type checking surfaced the bug (a call missing required constructor
+  type checking surfaced the bug (a call missing required constructor
   arguments). The **directory mode is now fixed for real**, reading that same
   ``rssfeed`` file from disk instead of from inside a zip -- useful for local
   debugging, where it's convenient to edit filings directly rather than
@@ -67,10 +70,10 @@ Fix ``get_instances()`` input handling
   input types now raise a clear ``ValueError`` on invalid input instead of
   crashing.
 
-Resolve most Arelle/frictionless ``ty:ignore`` comments
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Resolve most Arelle/frictionless type-ignore comments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* **Resolved most remaining ``# ty:ignore`` comments with real narrowing fixes
+* **Resolved most remaining type-ignore comments with real narrowing fixes
   rather than the type stub package originally proposed in** :issue:`443`
   **(it turned out not to be the right tool for nearly any of them), then
   raised overall type annotation coverage and shipped a ``py.typed`` marker**

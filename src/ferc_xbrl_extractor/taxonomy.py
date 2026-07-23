@@ -42,7 +42,7 @@ class XBRLType(BaseModel):
         # pydantic validates the actual value at construction time.
         return cls(
             name=arelle_type.name, base=arelle_type.baseXsdType.lower()
-        )  # ty:ignore[invalid-argument-type]
+        )  # pyrefly: ignore[bad-argument-type]
 
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
@@ -113,7 +113,7 @@ class Concept(BaseModel):
             type=XBRLType.from_arelle_type(concept.type),
             # Arelle types `periodType` as a plain `str`, wider than our Literal --
             # pydantic validates the actual value at construction time.
-            period_type=concept.periodType,  # ty:ignore[invalid-argument-type]
+            period_type=concept.periodType,  # pyrefly: ignore[bad-argument-type]
             child_concepts=[
                 Concept.from_list(concept, concept_dict) for concept in concept_list[3:]
             ],

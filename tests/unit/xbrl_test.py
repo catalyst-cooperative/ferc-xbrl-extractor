@@ -83,7 +83,7 @@ def test_process_batch(mocker):
     # stand-ins: process_instance is mocked out below, so neither argument's real
     # structure is ever exercised, and building real InstanceBuilder/FactTable
     # fixtures here wouldn't test anything more.
-    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type]
+    results = process_batch(instances, table_defs)  # pyrefly: ignore[bad-argument-type]
 
     for table in table_defs:
         pd.testing.assert_frame_equal(

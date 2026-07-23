@@ -2,7 +2,7 @@
 
 import time
 from pathlib import Path
-from typing import BinaryIO, Literal, cast
+from typing import Any, BinaryIO, Literal, cast
 
 import pydantic
 import stringcase
@@ -45,12 +45,16 @@ def _taxonomy_view(
         max_retries: Maximum number of load attempts before giving up and
             re-raising the last ``FileExistsError``.
     """
+    if max_retries < 1:
+        raise ValueError(f"max_retries must be at least 1, got {max_retries}")
+
     cntlr = Cntlr.Cntlr()
     cntlr.startLogging(logFileName="logToPrint")
     # Arelle types `logger` as `Logger | None` since it's unset until `startLogging()`
     # runs -- which we just did, so it's populated from here on.
     assert cntlr.logger is not None
     model_manager = ModelManager.initialize(cntlr)
+    taxonomy: ModelXbrl.ModelXbrl | None = None
     for try_count in range(max_retries):
         try:
             cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")
@@ -63,6 +67,10 @@ def _taxonomy_view(
             cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")
             time.sleep(backoff)
 
+    # The loop above always either assigns `taxonomy` and breaks, or raises on its
+    # final iteration -- the guard above guarantees at least one iteration -- but a
+    # static checker can't derive that from `range(max_retries)` alone.
+    assert taxonomy is not None
     view = ViewRelationshipSet(taxonomy, "taxonomy.json", "roles", None, None, None)
     view.view(XbrlConst.parentChild, None, None, None)
 
@@ -150,7 +158,7 @@ class Metadata(BaseModel):
         """
         # Get name and convert to snakecase to match output DB
         name = stringcase.snakecase(concept.name)
-        concept_metadata = {"name": name}
+        concept_metadata: dict[str, Any] = {"name": name}
 
         # A loaded Concept always belongs to a ModelXbrl -- only unset on freestanding
         # prototype objects, which don't reach this code path.
@@ -229,4 +237,4 @@ class Metadata(BaseModel):
 
         # Arelle types `balance` as a plain `str`, wider than our `Literal["credit",
         # "debit"] | None` -- pydantic validates the actual value at construction time.
-        return cls(**concept_metadata)  # ty:ignore[invalid-argument-type]
+        return cls(**concept_metadata)  # pyrefly: ignore[missing-argument]
