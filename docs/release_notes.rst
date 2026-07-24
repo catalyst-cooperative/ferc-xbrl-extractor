@@ -2,6 +2,56 @@
 Release Notes
 =======================================================================================
 
+.. _release-v1-11-0:
+
+---------------------------------------------------------------------------------------
+1.11.0 (Unreleased)
+---------------------------------------------------------------------------------------
+
+Modernize tooling and packaging
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* **Switched from pre-commit to prek** as the hook runner, and added several new
+  hooks: ``detect-secrets``, ``typos``, ``actionlint``, ``markdownlint-cli2``, and
+  ``taplo-format``, among others.
+* **Simplified packaging**: removed ``MANIFEST.in`` and the vestigial
+  ``[tool.setuptools]`` configuration left over from before the switch to
+  hatchling.
+* **Migrated documentation hosting from Read the Docs to GitHub Pages**, publishing
+  only the latest version rather than a full version history.
+* **Switched the documentation theme from furo to pydata-sphinx-theme**, matching
+  the look and feel of our other documentation sites, including shared social
+  links in the footer.
+* **Added ``llms.txt`` and per-page Markdown alternates** (via ``sphinx-llm``) to
+  make the documentation more easily consumable by LLM agents.
+* **Wired up CodeCov coverage reporting** with a repo-specific ``.codecov.yml``.
+* **Grouped Dependabot PRs** for both Python and GitHub Actions dependencies to
+  reduce bot PR noise.
+* Simplified the bot auto-merge workflow, and added a guard to the release
+  workflow that verifies a release tag points at the current head of ``main``
+  before building.
+* Switched release notifications from Slack to Zulip. :pr:`434`
+* Routine dependency and GitHub Actions version bumps.
+
+.. _release-v1-10-0:
+
+---------------------------------------------------------------------------------------
+1.10.0 (2026-05-13)
+---------------------------------------------------------------------------------------
+
+* Stopped generating a resource or table in the output datapackage for XBRL instant or
+  duration tables that are entirely null. :pr:`428`
+
+.. _release-v1-9-0:
+
+---------------------------------------------------------------------------------------
+1.9.0 (2026-05-07)
+---------------------------------------------------------------------------------------
+
+* **Added support for writing extracted XBRL data directly to Parquet files**, in
+  addition to the existing SQLite and DuckDB outputs. :pr:`427`
+* Routine dependency and GitHub Actions version bumps.
+
 .. _release-v1-8-0:
 
 ---------------------------------------------------------------------------------------

@@ -5,16 +5,24 @@
 
 version: 2
 updates:
-  - package-ecosystem: pip
+  - package-ecosystem: uv
     directory: /
     target-branch: main
     labels:
       - dependencies
     schedule:
       interval: weekly
+    groups:
+      uv:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
     target-branch: main
     schedule:
       interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"

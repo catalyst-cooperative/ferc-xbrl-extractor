@@ -79,6 +79,10 @@ def test_extract_example_filings(script_runner, tmp_path, test_dir):
             1,
             "--logfile",
             str(log_file),
+            # Avoid nesting an os.cpu_count()-sized process pool inside a test that
+            # may itself be running as one of several parallel pytest-xdist workers.
+            "--workers",
+            1,
         ]
     )
 

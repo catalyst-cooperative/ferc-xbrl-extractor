@@ -63,7 +63,8 @@ def test_process_batch(mocker):
 
     for table in table_defs:
         pd.testing.assert_frame_equal(
-            expected_dfs[table], results["dfs"][table].reset_index(drop=True)
+            expected_dfs[table],
+            results["dfs"][table].reset_index(drop=True),
         )
 
     metadata = results["metadata"]

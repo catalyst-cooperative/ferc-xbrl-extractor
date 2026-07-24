@@ -1,0 +1,20 @@
+coverage:
+  range: 70..100
+  round: down
+  precision: 1
+
+codecov:
+  # No token here: authentication uses the catalyst-cooperative org's "Global Upload
+  # Token" (set at https://app.codecov.io/account/gh/catalyst-cooperative/org-upload-token),
+  # stored as the CODECOV_TOKEN organization secret in GitHub, shared across all of
+  # our repos rather than minted per-repo. Do not commit a real token here.
+  require_ci_to_pass: true
+  notify:
+    after_n_builds: 1
+    wait_for_ci: true
+
+comment:
+  after_n_builds: 1
+
+github_checks:
+  annotations: false

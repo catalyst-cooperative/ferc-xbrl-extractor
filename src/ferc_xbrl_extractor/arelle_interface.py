@@ -92,7 +92,7 @@ class Calculation(BaseModel):
 class Metadata(BaseModel):
     """Pydantic model that defines metadata extracted from XBRL taxonomies.
 
-    Taxonomies contain various metedata which are useful for interpreting XBRL filings.
+    Taxonomies contain various metadata which are useful for interpreting XBRL filings.
     The metadata fields being extracted here include references, calculations, and balances.
     """
 
