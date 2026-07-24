@@ -78,7 +78,7 @@ repos:
       - id: actionlint
 
   # Spell check our documentation and code comments
-  - repo: https://github.com/adhtruong/mirrors-typos
+  - repo: https://github.com/crate-ci/typos
     rev: v1.48.0
     hooks:
       - id: typos
