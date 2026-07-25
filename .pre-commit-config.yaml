@@ -144,11 +144,5 @@ ci:
   autoupdate_branch: main
   autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
   autoupdate_schedule: weekly
-<<<<<<< HEAD
-  skip: [unit-tests]
-||||||| parent of a5ca313 (Switch from ty to pyrefly for type checking)
-  skip: [unit-tests, ty]
-=======
   skip: [unit-tests, pyrefly, pyrefly-coverage]
->>>>>>> a5ca313 (Switch from ty to pyrefly for type checking)
   submodules: false

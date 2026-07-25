@@ -269,11 +269,13 @@ def get_fact_tables(
             logger = get_logger(__name__)
             logger.info(f"Parsing taxonomy from {taxonomy_version}")
             with taxonomy_archive.open(taxonomy_version, mode="r") as f:
-                taxonomy_date = re.search(
-                    r"\d{4}-\d{2}-\d{2}", taxonomy_version
-                ).group(  # pyrefly: ignore[missing-attribute] -- pre-existing gap
-                    0
-                )
+                match = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version)
+                if match is None:
+                    raise ValueError(
+                        "Could not find a date (YYYY-MM-DD) in taxonomy "
+                        f"filename: {taxonomy_version}"
+                    )
+                taxonomy_date = match.group(0)
 
                 taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
                 # ZipFile.open() is typed IO[bytes] in typeshed, but the ZipExtFile

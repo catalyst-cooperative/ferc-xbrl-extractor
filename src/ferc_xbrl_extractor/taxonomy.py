@@ -41,8 +41,9 @@ class XBRLType(BaseModel):
         # Arelle types `baseXsdType` as a plain `str`, wider than our `base` Literal --
         # pydantic validates the actual value at construction time.
         return cls(
-            name=arelle_type.name, base=arelle_type.baseXsdType.lower()
-        )  # pyrefly: ignore[bad-argument-type]
+            name=arelle_type.name,
+            base=arelle_type.baseXsdType.lower(),  # pyrefly: ignore[bad-argument-type]
+        )
 
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
