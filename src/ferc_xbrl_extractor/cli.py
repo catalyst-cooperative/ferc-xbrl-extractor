@@ -27,7 +27,10 @@ def parse():
     parser.add_argument(
         "filings",
         nargs="+",
-        help="Path to a single XBRL filing, a directory of XBRL filings, or a zipfile containing XBRL filings.",
+        help=(
+            "Path to a zipfile containing XBRL filings, or a directory of "
+            "already-unzipped filings including the 'rssfeed' metadata file."
+        ),
         type=Path,
     )
     parser.add_argument(
@@ -101,7 +104,7 @@ def write_to_sqlite(sqlite_engine: Engine, table_name: str, table_data: pd.DataF
         table_data.to_sql(table_name, sqlite_conn, if_exists="replace")
 
 
-def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame):
+def write_to_duckdb(duckdb_path: str | Path, table_name: str, table_data: pd.DataFrame):
     """Write one table to a duckdb database."""
     table_data = table_data.reset_index()
     with duckdb.connect(duckdb_path) as duckdb_conn:
@@ -113,7 +116,7 @@ def write_to_duckdb(duckdb_path: str, table_name: str, table_data: pd.DataFrame)
 def load_extracted(
     extracted: xbrl.ExtractOutput,
     sqlite_uri: str,
-    duckdb_path: str | None,
+    duckdb_path: str | Path | None,
 ) -> None:
     """Write extracted data to SQLite/Duckdb databases."""
     engine = create_engine(sqlite_uri)
@@ -132,7 +135,7 @@ def run_main(
     taxonomy: str | Path | io.BytesIO,
     output_dir: Path,
     sqlite_path: Path,
-    duckdb_path: Path,
+    duckdb_path: Path | None,
     form_number: int,
     workers: int | None,
     batch_size: int | None,
@@ -148,6 +151,10 @@ def run_main(
     coloredlogs.install(fmt=log_format, level=loglevel, logger=logger)
 
     sqlite_uri = f"sqlite:///{sqlite_path.absolute()}"
+    # Default to writing DuckDB output alongside the SQLite output, unless the user
+    # asked for some other duckdb path.
+    if duckdb_path is None:
+        duckdb_path = sqlite_path.with_suffix(".duckdb")
     datapackage_path = output_dir / f"ferc{form_number}_xbrl_datapackage.json"
     metadata_path = output_dir / f"ferc{form_number}_xbrl_taxonomy_metadata.json"
 
@@ -174,7 +181,7 @@ def run_main(
         filings=filings,
         workers=workers,
         batch_size=batch_size,
-        requested_tables=requested_tables,
+        requested_tables=set(requested_tables) if requested_tables else None,
         instance_pattern=instance_pattern,
     )
     # Save extracted data in SQLite/duckdb

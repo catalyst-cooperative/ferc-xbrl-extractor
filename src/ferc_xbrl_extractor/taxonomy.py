@@ -2,7 +2,7 @@
 
 import io
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, BinaryIO, Literal
 
 import pydantic
 from arelle import XbrlConst
@@ -38,22 +38,6 @@ class XBRLType(BaseModel):
     def from_arelle_type(cls, arelle_type: ModelType) -> "XBRLType":
         """Construct XBRLType class from arelle ModelType."""
         return cls(name=arelle_type.name, base=arelle_type.baseXsdType.lower())
-
-    def get_pandas_type(self) -> str | None:
-        """Return corresponding pandas type.
-
-        Gets a string representation of the pandas type best suited to represent the
-        base type.
-        """
-        if self.base == "string" or self.base == "date" or self.base == "duration":
-            return "string"
-        if self.base == "decimal":
-            return "Float64"
-        if self.base == "gyear" or self.base == "integer":
-            return "Int64"
-        if self.base == "boolean":
-            return "boolean"
-        return None
 
     def get_schema_type(self) -> str:
         """Return string specifying type for a frictionless table schema."""
@@ -145,6 +129,7 @@ class Concept(BaseModel):
         # If concept is leaf node return metadata
         else:
             if period_type == self.period_type:
+                assert self.metadata is not None
                 metadata[self.name] = self.metadata.model_dump()
 
         return metadata
@@ -230,8 +215,8 @@ class Taxonomy(BaseModel):
     @classmethod
     def from_source(
         cls,
-        taxonomy_source: Path | io.BytesIO,
-        entry_point: Path | None = None,
+        taxonomy_source: Path | BinaryIO,
+        entry_point: str | Path,
     ):
         """Construct taxonomy from taxonomy URL.
 
@@ -242,8 +227,7 @@ class Taxonomy(BaseModel):
 
         Args:
             taxonomy_source: Path to taxonomy or in memory archive of taxonomy.
-            entry_point: Path to taxonomy entry point within archive. If not None,
-                then `taxonomy` should be a path to zipfile, not a URL.
+            entry_point: Path to taxonomy entry point within archive.
         """
         if isinstance(taxonomy_source, Path):
             taxonomy_source = io.BytesIO(taxonomy_source.read_bytes())
