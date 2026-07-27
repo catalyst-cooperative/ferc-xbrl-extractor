@@ -308,12 +308,6 @@ ignore-path = ["docs/_build"]
 [tool.pyrefly]
 project-includes = ["src", "tests"]
 preset = "default"
-# Without this, pyrefly falls back to querying `which python3`/`python` on PATH for
-# python-version/site-package-path, which picks up whatever interpreter happens to
-# be first on PATH (e.g. system Python) rather than this project's own venv --
-# pinning it here makes pyrefly's resolution deterministic across the hatch env,
-# a plain CLI invocation, and editor/IDE integrations alike.
-python-interpreter-path = ".venv/bin/python3"
 
 [tool.pytest]
 testpaths = ["./"]
