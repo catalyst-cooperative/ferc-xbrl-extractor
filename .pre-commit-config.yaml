@@ -44,14 +44,14 @@ repos:
   # Formatters: hooks that re-write Python, TOML, YAML, and RST files
   ########################################################################################
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.22
+    rev: v0.16.0
     hooks:
       - id: ruff-check
         args: [--fix, --exit-non-zero-on-fix]
       - id: ruff-format
 
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.9.5
+    rev: v3.9.6
     hooks:
       - id: prettier
         types_or: [yaml]
@@ -106,6 +106,32 @@ repos:
         always_run: true
         entry: hatch run test:unit
 
+      # Type check with pyrefly. This has to be a local hook rather than an official
+      # pre-commit repo for pyrefly: running it through the hatch types environment
+      # (which already has every dependency installed) avoids needing network access
+      # to resolve the project's dependencies, which pre-commit.ci disables during
+      # hook execution -- but since pre-commit.ci can't run this hook either way (see
+      # `ci.skip` below), it's enforced in CI via dedicated steps in pytest.yml
+      # instead.
+      - id: pyrefly
+        name: pyrefly
+        stages: [pre-commit]
+        language: system
+        verbose: false
+        pass_filenames: false
+        always_run: true
+        entry: hatch run types:check
+      # Enforce the 85% type coverage floor recorded in [tool.hatch.envs.types.scripts]
+      # in pyproject.toml.
+      - id: pyrefly-coverage
+        name: pyrefly-coverage
+        stages: [pre-commit]
+        language: system
+        verbose: false
+        pass_filenames: false
+        always_run: true
+        entry: hatch run types:coverage-check
+
 ########################################################################################
 # Configuration for pre-commit.ci
 ########################################################################################
@@ -118,5 +144,5 @@ ci:
   autoupdate_branch: main
   autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
   autoupdate_schedule: weekly
-  skip: [unit-tests]
+  skip: [unit-tests, pyrefly, pyrefly-coverage]
   submodules: false

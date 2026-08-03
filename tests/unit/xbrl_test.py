@@ -1,7 +1,32 @@
+import io
+import zipfile
+
 import pandas as pd
+import pytest
 from lxml.etree import XMLSyntaxError  # nosec: B410
 
-from ferc_xbrl_extractor.xbrl import process_batch, process_instance
+from ferc_xbrl_extractor.xbrl import get_fact_tables, process_batch, process_instance
+
+
+def test_get_fact_tables_rejects_undated_taxonomy_filename():
+    """get_fact_tables() raises a clear error if a taxonomy filename has no date.
+
+    taxonomy_date is parsed out of each zip member's name via regex before the
+    member's contents are ever touched, so this doesn't need a real taxonomy --
+    just a zip archive with a member name that doesn't match the expected
+    YYYY-MM-DD pattern.
+    """
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as archive:
+        archive.writestr("taxonomy/form1/no-date-here/form-1.xsd", "")
+    buf.seek(0)
+
+    with pytest.raises(ValueError, match="Could not find a date"):
+        get_fact_tables(
+            taxonomy_source=buf,
+            form_number=1,
+            db_uri="sqlite:///test.sqlite",
+        )
 
 
 def test_process_instance(mocker):
@@ -37,7 +62,14 @@ def test_process_batch(mocker):
 
         def parse(self):
             if self.raise_exception:
-                raise XMLSyntaxError("message", 1, 0, 0)
+                # lxml's stub for XMLSyntaxError.__init__ only declares 2 of the 4
+                # positional args the real (C-implemented) constructor accepts.
+                raise XMLSyntaxError(
+                    "message",
+                    1,
+                    0,
+                    0,
+                )
             return self
 
     test_data = {
@@ -83,7 +115,7 @@ def test_process_batch(mocker):
     # stand-ins: process_instance is mocked out below, so neither argument's real
     # structure is ever exercised, and building real InstanceBuilder/FactTable
     # fixtures here wouldn't test anything more.
-    results = process_batch(instances, table_defs)  # ty:ignore[invalid-argument-type]
+    results = process_batch(instances, table_defs)  # pyrefly: ignore[bad-argument-type]
 
     for table in table_defs:
         pd.testing.assert_frame_equal(
