@@ -4,6 +4,7 @@ import datetime
 import io
 import itertools
 import json
+import logging
 import zipfile
 from collections import Counter, defaultdict
 from collections.abc import Iterator
@@ -40,12 +41,14 @@ class Period(BaseModel):
         """Construct Period from XML element."""
         instant = elem.find(f"{{{XBRL_INSTANCE}}}instant")
         if instant is not None:
+            assert instant.text is not None
             return cls(instant=True, end_date=instant.text)
 
         start_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}startDate")
         end_date_elem = elem.find(f"{{{XBRL_INSTANCE}}}endDate")
         assert start_date_elem is not None
         assert end_date_elem is not None
+        assert end_date_elem.text is not None
         return cls(
             instant=False,
             start_date=start_date_elem.text,
@@ -86,10 +89,13 @@ class Axis(BaseModel):
     @classmethod
     def from_xml(cls, elem: Element) -> "Axis":
         """Construct Axis from XML element."""
+        # A parsed element's tag is always a plain str; only an as-yet-unparsed,
+        # freshly-constructed element could have a QName tag instead.
+        assert isinstance(elem.tag, str)
         if elem.tag.endswith("explicitMember"):
             return cls(
                 name=elem.attrib["dimension"],
-                value=elem.text,
+                value=elem.text or "",
                 dimension_type=DimensionType.EXPLICIT,
             )
 
@@ -97,7 +103,7 @@ class Axis(BaseModel):
             dim = elem[0]
             return cls(
                 name=elem.attrib["dimension"],
-                value=dim.text if dim.text else "",
+                value=dim.text or "",
                 dimension_type=DimensionType.TYPED,
             )
 
@@ -125,6 +131,7 @@ class Entity(BaseModel):
 
         identifier_elem = elem.find(f"{{{XBRL_INSTANCE}}}identifier")
         assert identifier_elem is not None
+        assert identifier_elem.text is not None
 
         return cls(
             identifier=identifier_elem.text,
@@ -226,6 +233,9 @@ class Fact(BaseModel):
         """Construct Fact from XML element."""
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
+        # A parsed element's tag is always a plain str; only an as-yet-unparsed,
+        # freshly-constructed element could have a QName tag instead.
+        assert isinstance(elem.tag, str)
         return cls(
             name=stringcase.snakecase(elem.tag.replace(prefix, "")),  # Strip prefix
             c_id=elem.attrib["contextRef"],
@@ -277,18 +287,18 @@ class Instance:
             filing_name: Name of parsed filing.
             publication_time: the time at which the filing was made available online.
         """
-        self.logger = get_logger(__name__)
-        self.taxonomy_version = taxonomy_version
-        self.instant_facts = instant_facts
-        self.duration_facts = duration_facts
-        self.fact_id_counts = Counter(
+        self.logger: logging.Logger = get_logger(__name__)
+        self.taxonomy_version: str = taxonomy_version
+        self.instant_facts: dict[str, list[Fact]] = instant_facts
+        self.duration_facts: dict[str, list[Fact]] = duration_facts
+        self.fact_id_counts: Counter[str] = Counter(
             f.f_id()
             for f in itertools.chain.from_iterable(
                 (instant_facts | duration_facts).values()
             )
         )
-        self.total_facts = len(self.fact_id_counts)
-        self.duplicated_fact_ids = [
+        self.total_facts: int = len(self.fact_id_counts)
+        self.duplicated_fact_ids: list[str] = [
             f_id
             for f_id, _ in itertools.takewhile(
                 lambda c: c[1] >= 2, self.fact_id_counts.most_common()
@@ -300,12 +310,14 @@ class Instance:
             )
         self.used_fact_ids: set[str] = set()
 
-        self.filing_name = filing_name
-        self.contexts = contexts
+        self.filing_name: str = filing_name
+        self.contexts: dict[str, Context] = contexts
         if "report_date" in duration_facts:
             report_date_value = duration_facts["report_date"][0].value
             assert report_date_value is not None
-            self.report_date = datetime.date.fromisoformat(report_date_value)
+            self.report_date: datetime.date = datetime.date.fromisoformat(
+                report_date_value
+            )
         else:
             # FERC 714 workaround - though sometimes reports with different
             # publish dates have the same certifying official date.
@@ -313,10 +325,10 @@ class Instance:
                 0
             ].value
             assert certifying_official_date_value is not None
-            self.report_date = datetime.date.fromisoformat(
+            self.report_date: datetime.date = datetime.date.fromisoformat(
                 certifying_official_date_value
             )
-        self.publication_time = publication_time
+        self.publication_time: datetime.datetime = publication_time
 
     def get_facts(
         self, instant: bool, concept_names: list[str], primary_key: list[str]
@@ -357,10 +369,10 @@ class InstanceBuilder:
             name: Name of filing.
             publication_time: Time this filing was published.
         """
-        self.name = name
-        self.file = file_info
-        self.publication_time = publication_time
-        self.taxonomy_version = taxonomy_version
+        self.name: str = name
+        self.file: str | BinaryIO = file_info
+        self.publication_time: datetime.datetime = publication_time
+        self.taxonomy_version: str = taxonomy_version
 
     def parse(self, fact_prefix: str = "ferc") -> Instance:
         """Parse a single XBRL instance using XML library directly.

@@ -96,7 +96,7 @@ def table_data_from_instances(
     table_defs: dict[str, FactTable],
     batch_size: int | None = None,
     workers: int | None = None,
-) -> tuple[dict[str, pd.DataFrame], dict[str, list]]:
+) -> tuple[dict[str, pd.DataFrame], dict[str, dict]]:
     """Turn FactTables into Dataframes by ingesting facts from instances.
 
     To handle lots of instances, we split the instances into batches.
@@ -122,18 +122,22 @@ def table_data_from_instances(
             table_defs=table_defs,
         )
 
-        batched_instances = np.array_split(
-            instance_builders, math.ceil(num_instances / batch_size)
+        # numpy's stubs have no overload for splitting a plain list of arbitrary
+        # objects (only numeric arrays/arrays of a known dtype); it works fine at
+        # runtime, boxing instance_builders into an object array before splitting.
+        batched_instances = np.array_split(  # pyrefly: ignore[no-matching-overload]
+            instance_builders, num_batches
         )
 
         # Use thread pool to extract data from all filings in parallel
-        results = {"dfs": defaultdict(list), "metadata": defaultdict(dict)}
+        dfs_by_table: defaultdict[str, list[pd.DataFrame]] = defaultdict(list)
+        metadata_by_filing: defaultdict[str, dict] = defaultdict(dict)
         for i, batch in enumerate(executor.map(process_batches, batched_instances)):
             logger.info(f"Finished batch {i + 1}/{num_batches}")
             for key, df in batch["dfs"].items():
-                results["dfs"][key].append(df)
+                dfs_by_table[key].append(df)
             for instance_name, fact_ids in batch["metadata"].items():
-                results["metadata"][instance_name] |= fact_ids
+                metadata_by_filing[instance_name] |= fact_ids
 
         with warnings.catch_warnings():
             warnings.filterwarnings(
@@ -141,9 +145,12 @@ def table_data_from_instances(
                 category=FutureWarning,
                 message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated",
             )
-            filings = {table: pd.concat(dfs) for table, dfs in results["dfs"].items()}
-        metadata = results["metadata"]
-        return filings, metadata
+            # Concatenating the (already-consolidated) per-batch frames re-fragments
+            # the result, same reasoning as the .copy() in process_batch below.
+            filings = {
+                table: pd.concat(dfs).copy() for table, dfs in dfs_by_table.items()
+            }
+        return filings, metadata_by_filing
 
 
 def process_batch(
@@ -186,7 +193,13 @@ def process_batch(
             category=FutureWarning,
             message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated.",
         )
-        concatenated_dfs = {key: pd.concat(df_list) for key, df_list in dfs.items()}
+        # pd.concat of many single-filing frames leaves the result internally
+        # fragmented (one block per input frame); .copy() consolidates it into
+        # a single block per column so downstream ops (reset_index, merge,
+        # to_sql, ...) don't repeatedly trip pandas' PerformanceWarning.
+        concatenated_dfs = {
+            key: pd.concat(df_list).copy() for key, df_list in dfs.items()
+        }
 
     return {"dfs": concatenated_dfs, "metadata": metadata}
 
@@ -256,9 +269,13 @@ def get_fact_tables(
             logger = get_logger(__name__)
             logger.info(f"Parsing taxonomy from {taxonomy_version}")
             with taxonomy_archive.open(taxonomy_version, mode="r") as f:
-                taxonomy_date = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version).group(
-                    0
-                )
+                match = re.search(r"\d{4}-\d{2}-\d{2}", taxonomy_version)
+                if match is None:
+                    raise ValueError(
+                        "Could not find a date (YYYY-MM-DD) in taxonomy "
+                        f"filename: {taxonomy_version}"
+                    )
+                taxonomy_date = match.group(0)
 
                 taxonomy_entry_point = f"taxonomy/form{form_number}/{taxonomy_date}/form/form{form_number}/form-{form_number}_{taxonomy_date}.xsd"
                 # ZipFile.open() is typed IO[bytes] in typeshed, but the ZipExtFile

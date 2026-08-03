@@ -47,18 +47,19 @@ will use most:
 - `hatch run lint:check` -- run `ruff check` and `ruff format --check`. Doesn't modify
     files.
 - `hatch run lint:format` -- reformat code and auto-fix lint issues with `ruff`.
-- `hatch run types:check` -- type check with `ty`. This is a separate, non-detached
-    env from `lint` (see "Gotchas" below) because `ty` needs the project's actual
-    runtime dependencies installed to resolve imports. Configured but **not currently
-    enforced** in pre-commit or CI (see "Code style" below) -- still fine to run
-    manually.
+- `hatch run types:check` -- type check with `pyrefly` (separate, non-detached env
+    from `lint`; see "Gotchas" below).
+- `hatch run types:coverage-check` -- enforce the 95% type-coverage floor on `src/`.
+    `types:coverage-report` prints the same metric as a human-readable per-module
+    table instead of raw JSON.
 - `hatch run docs:build` -- build the documentation with Sphinx into
     `docs/_build/html/`. Runs `doc8` first and fails on Sphinx warnings (`-W`).
 - `hatch run docs:check` -- run just the `doc8` formatting check on `docs/` and
     `README.rst`.
 
-An agent should run `hatch run lint:check` and `hatch run test:all` before
-considering a change complete, and `hatch run lint:format` if it touched Python code.
+An agent should run `hatch run lint:check`, `hatch run types:check`,
+`hatch run types:coverage-check`, and `hatch run test:all` before considering a
+change complete, and `hatch run lint:format` if it touched Python code.
 
 ## Code style
 
@@ -66,14 +67,15 @@ considering a change complete, and `hatch run lint:format` if it touched Python 
     `pyproject.toml`) and applied automatically by `hatch run lint:format` / the
     `ruff-check` and `ruff-format` pre-commit hooks. Don't hand-format code to match a
     personal preference that conflicts with what `ruff format` produces.
-- `ty` is configured (see `[tool.ty.src]`, which checks both `src` and `tests`) and
-    runnable via `hatch run types:check`, but is **not yet enforced** in pre-commit or
-    CI -- adopting it surfaced ~70 pre-existing errors (mostly around
-    `arelle-release`'s untyped API), and turning on enforcement plus deciding how to
-    handle that backlog (fix vs. suppress with `# ty: ignore[rule-name]`) is deferred
-    to a dedicated follow-up PR, kept out of unrelated changes here. Don't add
-    `ty: ignore` comments in this repo yet -- there's no enforcement to suppress
-    against, so they'd just be dead code until that follow-up PR lands.
+- Type checking uses `pyrefly` at the `default` preset (`[tool.pyrefly]`), blocking
+    in pre-commit and CI, plus the 95% `src/` type-coverage floor above. New code
+    should be typed cleanly; suppress a genuine false positive with
+    `# pyrefly: ignore[rule-name]` and a short note explaining *why*, not just that
+    it is one -- e.g. for `arelle-release` fields typed as plain `str` but narrower
+    in our models, prefer letting `pydantic` validate the value at construction and
+    note that in the suppression comment, rather than chasing it statically. Only
+    raise the preset (e.g. to `strict`) as its own deliberate change, since it will
+    likely surface a batch of new errors at once.
 - Docstrings use the Google convention (`[tool.ruff.lint.pydocstyle]`).
 - Direct runtime `dependencies` in `pyproject.toml` should stay loosely
     version-constrained (lower bounds only, no upper bounds unless there's a known
@@ -108,7 +110,11 @@ considering a change complete, and `hatch run lint:format` if it touched Python 
     `1.Y.Z (Unreleased)` section at the top of the file (create it, copying the
     format of the most recent released section, if it doesn't exist yet). Reference
     the relevant PR and/or issue number using the `sphinx-issues` roles, e.g.
-    `` :pr:`123` `` / `` :issue:`123` ``.
+    `` :pr:`123` `` / `` :issue:`123` ``. Keep each bullet to one concise,
+    intent-focused sentence -- describe *what changed and why*, not an enumeration
+    of every file or line touched; that's what the PR diff and commit messages are
+    for. This has been a recurring correction, so treat a multi-sentence bullet as a
+    sign to cut it down before committing.
 - Don't trust the file's existing top section number alone to know what the next
     version is -- it can lag behind reality. Run `git tag --sort=-v:refname | head -1`
     to find the actual most-recently-released version, and base the next number on
@@ -151,25 +157,16 @@ considering a change complete, and `hatch run lint:format` if it touched Python 
     Python version via `uv python install`/`uv python pin`. Follow with
     `hatch env prune` to drop any environments already built against the old
     interpreter.
-- The `hatch run lint:*` environment (`[tool.hatch.envs.lint]`) is `detached = true`
-    for speed -- it does *not* install this package or its runtime dependencies, only
-    `ruff` and friends. That's fine for `ruff`, which only needs to parse syntax, but
-    it means `ty` cannot be run from that env (it needs pandas/pydantic/duckdb/etc.
-    actually installed to resolve imports). `ty` lives in its own non-detached
-    `[tool.hatch.envs.types]` env instead -- don't move it back into `lint` without
-    accounting for that.
+- `hatch run lint:*` is `detached = true` (no runtime deps installed), so `ruff`
+    works there but `pyrefly` can't -- it needs pandas/pydantic/duckdb/etc. installed
+    to resolve imports, hence its own non-detached `[tool.hatch.envs.types]` env.
 - `arelle-release` is a large, slow-to-install dependency (it's a full XBRL
     processor). Don't be surprised if `hatch env create` or CI takes a while the first
     time; this is normal, not a hang.
-- The pre-commit/`prek` `unit-tests` hook is a `language: system` local hook that
-    shells out to `hatch run test:unit`, and is in `ci.skip` in
-    `.pre-commit-config.yaml` since pre-commit.ci can't install this project's
-    dependencies -- it's enforced instead as a separate step in
-    `.github/workflows/pytest.yml`. If/when `ty` enforcement is added back (see "Code
-    style" above), give it the same treatment rather than using `ty`'s own
-    `astral-sh/ty-pre-commit` repo hook: that hook shells out to `uv check`, which
-    needs network access to resolve dependencies, and pre-commit.ci disables network
-    access during hook execution.
+- The pre-commit/`prek` `pyrefly`, `pyrefly-coverage`, and `unit-tests` hooks are
+    local `language: system` hooks, which pre-commit.ci can't run -- they're in its
+    `ci.skip` list and enforced instead as separate steps in
+    `.github/workflows/pytest.yml`.
 - `PUDL_DOCS_DISABLE_INTERSPHINX=1` speeds up doc builds and avoids failures when
     external intersphinx targets (numpy, pandas, etc. doc sites) are temporarily
     unreachable. CI sets this for the `docs` workflow; set it locally too if a docs
