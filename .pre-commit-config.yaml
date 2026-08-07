@@ -78,8 +78,9 @@ repos:
       - id: actionlint
 
   # Spell check our documentation and code comments
-  - repo: https://github.com/crate-ci/typos
-    rev: v1
+  # Use the mirror b/c official repo provides bad version pins
+  - repo: https://github.com/adhtruong/mirrors-typos
+    rev: v1.49.0
     hooks:
       - id: typos
         args: [] # Make this read, not write
