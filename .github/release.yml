@@ -2,7 +2,7 @@
 changelog:
   exclude:
     authors:
-      - catalyst-workflow-triggerer
-      - dependabot
-      - pre-commit-ci
+      - catalyst-workflow-triggerer[bot]
+      - dependabot[bot]
+      - pre-commit-ci[bot]
       - pudlbot
