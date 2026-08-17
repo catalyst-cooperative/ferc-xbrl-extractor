@@ -3,6 +3,7 @@ changelog:
   exclude:
     authors:
       - catalyst-workflow-triggerer[bot]
+      - bot-auto-merge-prs[bot]
       - dependabot[bot]
       - pre-commit-ci[bot]
       - pudlbot
