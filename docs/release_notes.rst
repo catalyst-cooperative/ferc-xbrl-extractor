@@ -8,8 +8,8 @@ Release Notes
 1.11.1 (Unreleased)
 ---------------------------------------------------------------------------------------
 
-Bug fixes
-^^^^^^^^^
+Performance Improvements
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Parquet outputs are now written with ZSTD compression at level 3, instead of
   DuckDB's default Snappy compression, for smaller output files. See issue
