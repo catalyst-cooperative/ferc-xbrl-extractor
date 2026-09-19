@@ -15,7 +15,7 @@ from frictionless import Package
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
-from ferc_xbrl_extractor import xbrl
+from ferc_xbrl_extractor import PARQUET_COMPRESSION, PARQUET_COMPRESSION_LEVEL, xbrl
 from ferc_xbrl_extractor.helpers import get_logger
 
 
@@ -214,7 +214,9 @@ def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path) -> None:
         parquet_dir.mkdir(exist_ok=True)
     for table in tables:
         con.execute(
-            f"COPY {table} TO '{parquet_dir}/{table}.parquet' (FORMAT parquet);"
+            f"COPY {table} TO '{parquet_dir}/{table}.parquet' "
+            f"(FORMAT parquet, COMPRESSION {PARQUET_COMPRESSION}, "
+            f"COMPRESSION_LEVEL {PARQUET_COMPRESSION_LEVEL});"
         )
 
 
