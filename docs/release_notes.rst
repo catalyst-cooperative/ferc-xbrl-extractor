@@ -11,7 +11,8 @@ Release Notes
 Bug fixes
 ^^^^^^^^^
 
-* You know there will be some...
+* Parquet outputs are now written with ZSTD compression at level 3, instead of
+  DuckDB's default Snappy compression, for smaller output files. :pr:`461`
 
 .. _release-v1-11-0:
 
