@@ -2,10 +2,23 @@
 Release Notes
 =======================================================================================
 
+.. _release-v1-11-2:
+
+---------------------------------------------------------------------------------------
+1.11.2 (Unreleased)
+---------------------------------------------------------------------------------------
+
+Python Support
+^^^^^^^^^^^^^^
+
+* Added Python 3.15 as a supported version, and added it to the CI test matrix.
+* Removed the upper bound on ``requires-python`` so downstream projects aren't blocked
+  from installing on new Python releases before we've had a chance to test them.
+
 .. _release-v1-11-1:
 
 ---------------------------------------------------------------------------------------
-1.11.1 (Unreleased)
+1.11.1 (2026-09-19)
 ---------------------------------------------------------------------------------------
 
 Performance Improvements

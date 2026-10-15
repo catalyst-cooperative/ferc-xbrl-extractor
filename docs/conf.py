@@ -154,6 +154,10 @@ html_theme_options = {
 # useful, unlike PUDL's much larger documentation tree.
 html_sidebars = {"**": []}
 
+# Not every Sphinx node type (especially those added via extensions) can be rendered by
+# the markdown builder. This is expected. Suppress warnings about those nodes.
+llms_txt_suppress_unknown_node_warnings = True
+
 
 # -- Custom build operations -------------------------------------------------
 def cleanup_rsts(app, exception):
