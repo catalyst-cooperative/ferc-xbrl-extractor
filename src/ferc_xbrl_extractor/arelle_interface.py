@@ -173,6 +173,7 @@ class Metadata(BaseModel):
             reference = reference.toModelObject
             assert reference is not None
             assert reference.modelXbrl is not None
+            assert reference.role is not None
             reference_name = reference.modelXbrl.roleTypeDefinition(reference.role)
             # Several values can make up a single reference. Create a dictionary with these.
             # iterchildren() is inherited from lxml's generic `_Element`, but Arelle
