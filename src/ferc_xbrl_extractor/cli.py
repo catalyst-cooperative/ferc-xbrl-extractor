@@ -5,7 +5,6 @@ import io
 import json
 import logging
 import sys
-from itertools import chain
 from pathlib import Path
 
 import coloredlogs
@@ -206,18 +205,18 @@ def convert_duckdb_into_parquet(duckdb_path: Path, parquet_dir: Path) -> None:
     sanitizes the table names, which removes the schedule numbers in the table
     names so we can't use it.
     """
-    con = duckdb.connect(duckdb_path)
-    tables = con.sql("SHOW TABLES").fetchall()
-    # tables is a list of tuples, so condense the list
-    tables = chain.from_iterable(tables)
     if not parquet_dir.exists():
         parquet_dir.mkdir(exist_ok=True)
-    for table in tables:
-        con.execute(
-            f"COPY {table} TO '{parquet_dir}/{table}.parquet' "
-            f"(FORMAT parquet, COMPRESSION {PARQUET_COMPRESSION}, "
-            f"COMPRESSION_LEVEL {PARQUET_COMPRESSION_LEVEL});"
-        )
+    with duckdb.connect(duckdb_path) as con:
+        # fetchall() fully consumes the result, which DuckDB 2.x requires before
+        # the connection can be used again.
+        tables = [row[0] for row in con.execute("SHOW TABLES").fetchall()]
+        for table in tables:
+            con.execute(
+                f"COPY {table} TO '{parquet_dir}/{table}.parquet' "
+                f"(FORMAT parquet, COMPRESSION {PARQUET_COMPRESSION}, "
+                f"COMPRESSION_LEVEL {PARQUET_COMPRESSION_LEVEL});"
+            )
 
 
 def convert_and_validate_datapackage_sqlite_to_parquet(datapackage_path: Path) -> dict:

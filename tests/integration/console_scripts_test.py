@@ -36,7 +36,9 @@ def _find_empty_tables(db_conn, tables: set[str]) -> list[str]:
     empty_tables = []
     for table_name in tables:
         query = f"SELECT COUNT(*) FROM '{table_name}';"  # noqa: S608
-        if db_conn.execute(query).fetchone()[0] == 0:
+        # Relation.fetchall() reads the full result, so the connection stays
+        # usable on DuckDB 2.x (where fetchone() leaves it busy) as well as 1.x.
+        if db_conn.sql(query).fetchall()[0][0] == 0:
             empty_tables.append(table_name)
     return empty_tables
 
