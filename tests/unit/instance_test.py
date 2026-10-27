@@ -29,34 +29,32 @@ logger = logging.getLogger(__name__)
 def test_context():
     """Create a test Context object."""
     return Context(
-        **{
-            "c_id": "c-01",
-            "entity": {
-                "identifier": "fake_id",
-                "dimensions": [
-                    {
-                        "name": "dimension_1",
-                        "value": "value_1",
-                        "dimension_type": DimensionType.EXPLICIT,
-                    },
-                    {
-                        "name": "dimension_2",
-                        "value": "value_2",
-                        "dimension_type": DimensionType.EXPLICIT,
-                    },
-                    {
-                        "name": "dimension_3",
-                        "value": "value_3",
-                        "dimension_type": DimensionType.EXPLICIT,
-                    },
-                ],
-            },
-            "period": {
-                "instant": True,
-                "start_date": None,
-                "end_date": "2020-01-01",
-            },
-        }
+        c_id="c-01",
+        entity={
+            "identifier": "fake_id",
+            "dimensions": [
+                {
+                    "name": "dimension_1",
+                    "value": "value_1",
+                    "dimension_type": DimensionType.EXPLICIT,
+                },
+                {
+                    "name": "dimension_2",
+                    "value": "value_2",
+                    "dimension_type": DimensionType.EXPLICIT,
+                },
+                {
+                    "name": "dimension_3",
+                    "value": "value_3",
+                    "dimension_type": DimensionType.EXPLICIT,
+                },
+            ],
+        },
+        period={
+            "instant": True,
+            "start_date": None,
+            "end_date": "2020-01-01",
+        },
     )
 
 

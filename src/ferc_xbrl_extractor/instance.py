@@ -37,7 +37,7 @@ class Period(BaseModel):
     end_date: str
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Period":
+    def from_xml(cls, elem: Element) -> Period:
         """Construct Period from XML element."""
         instant = elem.find(f"{{{XBRL_INSTANCE}}}instant")
         if instant is not None:
@@ -87,7 +87,7 @@ class Axis(BaseModel):
         return name.split(":")[1] if ":" in name else name
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Axis":
+    def from_xml(cls, elem: Element) -> Axis:
         """Construct Axis from XML element."""
         # A parsed element's tag is always a plain str; only an as-yet-unparsed,
         # freshly-constructed element could have a QName tag instead.
@@ -123,7 +123,7 @@ class Entity(BaseModel):
     dimensions: list[Axis]
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Entity":
+    def from_xml(cls, elem: Element) -> Entity:
         """Construct Entity from XML element."""
         # Segment node contains dimensions prefixed with xbrldi
         segment = elem.find(f"{{{XBRL_INSTANCE}}}segment")
@@ -161,7 +161,7 @@ class Context(BaseModel):
     period: Period
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Context":
+    def from_xml(cls, elem: Element) -> Context:
         """Construct Context from XML element."""
         entity_elem = elem.find(f"{{{XBRL_INSTANCE}}}entity")
         period_elem = elem.find(f"{{{XBRL_INSTANCE}}}period")
@@ -229,7 +229,7 @@ class Fact(BaseModel):
     value: str | None = None
 
     @classmethod
-    def from_xml(cls, elem: Element) -> "Fact":
+    def from_xml(cls, elem: Element) -> Fact:
         """Construct Fact from XML element."""
         # Get prefix from namespace map to strip from fact name
         prefix = f"{{{elem.nsmap[elem.prefix]}}}"
@@ -392,7 +392,7 @@ class InstanceBuilder:
         parser = etree.XMLParser(huge_tree=True)
 
         # Check if instance contains path to file or file data and parse accordingly
-        tree = etree.parse(self.file, parser=parser)  # noqa: S320
+        tree = etree.parse(self.file, parser=parser)
         root = tree.getroot()
 
         # Dictionary mapping context ID's to context structures
