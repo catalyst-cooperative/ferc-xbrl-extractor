@@ -2,7 +2,7 @@
 
 import pytest
 
-import ferc_xbrl_extractor.arelle_interface as arelle_interface
+from ferc_xbrl_extractor import arelle_interface
 
 
 @pytest.mark.parametrize("max_retries", [0, -1])

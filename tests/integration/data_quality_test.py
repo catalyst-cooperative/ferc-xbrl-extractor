@@ -7,7 +7,7 @@ from ferc_xbrl_extractor.xbrl import ExtractOutput, extract
 
 Dataset = namedtuple("Dataset", ["form", "year"])
 
-DATASETS = [Dataset(form=f, year=y) for f in {1, 2, 6, 60, 714} for y in {2021, 2022}]
+DATASETS = [Dataset(form=f, year=y) for f in (1, 2, 6, 60, 714) for y in (2021, 2022)]
 
 
 @pytest.fixture(scope="session")
@@ -41,7 +41,7 @@ def extracted(metadata_dir, data_dir, request) -> ExtractOutput:
 
 
 def test_lost_facts_pct(extracted, request):
-    table_defs, table_data, stats = extracted
+    _table_defs, _table_data, stats = extracted
     total_facts = sum(
         instance_stats["total_facts"] for instance_stats in stats.values()
     )
@@ -64,7 +64,7 @@ def test_lost_facts_pct(extracted, request):
 def test_publication_time(extracted):
     table_defs, table_data, _stats = extracted
 
-    for table_name, table in table_defs.items():
+    for table_name in table_defs:
         assert (
             table_data[table_name]
             .reset_index(level="publication_time")
@@ -83,7 +83,7 @@ def test_all_data_has_corresponding_id(extracted):
     ]
     id_table = table_data[id_table_name].reset_index()
 
-    for table_name, table in table_defs.items():
+    for table_name in table_defs:
         data_table = table_data[table_name]
         data_table = data_table.reset_index()
         merged = data_table.merge(
@@ -98,7 +98,7 @@ def test_all_data_has_corresponding_id(extracted):
 def test_null_values(extracted):
     table_defs, table_data, _stats = extracted
 
-    for table_name, table in table_defs.items():
+    for table_name in table_defs:
         dataframe = table_data[table_name]
         if dataframe.empty:
             continue

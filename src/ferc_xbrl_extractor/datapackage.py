@@ -3,7 +3,7 @@
 import logging
 import re
 from collections.abc import Callable
-from typing import Any, Literal, Union
+from typing import Any, Literal
 
 import pandas as pd
 import pydantic
@@ -30,7 +30,7 @@ class Field(BaseModel):
     description: str
 
     @classmethod
-    def from_concept(cls, concept: Concept) -> "Field":
+    def from_concept(cls, concept: Concept) -> Field:
         """Construct a Field from an XBRL Concept.
 
         Args:
@@ -141,7 +141,7 @@ Map callables to schema field type to convert parsed values (Data Package `field
 """
 
 TABLE_NAME_PATTERN: re.Pattern[str] = re.compile(
-    r"(.+)\s+-\s+Schedule\s+-\s+(.*)", re.I
+    r"(.+)\s+-\s+Schedule\s+-\s+(.*)", re.IGNORECASE
 )
 """
 Simple regex pattern used to clean up table names.
@@ -259,7 +259,7 @@ class Schema(BaseModel):
     primary_key: list[str]
 
     @classmethod
-    def from_concept_tree(cls, concept: Concept, period_type: str) -> "Schema":
+    def from_concept_tree(cls, concept: Concept, period_type: str) -> Schema:
         """Deduce schema from concept tree.
 
         Traverse Concept tree to get columns that should comprise output table.
@@ -311,7 +311,7 @@ class Resource(BaseModel):
     @classmethod
     def from_link_role(
         cls, fact_table: LinkRole, period_type: str, db_uri: str
-    ) -> Union["Resource", None]:
+    ) -> Resource | None:
         """Generate a Resource from a fact table (defined by a LinkRole).
 
         If the fact table is empty, i.e. there are no data columns, return None.
@@ -348,7 +348,7 @@ class Resource(BaseModel):
         period_type = "instant" if "date" in self.schema_.primary_key else "duration"
         return period_type
 
-    def merge_resources(self, other: "Resource", other_version: str) -> "Resource":
+    def merge_resources(self, other: Resource, other_version: str) -> Resource:
         """Merge same resource from multiple taxonomies.
 
         This method attempts to merge resource definitions from multiple taxonomies
@@ -487,7 +487,7 @@ class Datapackage(BaseModel):
     @classmethod
     def from_taxonomies(
         cls, taxonomies: dict[str, Taxonomy], db_uri: str, form_number: int = 1
-    ) -> "Datapackage":
+    ) -> Datapackage:
         """Construct a Datapackage from parsed XBRL taxonomies.
 
         FERC regularly releases new versions of their XBRL taxonomies, meaning

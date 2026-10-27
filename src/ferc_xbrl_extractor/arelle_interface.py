@@ -60,9 +60,9 @@ def _taxonomy_view(
             cntlr.logger.debug(f"Try #{try_count}: {taxonomy_source=}")
             taxonomy = ModelXbrl.load(model_manager, taxonomy_source)
             break
-        except FileExistsError as e:
+        except FileExistsError:
             if (try_count + 1) == max_retries:
-                raise e
+                raise
             backoff = 2 ** (try_count + 1)
             cntlr.logger.warning(f"Failed try #{try_count}, retrying in {backoff}s")
             time.sleep(backoff)
@@ -147,7 +147,7 @@ class Metadata(BaseModel):
     balance: Literal["credit", "debit"] | None = None
 
     @classmethod
-    def from_concept(cls, concept: ModelConcept) -> "Metadata":
+    def from_concept(cls, concept: ModelConcept) -> Metadata:
         """Get metadata for a single XBRL Concept.
 
         This function will create a Metadata object with metadata extracted for
